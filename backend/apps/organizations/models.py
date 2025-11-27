@@ -18,7 +18,6 @@ class Organization(models.Model):
     phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     
-    # Add is_active field if you need it
     is_active = models.BooleanField(default=True)
     
     created_by = models.ForeignKey(
@@ -43,6 +42,11 @@ class Organization(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.subdomain})"
+        
+    @property
+    def is_main_organization(self): # <-- ADDED HELPER PROPERTY
+        """Helper property to check the organization type."""
+        return self.organization_type == 'main'
 
     class Meta:
         verbose_name = "Organization"

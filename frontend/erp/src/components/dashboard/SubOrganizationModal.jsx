@@ -1,65 +1,71 @@
-import React, { useState } from 'react';
-import { X, Building, Eye, EyeOff } from 'lucide-react';
-import { organizationService } from '../../services/organizationService';
-
-const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
+import React, { useState } from "react";
+import { X, Building, Eye, EyeOff } from "lucide-react";
+import { organizationService } from "../../services/organizationService";
+import { availableModule } from "../modules/index";
+const SubOrganizationModal = ({ onClose, onSuccess }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     // Step 1: Organization Details
-    name: '',
-    subdomain: '',
-    plan_tier: 'basic',
-    email: '',
-    phone: '',
-    address: '',
+    name: "",
+    subdomain: "",
+    plan_tier: "basic",
+    email: "",
+    phone: "",
+    address: "",
 
     // Step 2: Admin User Details
-    admin_email: '',
-    admin_password: '',
-    admin_first_name: '',
-    admin_last_name: '',
+    admin_email: "",
+    admin_password: "",
+    admin_first_name: "",
+    admin_last_name: "",
 
     // Step 3: Module Selection
-    selected_modules: []
+    selected_modules: [],
   });
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
-    if (type === 'checkbox') {
+
+    // MODULE CHECKBOX HANDLING
+    if (type === "checkbox") {
+      const moduleObj = availableModule.find((m) => m.code === value);
+
       const updatedModules = checked
-        ? [...formData.selected_modules, value]
-        : formData.selected_modules.filter(mod => mod !== value);
+        ? [...formData.selected_modules, moduleObj] // Add module object
+        : formData.selected_modules.filter((mod) => mod.code !== value); // Remove module
+     
+      setFormData((prev) => ({
+        ...prev,
+        selected_modules: updatedModules,
+      }));
       
-      setFormData(prev => ({
-        ...prev,
-        selected_modules: updatedModules
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      return;
     }
-    
-    setError('');
+
+    // NORMAL INPUTS
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    setError("");
   };
 
   const validateStep1 = () => {
     if (!formData.name.trim()) {
-      setError('Organization name is required');
+      setError("Organization name is required");
       return false;
     }
     if (!formData.subdomain.trim()) {
-      setError('Subdomain is required');
+      setError("Subdomain is required");
       return false;
     }
     if (!formData.email.trim()) {
-      setError('Email is required');
+      setError("Email is required");
       return false;
     }
     return true;
@@ -67,19 +73,19 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
 
   const validateStep2 = () => {
     if (!formData.admin_email.trim()) {
-      setError('Admin email is required');
+      setError("Admin email is required");
       return false;
     }
     if (!formData.admin_password.trim()) {
-      setError('Admin password is required');
+      setError("Admin password is required");
       return false;
     }
     if (formData.admin_password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError("Password must be at least 8 characters");
       return false;
     }
     if (!formData.admin_first_name.trim()) {
-      setError('Admin first name is required');
+      setError("Admin first name is required");
       return false;
     }
     return true;
@@ -98,24 +104,27 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      setError('');
+      setError("");
+      const payload = {
+      ...formData,
+      selected_modules: formData.selected_modules.map(m => m.code) // 🔥 FIX
+    };
+      const result = await organizationService.createSubOrganization(payload);
 
-      const result = await organizationService.createSubOrganization(formData);
-      
       if (result.success) {
         onSuccess();
       } else {
         setError(result.error);
       }
     } catch (err) {
-      setError('Failed to create sub-organization');
+      setError("Failed to create sub-organization");
     } finally {
       setLoading(false);
     }
   };
 
   const getModulesForPlan = (plan) => {
-    return availableModules.filter(module => 
+    return availableModule.filter((module) =>
       module.available_in_plans.includes(plan)
     );
   };
@@ -129,9 +138,7 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
             <h2 className="text-xl font-semibold text-gray-900">
               Create Sub Organization
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Step {step} of 3
-            </p>
+            <p className="text-sm text-gray-600 mt-1">Step {step} of 3</p>
           </div>
           <button
             onClick={onClose}
@@ -165,7 +172,7 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
               <h3 className="text-lg font-medium text-gray-900">
                 Organization Information
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -262,7 +269,7 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
               <h3 className="text-lg font-medium text-gray-900">
                 Admin User Account
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -312,7 +319,7 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
                   </label>
                   <div className="relative">
                     <input
-                      type={showPassword ? 'text' : 'password'}
+                      type={showPassword ? "text" : "password"}
                       name="admin_password"
                       value={formData.admin_password}
                       onChange={handleInputChange}
@@ -339,23 +346,26 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
                 Module Access
               </h3>
               <p className="text-sm text-gray-600">
-                Select which modules this sub-organization can access. 
-                Available modules depend on the selected plan ({formData.plan_tier}).
+                Select which modules this sub-organization can access. Available
+                modules depend on the selected plan ({formData.plan_tier}).
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {getModulesForPlan(formData.plan_tier).map((module) => (
                   <label
-                    key={module.module_id}
+                    key={module.code}
                     className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
                   >
                     <input
                       type="checkbox"
                       value={module.code}
-                      checked={formData.selected_modules.includes(module.code)}
+                      checked={formData.selected_modules.some(
+                        (m) => m.code === module.code
+                      )}
                       onChange={handleInputChange}
                       className="mt-1 text-blue-600 focus:ring-blue-500"
                     />
+
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
                         <span className="font-medium text-gray-900">
@@ -416,7 +426,7 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
                   disabled={loading}
                   className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
-                  {loading ? 'Creating...' : 'Create Organization'}
+                  {loading ? "Creating..." : "Create Organization"}
                 </button>
               )}
             </div>

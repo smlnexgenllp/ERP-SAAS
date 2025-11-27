@@ -12,7 +12,7 @@ import SubOrganizationModal from '../../components/dashboard/SubOrganizationModa
 import StatsGrid from '../../components/dashboard/StatsGrid';
 
 const Dashboard = () => {
-  const { user, organization, logout } = useAuth();
+  const { u ser, organization, logout } = useAuth();
   const navigate = useNavigate();
   
   const [modules, setModules] = useState([]);
@@ -34,28 +34,37 @@ const Dashboard = () => {
     loadDashboardData();
   }, [user, organization, navigate]);
 
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load available modules
-      const modulesData = await moduleService.getAvailableModules();
-      setModules(modulesData);
+ // In Dashboard.jsx
 
-      // Load sub-organizations
-      const subOrgsData = await organizationService.getSubOrganizations();
-      setSubOrganizations(subOrgsData);
+const loadDashboardData = async () => {
+  try {
+    setLoading(true);
+    
+    // Load available modules
+    const modulesData = await moduleService.getAvailableModules();
+    setModules(modulesData);
+    
+    // Load sub-organizations
+    const subOrgsData = await organizationService.getSubOrganizations();
+    setSubOrganizations(subOrgsData);
 
-      // Load stats
-      const statsData = await organizationService.getDashboardStats();
-      setStats(statsData);
+    // Load stats
+    const statsData = await organizationService.getDashboardStats();
+    setStats(statsData);
 
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-    } finally {
-      setLoading(false);
+  } catch (error) {
+    console.error('Failed to load dashboard data:', error);
+    // ⚠️ Handle the critical error here!
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Assuming 'logout' redirects to the login page
+      logout(); 
     }
-  };
+    // Optionally show a user-facing error message
+    // setErrorMessage("Could not load data. Please refresh."); 
+  } finally {
+    setLoading(false); // <--- CRITICAL: Make sure loading is set to false even on error
+  }
+};
 
   const handleModuleClick = (module) => {
     if (module.is_active) {

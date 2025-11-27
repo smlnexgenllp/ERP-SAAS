@@ -1,15 +1,22 @@
+// src/services/organizationService.js
+
 import api from './api';
 
 export const organizationService = {
   getSubOrganizations: async () => {
     try {
       const response = await api.get('/organizations/main-org/sub-organizations/');
+      // Assuming successful Django response structure { success: true, data: [...] }
       return response.data.data || [];
     } catch (error) {
       console.error('Error fetching sub-organizations:', error);
-      if (error.response?.status === 403) {
-        throw new Error('Access denied. Please check your permissions.');
+      
+      // CRITICAL: Re-throw 401/403/500 so the component can handle global state/logout
+      if (error.response?.status >= 400) {
+        // Throw the original error object or a derived error for the caller to handle
+        throw error; 
       }
+      // For all other network issues, you can return a default array if appropriate
       return [];
     }
   },
@@ -17,6 +24,7 @@ export const organizationService = {
   getDashboardStats: async () => {
     try {
       const response = await api.get('/organizations/main-org/dashboard/');
+      // Assuming successful Django response structure { success: true, data: { main_organization: {...} } }
       return response.data.data?.main_organization || {
         totalSubOrgs: 0,
         activeModules: 0,
@@ -24,9 +32,12 @@ export const organizationService = {
       };
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
-      if (error.response?.status === 403) {
-        throw new Error('Access denied. Please check your permissions.');
+      
+      // CRITICAL: Re-throw 401/403/500
+      if (error.response?.status >= 400) {
+        throw error;
       }
+      
       return {
         totalSubOrgs: 0,
         activeModules: 0,
@@ -35,5 +46,17 @@ export const organizationService = {
     }
   },
 
-  // ... other methods
+  // NOTE: You will need a method for fetching available modules too
+  getAvailableModules: async () => {
+    try {
+      const response = await api.get('/organizations/main-org/available-modules/');
+      return response.data.data || [];
+    } catch (error) {
+      console.error('Error fetching available modules:', error);
+      if (error.response?.status >= 400) {
+        throw error;
+      }
+      return [];
+    }
+  },
 };

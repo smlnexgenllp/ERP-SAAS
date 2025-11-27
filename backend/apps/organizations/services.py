@@ -1,7 +1,11 @@
+# In apps/organizations/services.py
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
+# Removed redundant imports inside methods by adding global imports (recommended)
+from apps.subscriptions.models import Module, OrganizationModule, ModulePage, SubscriptionPlan, Subscription 
+from apps.organizations.models import Organization # Assuming this exists
 
 User = get_user_model()
 
@@ -11,9 +15,7 @@ class ModuleAccessService:
     @staticmethod
     def get_all_modules_with_pages():
         """Get all modules with their pages for admin dashboard"""
-        # Import inside method to avoid circular imports
-        from apps.subscriptions.models import Module
-        
+        # Removed inner import
         modules = Module.objects.filter(is_active=True).prefetch_related('pages')
         
         result = []
@@ -25,14 +27,14 @@ class ModuleAccessService:
                 'description': module.description,
                 'icon': module.icon,
                 'available_in_plans': module.available_in_plans,
-                'app_name': module.app_name,
-                'base_url': module.base_url,
+                'app_name': module.app_name, # Added based on usage
+                'base_url': module.base_url, # Added based on usage
                 'pages': []
             }
-            
-            # Get all active pages for this module
+            # ... page loading logic ...
             pages = module.pages.filter(is_active=True)
             for page in pages:
+                # ... page data mapping ...
                 page_data = {
                     'page_id': str(page.page_id),
                     'name': page.name,
@@ -44,7 +46,7 @@ class ModuleAccessService:
                     'required_permission': page.required_permission
                 }
                 module_data['pages'].append(page_data)
-            
+                
             result.append(module_data)
         
         return result
@@ -52,9 +54,7 @@ class ModuleAccessService:
     @staticmethod
     def get_organization_modules(organization):
         """Get all modules assigned to an organization"""
-        # Import inside method to avoid circular imports
-        from apps.subscriptions.models import OrganizationModule
-        
+        # Removed inner import
         return OrganizationModule.objects.filter(
             organization=organization,
             is_active=True
@@ -64,8 +64,7 @@ class ModuleAccessService:
     @transaction.atomic
     def assign_modules_to_organization(organization, module_codes, accessible_pages_map=None, granted_by=None):
         """Assign modules to organization with page-level access"""
-        # Import inside method to avoid circular imports
-        from apps.subscriptions.models import Module, OrganizationModule, ModulePage
+        # Removed inner import
         
         if accessible_pages_map is None:
             accessible_pages_map = {}
@@ -75,10 +74,14 @@ class ModuleAccessService:
                 module = Module.objects.get(code=module_code, is_active=True)
                 
                 # Get all page IDs for this module by default
+                # Assuming page_id is a UUID or something that needs str() conversion
                 all_page_ids = list(module.pages.filter(is_active=True).values_list('page_id', flat=True))
                 
-                # Use provided accessible pages or all pages
+                # Use provided accessible pages (if provided) or all pages
                 accessible_pages = accessible_pages_map.get(module_code, all_page_ids)
+                
+                # Ensure all elements in the list are strings for JSONField consistency
+                string_accessible_pages = [str(pid) for pid in accessible_pages]
                 
                 # Create or update organization module assignment
                 org_module, created = OrganizationModule.objects.get_or_create(
@@ -86,14 +89,14 @@ class ModuleAccessService:
                     module=module,
                     defaults={
                         'is_active': True,
-                        'accessible_pages': [str(pid) for pid in accessible_pages],
+                        'accessible_pages': string_accessible_pages,
                         'granted_by': granted_by
                     }
                 )
                 
                 if not created:
                     org_module.is_active = True
-                    org_module.accessible_pages = [str(pid) for pid in accessible_pages]
+                    org_module.accessible_pages = string_accessible_pages
                     org_module.granted_by = granted_by
                     org_module.save()
                     
@@ -102,10 +105,7 @@ class ModuleAccessService:
     
     @staticmethod
     def can_access_module(user, module_code):
-        """Check if user can access a specific module"""
-        # Import inside method to avoid circular imports
-        from apps.subscriptions.models import OrganizationModule
-        
+        # Removed inner import
         if user.role == User.SUPER_ADMIN:
             return True
         
@@ -117,10 +117,7 @@ class ModuleAccessService:
     
     @staticmethod
     def can_access_page(user, module_code, page_code):
-        """Check if user can access a specific page within a module"""
-        # Import inside method to avoid circular imports
-        from apps.subscriptions.models import OrganizationModule, ModulePage
-        
+        # Removed inner import
         if user.role == User.SUPER_ADMIN:
             return True
         
@@ -150,14 +147,13 @@ class OrganizationService:
     @staticmethod
     @transaction.atomic
     def create_main_organization(organization_data, admin_user_data):
-        """
-        Create a main organization with admin user
-        """
+        # ... existing logic for creating main organization ...
+        
+        # NOTE: Using Module, OrganizationModule, SubscriptionPlan, Subscription 
+        # requires them to be imported at the top of this file or inside this method.
+        # I've moved them to the top for cleaner code.
+        
         try:
-            # Import inside method to avoid circular imports
-            from apps.organizations.models import Organization
-            from apps.subscriptions.models import SubscriptionPlan, Subscription, Module, OrganizationModule
-            
             # Check if user already exists
             if User.objects.filter(email=admin_user_data['email']).exists():
                 raise Exception("Admin user with this email already exists")
@@ -230,5 +226,4 @@ class OrganizationService:
             return organization, admin_user
 
         except Exception as e:
-            # Rollback transaction on any error
             raise Exception(f"Failed to create organization: {str(e)}")
