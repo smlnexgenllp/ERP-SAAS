@@ -15,11 +15,12 @@ const Login = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
+  // ← FIXED: Remove navigate from dependencies
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated]); // Only watch isAuthenticated
 
   const handleChange = (e) => {
     setFormData({
@@ -36,10 +37,8 @@ const Login = () => {
 
     const result = await login(formData);
     
-    if (result.success) {
-      navigate('/dashboard');
-    } else {
-      setError(result.error);
+    if (!result.success) {
+      setError(result.error || 'Invalid credentials');
     }
     
     setLoading(false);

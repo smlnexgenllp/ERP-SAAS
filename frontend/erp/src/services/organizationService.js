@@ -34,6 +34,18 @@ export const organizationService = {
       };
     }
   },
+  createSubOrganization: async (data) => {
+    try {
+      const response = await api.post('/organizations/sub-organizations/create/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating sub-organization:', error);
+      if (error.response?.data) {
+        throw new Error(error.response.data.error || 'Failed to create sub-organization');
+      }
+      throw error;
+    }
+  },
 
   // ... other methods
 };

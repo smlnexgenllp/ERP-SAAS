@@ -23,8 +23,8 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
     admin_first_name: '',
     admin_last_name: '',
 
-    // Step 3: Module Selection
-    selected_modules: []
+    // Step 3: Module Selection - FIXED: Changed to module_access
+    module_access: []  // Changed from selected_modules to module_access
   });
 
   const handleInputChange = (e) => {
@@ -32,12 +32,12 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
     
     if (type === 'checkbox') {
       const updatedModules = checked
-        ? [...formData.selected_modules, value]
-        : formData.selected_modules.filter(mod => mod !== value);
+        ? [...formData.module_access, value]  // Changed from selected_modules to module_access
+        : formData.module_access.filter(mod => mod !== value);  // Changed here too
       
       setFormData(prev => ({
         ...prev,
-        selected_modules: updatedModules
+        module_access: updatedModules  // Changed from selected_modules to module_access
       }));
     } else {
       setFormData(prev => ({
@@ -100,15 +100,21 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
       setLoading(true);
       setError('');
 
+      // Debug: Log what we're sending
+      console.log('📤 Submitting sub-organization data:', formData);
+      console.log('📤 Selected modules:', formData.module_access);
+
       const result = await organizationService.createSubOrganization(formData);
       
       if (result.success) {
         onSuccess();
+        onClose();
       } else {
-        setError(result.error);
+        setError(result.error || 'Failed to create sub-organization');
       }
     } catch (err) {
-      setError('Failed to create sub-organization');
+      console.error('❌ Submission error:', err);
+      setError(err.message || 'Failed to create sub-organization');
     } finally {
       setLoading(false);
     }
@@ -116,8 +122,15 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
 
   const getModulesForPlan = (plan) => {
     return availableModules.filter(module => 
+      module.available_in_plans && 
       module.available_in_plans.includes(plan)
     );
+  };
+
+  // Debug function to check available modules
+  const debugAvailableModules = () => {
+    console.log('🔍 Available modules:', availableModules);
+    console.log('🔍 Modules for plan:', formData.plan_tier, getModulesForPlan(formData.plan_tier));
   };
 
   return (
@@ -343,6 +356,15 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
                 Available modules depend on the selected plan ({formData.plan_tier}).
               </p>
 
+              {/* Debug button - remove in production */}
+              <button 
+                type="button" 
+                onClick={debugAvailableModules}
+                className="text-xs bg-gray-100 px-2 py-1 rounded"
+              >
+                Debug Modules
+              </button>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {getModulesForPlan(formData.plan_tier).map((module) => (
                   <label
@@ -352,7 +374,7 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
                     <input
                       type="checkbox"
                       value={module.code}
-                      checked={formData.selected_modules.includes(module.code)}
+                      checked={formData.module_access.includes(module.code)}  // Changed from selected_modules to module_access
                       onChange={handleInputChange}
                       className="mt-1 text-blue-600 focus:ring-blue-500"
                     />
@@ -365,8 +387,17 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
                       <p className="text-sm text-gray-600">
                         {module.description}
                       </p>
-                      <div className="mt-2 text-xs text-gray-500">
-                        {module.pages?.length || 0} pages available
+                      <div className="mt-2 flex justify-between items-center">
+                        <span className="text-xs text-gray-500">
+                          {module.pages?.length || 0} pages available
+                        </span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          formData.module_access.includes(module.code)  // Changed here too
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {formData.module_access.includes(module.code) ? 'Selected' : 'Not Selected'}  {/* Changed here */}
+                        </span>
                       </div>
                     </div>
                   </label>
@@ -379,6 +410,18 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
                   <p>No modules available for the {formData.plan_tier} plan.</p>
                 </div>
               )}
+
+              {/* Show selected modules count */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Selected: {formData.module_access.length} modules</strong>  {/* Changed here */}
+                  {formData.module_access.length > 0 && (
+                    <span className="ml-2">
+                      ({formData.module_access.join(', ')})
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
           )}
 

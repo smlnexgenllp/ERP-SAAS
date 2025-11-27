@@ -15,27 +15,70 @@ export const AuthProvider = ({ children }) => {
   const [organization, setOrganization] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [csrfToken, setCsrfToken] = useState('');
 
-  // Check if user is logged in on app start
+  // Get CSRF token on app start
   useEffect(() => {
+    getCsrfToken();
     checkAuthStatus();
   }, []);
 
+  // Function to get CSRF token
+  const getCsrfToken = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/auth/csrf-token/', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCsrfToken(data.csrfToken);
+        console.log('CSRF token obtained:', data.csrfToken);
+      } else {
+        console.error('Failed to get CSRF token');
+      }
+    } catch (error) {
+      console.error('Error getting CSRF token:', error);
+    }
+  };
+
+  // Function to get CSRF token from cookies (fallback)
+  const getCsrfTokenFromCookie = () => {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  };
+
   const checkAuthStatus = async () => {
     try {
+      // Get CSRF token from cookie as fallback
+      const token = csrfToken || getCsrfTokenFromCookie();
+      
       const response = await fetch('http://localhost:8000/api/auth/current-user/', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { 'X-CSRFToken': token }),
         },
         credentials: 'include',
       });
 
-      console.log('Auth status check response:', response.status); // Debug
+      console.log('Auth status check response:', response.status);
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Auth status data:', data); // Debug
+        console.log('Auth status data:', data);
         if (data.success) {
           setUser(data.user);
           setOrganization(data.organization);
@@ -49,48 +92,65 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (credentials) => {
-    try {
-      console.log('Attempting login with:', credentials); // Debug
-      
-      const response = await fetch('http://localhost:8000/api/auth/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-        credentials: 'include',
-      });
+  // In your login function in AuthContext.jsx
+const login = async (credentials) => {
+  try {
+    console.log('Attempting login with:', credentials);
+    
+    // Get CSRF token from cookie as fallback
+    const token = csrfToken || getCsrfTokenFromCookie();
+    
+    const response = await fetch('http://localhost:8000/api/auth/login/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'X-CSRFToken': token }),
+      },
+      body: JSON.stringify(credentials),
+      credentials: 'include',
+    });
 
-      console.log('Login response status:', response.status); // Debug
-      
-      const data = await response.json();
-      console.log('Login response data:', data); // Debug
+    console.log('Login response status:', response.status);
+    
+    const data = await response.json();
+    console.log('Login response data:', data);
 
-      if (data.success) {
-        setUser(data.user);
-        setOrganization(data.organization);
-        setIsAuthenticated(true);
-        return { success: true };
-      } else {
-        return { 
-          success: false, 
-          error: data.error || 'Login failed' 
-        };
-      }
-    } catch (error) {
-      console.error('Login error:', error);
+    if (data.success) {
+      setUser(data.user);
+      setOrganization(data.organization);
+      setIsAuthenticated(true);
+      
+      // Return user role for redirection
+      return { 
+        success: true, 
+        user: data.user,
+        organization: data.organization
+      };
+    } else {
       return { 
         success: false, 
-        error: 'Network error. Please try again.' 
+        error: data.error || 'Login failed' 
       };
     }
-  };
+  } catch (error) {
+    console.error('Login error:', error);
+    return { 
+      success: false, 
+      error: 'Network error. Please try again.' 
+    };
+  }
+};
 
   const logout = async () => {
     try {
+      // Get CSRF token from cookie as fallback
+      const token = csrfToken || getCsrfTokenFromCookie();
+      
       await fetch('http://localhost:8000/api/auth/logout/', {
         method: 'POST',
+        headers: {
+          ...(token && { 'X-CSRFToken': token }),
+        },
         credentials: 'include',
       });
     } catch (error) {
@@ -107,9 +167,11 @@ export const AuthProvider = ({ children }) => {
     organization,
     isAuthenticated,
     loading,
+    csrfToken,
     login,
     logout,
     checkAuthStatus,
+    getCsrfToken,
   };
 
   return (
