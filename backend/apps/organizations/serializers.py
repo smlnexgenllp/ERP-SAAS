@@ -56,29 +56,6 @@ class OrganizationSerializer(serializers.ModelSerializer):
     def get_user_count(self, obj):
         return obj.user_set.count()
 
-class ModuleAccessSerializer(serializers.Serializer):
-    module_access = serializers.JSONField()
-    
-    def validate_module_access(self, value):
-        """Validate module access data structure"""
-        if not isinstance(value, dict):
-            raise serializers.ValidationError("Module access must be a dictionary")
-        
-        for module_id, access_data in value.items():
-            if not isinstance(access_data, dict):
-                raise serializers.ValidationError(f"Access data for module {module_id} must be a dictionary")
-            
-            if 'is_active' not in access_data:
-                raise serializers.ValidationError(f"is_active field required for module {module_id}")
-            
-            if not isinstance(access_data['is_active'], bool):
-                raise serializers.ValidationError(f"is_active must be boolean for module {module_id}")
-            
-            if 'accessible_pages' in access_data and not isinstance(access_data['accessible_pages'], list):
-                raise serializers.ValidationError(f"accessible_pages must be a list for module {module_id}")
-        
-        return value
-
 class SubOrganizationSerializer(serializers.ModelSerializer):
     user_count = serializers.SerializerMethodField()
     active_modules_count = serializers.SerializerMethodField()
@@ -108,6 +85,68 @@ class SubOrganizationSerializer(serializers.ModelSerializer):
             return subscription.status
         except Subscription.DoesNotExist:
             return 'inactive'
+
+class SubOrganizationCreationSerializer(serializers.Serializer):
+    """Serializer for sub-organization creation"""
+    # Organization Details
+    name = serializers.CharField(max_length=255)
+    subdomain = serializers.CharField(max_length=100)
+    plan_tier = serializers.CharField(max_length=50, required=False, default='basic')
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    
+    # Admin User Details
+    admin_email = serializers.EmailField()
+    admin_password = serializers.CharField(write_only=True, min_length=8)
+    admin_first_name = serializers.CharField(max_length=100)
+    admin_last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    
+    # Module Access
+    module_access = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False,
+        default=list
+    )
+    
+    def validate(self, data):
+        """Validate the sub-organization creation data"""
+        # Check subdomain uniqueness
+        if Organization.objects.filter(subdomain=data['subdomain']).exists():
+            raise serializers.ValidationError({
+                'subdomain': ['Subdomain already exists']
+            })
+        
+        # Check if admin email already exists
+        if User.objects.filter(email=data['admin_email']).exists():
+            raise serializers.ValidationError({
+                'admin_email': ['Admin email already exists']
+            })
+        
+        return data
+
+class ModuleAccessSerializer(serializers.Serializer):
+    module_access = serializers.JSONField()
+    
+    def validate_module_access(self, value):
+        """Validate module access data structure"""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Module access must be a dictionary")
+        
+        for module_id, access_data in value.items():
+            if not isinstance(access_data, dict):
+                raise serializers.ValidationError(f"Access data for module {module_id} must be a dictionary")
+            
+            if 'is_active' not in access_data:
+                raise serializers.ValidationError(f"is_active field required for module {module_id}")
+            
+            if not isinstance(access_data['is_active'], bool):
+                raise serializers.ValidationError(f"is_active must be boolean for module {module_id}")
+            
+            if 'accessible_pages' in access_data and not isinstance(access_data['accessible_pages'], list):
+                raise serializers.ValidationError(f"accessible_pages must be a list for module {module_id}")
+        
+        return value
 
 class ModulePageSerializer(serializers.Serializer):
     page_id = serializers.UUIDField()

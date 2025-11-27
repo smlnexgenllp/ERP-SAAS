@@ -59,9 +59,9 @@ const Register = () => {
       }
     };
 
-    const timeoutId = setTimeout(checkSubdomain, 500);
-    return () => clearTimeout(timeoutId);
-  }, [formData.subdomain]);
+    const timeoutId = setTimeout(checkSubdomain, 500);  // ← BUG HERE
+  return () => clearTimeout(timeoutId);
+}, [formData.subdomain]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

@@ -12,73 +12,70 @@ import SubOrganizationModal from '../../components/dashboard/SubOrganizationModa
 import StatsGrid from '../../components/dashboard/StatsGrid';
 
 const Dashboard = () => {
-  const { u ser, organization, logout } = useAuth();
+  const { user, organization, logout } = useAuth();
   const navigate = useNavigate();
-  
+
   const [modules, setModules] = useState([]);
   const [subOrganizations, setSubOrganizations] = useState([]);
   const [stats, setStats] = useState({
     totalSubOrgs: 0,
     activeModules: 0,
-    totalUsers: 0
+    totalUsers: 0,
   });
   const [showSubOrgModal, setShowSubOrgModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!user || !organization) {
-      navigate('/login');
-      return;
+      navigate('/login', { replace: true });
     }
+  }, [user, organization]); // navigate intentionally omitted from deps
+
+  // Load all dashboard data when user & organization are available
+  useEffect(() => {
+    if (!user || !organization) return;
+
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+
+        // Parallel API calls — much faster
+        const [modulesData, subOrgsData, statsData] = await Promise.all([
+          moduleService.getAvailableModules(),
+          organizationService.getSubOrganizations(),
+          organizationService.getDashboardStats(),
+        ]);
+
+        setModules(modulesData || []);
+        setSubOrganizations(subOrgsData || []);
+        setStats(statsData || { totalSubOrgs: 0, activeModules: 0, totalUsers: 0 });
+
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+        // Optional: show toast notification here
+      } finally {
+        setLoading(false);
+      }
+    };
 
     loadDashboardData();
-  }, [user, organization, navigate]);
-
- // In Dashboard.jsx
-
-const loadDashboardData = async () => {
-  try {
-    setLoading(true);
-    
-    // Load available modules
-    const modulesData = await moduleService.getAvailableModules();
-    setModules(modulesData);
-    
-    // Load sub-organizations
-    const subOrgsData = await organizationService.getSubOrganizations();
-    setSubOrganizations(subOrgsData);
-
-    // Load stats
-    const statsData = await organizationService.getDashboardStats();
-    setStats(statsData);
-
-  } catch (error) {
-    console.error('Failed to load dashboard data:', error);
-    // ⚠️ Handle the critical error here!
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      // Assuming 'logout' redirects to the login page
-      logout(); 
-    }
-    // Optionally show a user-facing error message
-    // setErrorMessage("Could not load data. Please refresh."); 
-  } finally {
-    setLoading(false); // <--- CRITICAL: Make sure loading is set to false even on error
-  }
-};
+  }, [user, organization]); // Only re-run if auth changes
 
   const handleModuleClick = (module) => {
-    if (module.is_active) {
-      // Navigate to module if active
+    if (module.is_active && module.base_url) {
       navigate(module.base_url);
     }
-    // If not active, maybe show a tooltip or message
   };
 
   const handleSubOrgCreated = () => {
     setShowSubOrgModal(false);
-    loadDashboardData(); // Refresh data
+    // Refresh only sub-orgs and stats (optional optimization)
+    organizationService.getSubOrganizations().then(setSubOrganizations);
+    organizationService.getDashboardStats().then(setStats);
   };
 
+  // Loading State
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -90,21 +87,22 @@ const loadDashboardData = async () => {
     );
   }
 
+  // Main Dashboard UI
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader 
-        organization={organization} 
+      <DashboardHeader
+        organization={organization}
         user={user}
         onLogout={logout}
         onCreateSubOrg={() => setShowSubOrgModal(true)}
       />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Grid */}
         <StatsGrid stats={stats} />
 
-        {/* Modules Section */}
-        <div className="mt-8">
+        {/* Available Modules */}
+        <section className="mt-8">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Available Modules</h2>
@@ -113,15 +111,11 @@ const loadDashboardData = async () => {
               </p>
             </div>
           </div>
+          <ModuleGrid modules={modules} onModuleClick={handleModuleClick} />
+        </section>
 
-          <ModuleGrid 
-            modules={modules}
-            onModuleClick={handleModuleClick}
-          />
-        </div>
-
-        {/* Sub Organizations Section */}
-        <div className="mt-12">
+        {/* Sub Organizations */}
+        <section className="mt-12">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Sub Organizations</h2>
@@ -167,33 +161,35 @@ const loadDashboardData = async () => {
                     <tr key={org.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {org.name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {org.subdomain}
-                          </div>
+                          <div className="text-sm font-medium text-gray-900">{org.name}</div>
+                          <div className="text-sm text-gray-500">{org.subdomain}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          org.plan_tier === 'enterprise' ? 'bg-purple-100 text-purple-800' :
-                          org.plan_tier === 'advance' ? 'bg-blue-100 text-blue-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {org.plan_tier}
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            org.plan_tier === 'enterprise'
+                              ? 'bg-purple-100 text-purple-800'
+                              : org.plan_tier === 'advance'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
+                        >
+                          {org.plan_tier || 'basic'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {org.active_modules_count}
+                        {org.active_modules_count ?? 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {org.user_count}
+                        {org.user_count ?? 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          org.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            org.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}
+                        >
                           {org.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -231,10 +227,10 @@ const loadDashboardData = async () => {
               </div>
             </div>
           )}
-        </div>
+        </section>
       </main>
 
-      {/* Sub Organization Creation Modal */}
+      {/* Sub Organization Modal */}
       {showSubOrgModal && (
         <SubOrganizationModal
           onClose={() => setShowSubOrgModal(false)}

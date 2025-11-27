@@ -52,6 +52,54 @@ class ModuleAccessService:
         return result
     
     @staticmethod
+    def get_modules_for_plan(plan_tier):
+        """Get modules available for a specific plan tier"""
+        # Import inside method to avoid circular imports
+        from apps.subscriptions.models import Module
+        
+        # Convert plan_tier to lowercase for case-insensitive matching
+        plan_tier_lower = plan_tier.lower()
+        
+        modules = Module.objects.filter(
+            is_active=True
+        ).prefetch_related('pages')
+        
+        result = []
+        for module in modules:
+            # Check if module is available for the specified plan
+            if module.available_in_plans and plan_tier_lower in [p.lower() for p in module.available_in_plans]:
+                module_data = {
+                    'module_id': str(module.module_id),
+                    'name': module.name,
+                    'code': module.code,
+                    'description': module.description,
+                    'icon': module.icon,
+                    'available_in_plans': module.available_in_plans,
+                    'app_name': module.app_name,
+                    'base_url': module.base_url,
+                    'pages': []
+                }
+                
+                # Get all active pages for this module
+                pages = module.pages.filter(is_active=True)
+                for page in pages:
+                    page_data = {
+                        'page_id': str(page.page_id),
+                        'name': page.name,
+                        'code': page.code,
+                        'path': page.path,
+                        'description': page.description,
+                        'icon': page.icon,
+                        'order': page.order,
+                        'required_permission': page.required_permission
+                    }
+                    module_data['pages'].append(page_data)
+                
+                result.append(module_data)
+        
+        return result
+    
+    @staticmethod
     def get_organization_modules(organization):
         """Get all modules assigned to an organization"""
         # Removed inner import
@@ -144,86 +192,98 @@ class ModuleAccessService:
 class OrganizationService:
     """Service for organization management"""
 
+    # ... your existing create_main_organization method ...
+
     @staticmethod
     @transaction.atomic
-    def create_main_organization(organization_data, admin_user_data):
-        # ... existing logic for creating main organization ...
-        
-        # NOTE: Using Module, OrganizationModule, SubscriptionPlan, Subscription 
-        # requires them to be imported at the top of this file or inside this method.
-        # I've moved them to the top for cleaner code.
-        
+    def create_sub_organization(main_organization, organization_data, admin_user_data, module_access=None):
+        """
+        Create a sub-organization with admin user and module access
+        """
         try:
+            # Import inside method to avoid circular imports
+            from apps.organizations.models import Organization
+            from apps.subscriptions.models import SubscriptionPlan, Subscription, Module, OrganizationModule
+            
+            print(f"🔧 Creating sub-organization: {organization_data['name']}")
+            print(f"🔧 Module access data received: {module_access}")  # Debug
+            
             # Check if user already exists
             if User.objects.filter(email=admin_user_data['email']).exists():
                 raise Exception("Admin user with this email already exists")
 
-            # Create the admin user FIRST
+            # Create the admin user
             admin_user = User.objects.create_user(
                 username=admin_user_data['email'],
                 email=admin_user_data['email'],
                 password=admin_user_data['password'],
                 first_name=admin_user_data['first_name'],
                 last_name=admin_user_data.get('last_name', ''),
-                role=User.MAIN_ORG_ADMIN,
+                role=User.SUB_ORG_ADMIN,
                 is_verified=True,
                 is_active=True
             )
 
-            # Now create organization and link created_by = admin_user
-            organization = Organization.objects.create(
+            # Create sub-organization
+            sub_organization = Organization.objects.create(
                 name=organization_data['name'],
                 subdomain=organization_data['subdomain'],
-                organization_type='main',
-                plan_tier=organization_data.get('plan_tier', 'enterprise'),
+                organization_type='sub',
+                plan_tier=organization_data.get('plan_tier', 'basic'),
                 email=organization_data['email'],
                 phone=organization_data.get('phone', ''),
                 address=organization_data.get('address', ''),
-                created_by=admin_user
+                parent_organization=main_organization,
+                created_by=admin_user,
+                is_active=True
             )
 
             # Link user to organization
-            admin_user.organization = organization
+            admin_user.organization = sub_organization
             admin_user.save()
 
-            # Create subscription - handle if SubscriptionPlan doesn't exist
+            # Create subscription
             try:
-                plan = SubscriptionPlan.objects.get(code__iexact=organization.plan_tier)
+                plan = SubscriptionPlan.objects.get(code__iexact=sub_organization.plan_tier)
             except SubscriptionPlan.DoesNotExist:
-                # Try to get any active plan as fallback
                 plan = SubscriptionPlan.objects.filter(is_active=True).first()
-                if not plan:
-                    # Create a default plan if none exists
-                    plan = SubscriptionPlan.objects.create(
-                        name='Enterprise',
-                        code='enterprise',
-                        description='Default enterprise plan',
-                        price=0,
-                        is_active=True
-                    )
 
             Subscription.objects.create(
-                organization=organization,
+                organization=sub_organization,
                 plan=plan,
                 start_date=timezone.now(),
-                end_date=timezone.now() + timedelta(days=365 * 10),
+                end_date=timezone.now() + timedelta(days=365),
                 status='active',
                 is_trial=False
             )
 
-            # Assign all active modules with full page access
-            modules = Module.objects.filter(is_active=True)
-            for module in modules:
-                page_ids = list(module.pages.filter(is_active=True).values_list('page_id', flat=True))
-                OrganizationModule.objects.create(
-                    organization=organization,
-                    module=module,
-                    is_active=True,
-                    accessible_pages=[str(pid) for pid in page_ids],
-                    granted_by=admin_user
-                )
+            # Assign selected modules if provided
+            if module_access:
+                print(f"🔧 Processing {len(module_access)} modules for assignment")  # Debug
+                for module_code in module_access:
+                    try:
+                        module = Module.objects.get(code=module_code, is_active=True)
+                        page_ids = list(module.pages.filter(is_active=True).values_list('page_id', flat=True))
+                        
+                        # Create organization module assignment
+                        org_module = OrganizationModule.objects.create(
+                            organization=sub_organization,
+                            module=module,
+                            is_active=True,
+                            accessible_pages=[str(pid) for pid in page_ids],
+                            granted_by=main_organization.created_by
+                        )
+                        print(f"✅ Assigned module: {module.name}")
+                        
+                    except Module.DoesNotExist:
+                        print(f"❌ Module not found: {module_code}")
+                        continue
+            else:
+                print("ℹ️ No module access provided during sub-organization creation")
 
-            return organization, admin_user
+            print(f"🎉 Sub-organization created successfully: {sub_organization.name}")
+            return sub_organization, admin_user
 
         except Exception as e:
-            raise Exception(f"Failed to create organization: {str(e)}")
+            # Rollback transaction on any error
+            raise Exception(f"Failed to create sub-organization: {str(e)}")
