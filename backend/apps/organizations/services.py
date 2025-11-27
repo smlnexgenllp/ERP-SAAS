@@ -1,0 +1,234 @@
+from django.db import transaction
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from datetime import timedelta
+
+User = get_user_model()
+
+class ModuleAccessService:
+    """Service for managing module access"""
+    
+    @staticmethod
+    def get_all_modules_with_pages():
+        """Get all modules with their pages for admin dashboard"""
+        # Import inside method to avoid circular imports
+        from apps.subscriptions.models import Module
+        
+        modules = Module.objects.filter(is_active=True).prefetch_related('pages')
+        
+        result = []
+        for module in modules:
+            module_data = {
+                'module_id': str(module.module_id),
+                'name': module.name,
+                'code': module.code,
+                'description': module.description,
+                'icon': module.icon,
+                'available_in_plans': module.available_in_plans,
+                'app_name': module.app_name,
+                'base_url': module.base_url,
+                'pages': []
+            }
+            
+            # Get all active pages for this module
+            pages = module.pages.filter(is_active=True)
+            for page in pages:
+                page_data = {
+                    'page_id': str(page.page_id),
+                    'name': page.name,
+                    'code': page.code,
+                    'path': page.path,
+                    'description': page.description,
+                    'icon': page.icon,
+                    'order': page.order,
+                    'required_permission': page.required_permission
+                }
+                module_data['pages'].append(page_data)
+            
+            result.append(module_data)
+        
+        return result
+    
+    @staticmethod
+    def get_organization_modules(organization):
+        """Get all modules assigned to an organization"""
+        # Import inside method to avoid circular imports
+        from apps.subscriptions.models import OrganizationModule
+        
+        return OrganizationModule.objects.filter(
+            organization=organization,
+            is_active=True
+        ).select_related('module')
+    
+    @staticmethod
+    @transaction.atomic
+    def assign_modules_to_organization(organization, module_codes, accessible_pages_map=None, granted_by=None):
+        """Assign modules to organization with page-level access"""
+        # Import inside method to avoid circular imports
+        from apps.subscriptions.models import Module, OrganizationModule, ModulePage
+        
+        if accessible_pages_map is None:
+            accessible_pages_map = {}
+        
+        for module_code in module_codes:
+            try:
+                module = Module.objects.get(code=module_code, is_active=True)
+                
+                # Get all page IDs for this module by default
+                all_page_ids = list(module.pages.filter(is_active=True).values_list('page_id', flat=True))
+                
+                # Use provided accessible pages or all pages
+                accessible_pages = accessible_pages_map.get(module_code, all_page_ids)
+                
+                # Create or update organization module assignment
+                org_module, created = OrganizationModule.objects.get_or_create(
+                    organization=organization,
+                    module=module,
+                    defaults={
+                        'is_active': True,
+                        'accessible_pages': [str(pid) for pid in accessible_pages],
+                        'granted_by': granted_by
+                    }
+                )
+                
+                if not created:
+                    org_module.is_active = True
+                    org_module.accessible_pages = [str(pid) for pid in accessible_pages]
+                    org_module.granted_by = granted_by
+                    org_module.save()
+                    
+            except Module.DoesNotExist:
+                continue  # Skip invalid modules
+    
+    @staticmethod
+    def can_access_module(user, module_code):
+        """Check if user can access a specific module"""
+        # Import inside method to avoid circular imports
+        from apps.subscriptions.models import OrganizationModule
+        
+        if user.role == User.SUPER_ADMIN:
+            return True
+        
+        return OrganizationModule.objects.filter(
+            organization=user.organization,
+            module__code=module_code,
+            is_active=True
+        ).exists()
+    
+    @staticmethod
+    def can_access_page(user, module_code, page_code):
+        """Check if user can access a specific page within a module"""
+        # Import inside method to avoid circular imports
+        from apps.subscriptions.models import OrganizationModule, ModulePage
+        
+        if user.role == User.SUPER_ADMIN:
+            return True
+        
+        try:
+            org_module = OrganizationModule.objects.get(
+                organization=user.organization,
+                module__code=module_code,
+                is_active=True
+            )
+            
+            # Get the page
+            page = ModulePage.objects.get(
+                module__code=module_code,
+                code=page_code,
+                is_active=True
+            )
+            
+            # Check if page is in accessible pages
+            return str(page.page_id) in org_module.accessible_pages
+            
+        except (OrganizationModule.DoesNotExist, ModulePage.DoesNotExist):
+            return False
+
+class OrganizationService:
+    """Service for organization management"""
+
+    @staticmethod
+    @transaction.atomic
+    def create_main_organization(organization_data, admin_user_data):
+        """
+        Create a main organization with admin user
+        """
+        try:
+            # Import inside method to avoid circular imports
+            from apps.organizations.models import Organization
+            from apps.subscriptions.models import SubscriptionPlan, Subscription, Module, OrganizationModule
+            
+            # Check if user already exists
+            if User.objects.filter(email=admin_user_data['email']).exists():
+                raise Exception("Admin user with this email already exists")
+
+            # Create the admin user FIRST
+            admin_user = User.objects.create_user(
+                username=admin_user_data['email'],
+                email=admin_user_data['email'],
+                password=admin_user_data['password'],
+                first_name=admin_user_data['first_name'],
+                last_name=admin_user_data.get('last_name', ''),
+                role=User.MAIN_ORG_ADMIN,
+                is_verified=True,
+                is_active=True
+            )
+
+            # Now create organization and link created_by = admin_user
+            organization = Organization.objects.create(
+                name=organization_data['name'],
+                subdomain=organization_data['subdomain'],
+                organization_type='main',
+                plan_tier=organization_data.get('plan_tier', 'enterprise'),
+                email=organization_data['email'],
+                phone=organization_data.get('phone', ''),
+                address=organization_data.get('address', ''),
+                created_by=admin_user
+            )
+
+            # Link user to organization
+            admin_user.organization = organization
+            admin_user.save()
+
+            # Create subscription - handle if SubscriptionPlan doesn't exist
+            try:
+                plan = SubscriptionPlan.objects.get(code__iexact=organization.plan_tier)
+            except SubscriptionPlan.DoesNotExist:
+                # Try to get any active plan as fallback
+                plan = SubscriptionPlan.objects.filter(is_active=True).first()
+                if not plan:
+                    # Create a default plan if none exists
+                    plan = SubscriptionPlan.objects.create(
+                        name='Enterprise',
+                        code='enterprise',
+                        description='Default enterprise plan',
+                        price=0,
+                        is_active=True
+                    )
+
+            Subscription.objects.create(
+                organization=organization,
+                plan=plan,
+                start_date=timezone.now(),
+                end_date=timezone.now() + timedelta(days=365 * 10),
+                status='active',
+                is_trial=False
+            )
+
+            # Assign all active modules with full page access
+            modules = Module.objects.filter(is_active=True)
+            for module in modules:
+                page_ids = list(module.pages.filter(is_active=True).values_list('page_id', flat=True))
+                OrganizationModule.objects.create(
+                    organization=organization,
+                    module=module,
+                    is_active=True,
+                    accessible_pages=[str(pid) for pid in page_ids],
+                    granted_by=admin_user
+                )
+
+            return organization, admin_user
+
+        except Exception as e:
+            # Rollback transaction on any error
+            raise Exception(f"Failed to create organization: {str(e)}")
