@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     
     # Your custom apps
@@ -50,7 +51,7 @@ INSTALLED_APPS = [
     'apps.organizations',
     'apps.subscriptions',
     'apps.core',
-    'apps.hr_management',
+    'apps.hr',
     'apps.inventory',
     'apps.sales',
     'apps.transport',

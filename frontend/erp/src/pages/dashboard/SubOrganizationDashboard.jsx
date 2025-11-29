@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { moduleService } from '../../services/moduleService';
-import ModuleGrid from '../../components/dashboard/ModuleGrid';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { moduleService } from "../../services/moduleService";
+import ModuleGrid from "../../components/dashboard/ModuleGrid";
 
 const SubOrganizationDashboard = () => {
   const { user, organization, logout } = useAuth();
   const navigate = useNavigate();
-  
+
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     activeModules: 0,
-    totalUsers: 0
+    totalUsers: 0,
   });
 
   useEffect(() => {
     if (!user || !organization) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
 
@@ -25,53 +25,54 @@ const SubOrganizationDashboard = () => {
   }, [user, organization, navigate]);
 
   const loadDashboardData = async () => {
-  try {
-    setLoading(true);
-    
-    // Load accessible modules for this sub-organization
-    const modulesData = await moduleService.getAvailableModules(user?.role);
-    console.log('📦 Modules loaded:', modulesData);
-    setModules(modulesData);
+    try {
+      setLoading(true);
 
-    // Calculate stats
-    const activeModulesCount = modulesData.filter(module => module.is_active).length;
-    
-    setStats({
-      activeModules: activeModulesCount,
-      totalUsers: 1
-    });
+      // Load accessible modules for this sub-organization
+      const modulesData = await moduleService.getAvailableModules(user?.role);
+      console.log("📦 Modules loaded:", modulesData);
+      setModules(modulesData);
 
-  } catch (error) {
-    console.error('Failed to load dashboard data:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+      // Calculate stats
+      const activeModulesCount = modulesData.filter(
+        (module) => module.is_active
+      ).length;
+
+      setStats({
+        activeModules: activeModulesCount,
+        totalUsers: 1,
+      });
+    } catch (error) {
+      console.error("Failed to load dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleModuleClick = (module) => {
     if (module.is_active) {
       // Navigate to module dashboard
       switch (module.code) {
-        case 'hr_management':
-          navigate('/hr/dashboard');
+        case "hr_management":
+          navigate("/hr/dashboard");
           break;
-        case 'inventory':
-          navigate('/inventory/dashboard');
+        case "inventory":
+          navigate("/inventory/dashboard");
           break;
-        case 'sales':
-          navigate('/sales/dashboard');
+        case "sales":
+          navigate("/sales/dashboard");
           break;
-        case 'transport':
-          navigate('/transport/dashboard');
+        case "transport":
+          navigate("/transport/dashboard");
           break;
-        case 'accounting':
-          navigate('/accounting/dashboard');
+        case "accounting":
+          navigate("/accounting/dashboard");
           break;
-        case 'crm':
-          navigate('/crm/dashboard');
+        case "crm":
+          navigate("/crm/dashboard");
           break;
-        case 'project_management':
-          navigate('/projects/dashboard');
+        case "project_management":
+          navigate("/projects/dashboard");
           break;
         default:
           console.log(`No route defined for module: ${module.code}`);
@@ -99,11 +100,13 @@ const SubOrganizationDashboard = () => {
             <div className="flex items-center">
               <div className="bg-green-100 p-3 rounded-lg mr-4">
                 <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center text-white font-bold">
-                  {organization?.name?.charAt(0) || 'S'}
+                  {organization?.name?.charAt(0) || "S"}
                 </div>
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{organization?.name}</h1>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {organization?.name}
+                </h1>
                 <p className="text-gray-600 mt-1">
                   Welcome back, {user?.first_name} • Sub-Organization Dashboard
                 </p>
@@ -112,7 +115,9 @@ const SubOrganizationDashboard = () => {
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-sm text-gray-500">Plan</p>
-                <p className="font-semibold text-gray-900 capitalize">{organization?.plan_tier}</p>
+                <p className="font-semibold text-gray-900 capitalize">
+                  {organization?.plan_tier}
+                </p>
               </div>
               <button
                 onClick={logout}
@@ -136,8 +141,12 @@ const SubOrganizationDashboard = () => {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Modules</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activeModules}</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Active Modules
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.activeModules}
+                </p>
               </div>
             </div>
           </div>
@@ -151,7 +160,9 @@ const SubOrganizationDashboard = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.totalUsers}
+                </p>
               </div>
             </div>
           </div>
@@ -165,7 +176,9 @@ const SubOrganizationDashboard = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Plan Tier</p>
-                <p className="text-2xl font-bold text-gray-900 capitalize">{organization?.plan_tier}</p>
+                <p className="text-2xl font-bold text-gray-900 capitalize">
+                  {organization?.plan_tier}
+                </p>
               </div>
             </div>
           </div>
@@ -179,13 +192,10 @@ const SubOrganizationDashboard = () => {
               Access and manage your organization's modules
             </p>
           </div>
-          
+
           <div className="p-6">
             {modules.length > 0 ? (
-              <ModuleGrid 
-                modules={modules}
-                onModuleClick={handleModuleClick}
-              />
+              <ModuleGrid modules={modules} onModuleClick={handleModuleClick} />
             ) : (
               <div className="text-center py-12">
                 <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -197,7 +207,7 @@ const SubOrganizationDashboard = () => {
                   No Modules Assigned
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  Your organization doesn't have access to any modules yet. 
+                  Your organization doesn't have access to any modules yet.
                   Please contact your main organization administrator.
                 </p>
               </div>
@@ -212,14 +222,26 @@ const SubOrganizationDashboard = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
             <div>
-              <p><strong>Organization:</strong> {organization?.name}</p>
-              <p><strong>Subdomain:</strong> {organization?.subdomain}</p>
-              <p><strong>Email:</strong> {organization?.email}</p>
+              <p>
+                <strong>Organization:</strong> {organization?.name}
+              </p>
+              <p>
+                <strong>Subdomain:</strong> {organization?.subdomain}
+              </p>
+              <p>
+                <strong>Email:</strong> {organization?.email}
+              </p>
             </div>
             <div>
-              <p><strong>Plan:</strong> {organization?.plan_tier}</p>
-              <p><strong>Phone:</strong> {organization?.phone || 'Not provided'}</p>
-              <p><strong>Admin:</strong> {user?.first_name} {user?.last_name}</p>
+              <p>
+                <strong>Plan:</strong> {organization?.plan_tier}
+              </p>
+              <p>
+                <strong>Phone:</strong> {organization?.phone || "Not provided"}
+              </p>
+              <p>
+                <strong>Admin:</strong> {user?.first_name} {user?.last_name}
+              </p>
             </div>
           </div>
         </div>

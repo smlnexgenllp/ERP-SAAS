@@ -166,3 +166,32 @@ class ModuleSerializer(serializers.Serializer):
     icon = serializers.CharField()
     available_in_plans = serializers.ListField(child=serializers.CharField())
     pages = ModulePageSerializer(many=True)
+class SubOrganizationCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
+    subdomain = serializers.CharField(max_length=100)
+    plan_tier = serializers.CharField(max_length=50, default='basic')
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+
+    admin_email = serializers.EmailField()
+    admin_password = serializers.CharField(write_only=True, min_length=8)
+    admin_first_name = serializers.CharField(max_length=100)
+    admin_last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+    selected_modules = serializers.ListField(
+        child=serializers.CharField(),  # module code
+        required=False
+    )
+
+    def validate_subdomain(self, value):
+        if Organization.objects.filter(subdomain=value).exists():
+            raise serializers.ValidationError("Subdomain already exists")
+        return value
+
+    def validate_admin_email(self, value):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Admin email already exists")
+        return value

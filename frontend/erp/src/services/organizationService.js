@@ -34,18 +34,22 @@ export const organizationService = {
       };
     }
   },
-  createSubOrganization: async (data) => {
-    try {
-      const response = await api.post('/organizations/sub-organizations/create/', data);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating sub-organization:', error);
-      if (error.response?.data) {
-        throw new Error(error.response.data.error || 'Failed to create sub-organization');
-      }
-      throw error;
-    }
-  },
+ createSubOrganization: async (data) => {
+  try {
+    const response = await api.post('/organizations/sub-organizations/create/', data);
+    return response.data;
+  } catch (error) {
+    console.error("🚨 AXIOS ERROR →", error);
+    console.log("📌 BACKEND RAW ERROR →", error.response);
+    console.log("📌 BACKEND ERROR DATA →", error.response?.data);
+    console.log("📌 BACKEND ERROR MESSAGE →", error.response?.data?.error);
+    
+    // Return backend error so modal can show it
+    throw new Error(error.response?.data?.error || 'Failed to create sub-organization');
+  }
+},
+
+
 
   // ... other methods
 };
