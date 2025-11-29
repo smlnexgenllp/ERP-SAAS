@@ -7,9 +7,9 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 # --- FIXED: Added missing Subscription/Module imports ---
-from apps.subscriptions.models import OrganizationModule, Module, Subscription, SubscriptionPlan 
+from apps.subscriptions.models import OrganizationModule,ModulePage, Module, Subscription, SubscriptionPlan 
 # --------------------------------------------------------
-from .models import Organization
+from apps.organizations.models import Organization
 from .services import OrganizationService, ModuleAccessService
 from rest_framework.decorators import api_view, permission_classes
 
@@ -475,83 +475,74 @@ class MainOrganizationViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'], url_path='sub-org-modules')
     def sub_org_available_modules(self, request):
-        """Get available modules specifically for sub-organizations"""
+        """
+        Get available modules specifically for sub-organizations.
+        Guaranteed to return assigned modules even if pages are empty.
+        """
         try:
-            if not hasattr(request.user, 'organization') or not request.user.organization:
-                return Response({
-                    'success': False,
-                    'error': 'User has no organization'
-                }, status=status.HTTP_400_BAD_REQUEST)
-                    
-            current_organization = request.user.organization
+            org = getattr(request.user, 'organization', None)
+            if not org:
+                return Response({'success': False, 'error': 'User has no organization'}, status=status.HTTP_400_BAD_REQUEST)
             
-            # Only allow sub-organizations
-            if current_organization.organization_type != 'sub':
-                return Response({
-                    'success': False,
-                    'error': 'This endpoint is for sub-organizations only'
-                }, status=status.HTTP_403_FORBIDDEN)
+            if org.organization_type != 'sub':
+                return Response({'success': False, 'error': 'This endpoint is only for sub-organizations'}, status=status.HTTP_403_FORBIDDEN)
             
-            print(f"🔍 Fetching modules for SUB-organization: {current_organization.name}")
-            
-            # Get modules that this sub-organization has access to
-            org_modules = OrganizationModule.objects.filter(
-                organization=current_organization,
-                is_active=True
-            ).select_related('module')
+            # Fetch all active OrganizationModules for this sub-org
+            org_modules = OrganizationModule.objects.filter(organization=org, is_active=True).select_related('module')
             
             modules_data = []
-            
             for org_module in org_modules:
                 module = org_module.module
-                if module.is_active:
-                    module_data = {
-                        'module_id': str(module.module_id),
-                        'name': module.name,
-                        'code': module.code,
-                        'description': module.description,
-                        'icon': module.icon,
-                        'available_in_plans': module.available_in_plans,
-                        'app_name': module.app_name,
-                        'base_url': module.base_url,
-                        'is_active': True,
-                        'pages': []
-                    }
-                    
-                    # Add accessible pages
-                    for page_id in org_module.accessible_pages:
-                        try:
-                            page = ModulePage.objects.get(page_id=page_id, is_active=True)
-                            page_data = {
-                                'page_id': str(page.page_id),
-                                'name': page.name,
-                                'code': page.code,
-                                'path': page.path,
-                                'description': page.description,
-                                'icon': page.icon,
-                                'order': page.order,
-                                'required_permission': page.required_permission
-                            }
-                            module_data['pages'].append(page_data)
-                        except ModulePage.DoesNotExist:
-                            continue
-                    
-                    modules_data.append(module_data)
-            
-            print(f"📦 Found {len(modules_data)} modules for sub-org {current_organization.name}")
+                if not org_module.is_active:
+                    print(f"❌ Skipping inactive module: {module.name}")
+                    continue
+
+                # Build module dict
+                module_data = {
+                    'module_id': str(module.module_id),
+                    'name': module.name,
+                    'code': module.code,
+                    'description': module.description,
+                    'icon': module.icon,
+                    'available_in_plans': module.available_in_plans,
+                    'app_name': module.app_name,
+                    'base_url': module.base_url,
+                    'is_active': True,
+                    'pages': []
+                }
+
+                # Attach pages if any
+                for page_id in org_module.accessible_pages:
+                    try:
+                        page = ModulePage.objects.get(page_id=page_id, is_active=True)
+                        module_data['pages'].append({
+                            'page_id': str(page.page_id),
+                            'name': page.name,
+                            'code': page.code,
+                            'path': page.path,
+                            'description': page.description,
+                            'icon': page.icon,
+                            'order': page.order,
+                            'required_permission': page.required_permission
+                        })
+                    except ModulePage.DoesNotExist:
+                        print(f"❌ Page not found: {page_id}, skipping")
+                        continue
+
+                modules_data.append(module_data)
+                print(f"✅ Module added: {module.name}")
+
+            print(f"📦 Total modules returned for {org.name}: {len(modules_data)}")
             
             return Response({
                 'success': True,
                 'data': modules_data,
                 'count': len(modules_data)
-            })
-            
+            }, status=status.HTTP_200_OK)
+
         except Exception as e:
-            print(f"💥 Error in sub_org_available_modules: {str(e)}")
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)          
+            print(f"💥 Error in sub_org_available_modules: {e}")
+            return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Add the debug view at the end of the file
 
