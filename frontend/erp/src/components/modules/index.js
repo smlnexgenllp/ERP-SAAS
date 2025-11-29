@@ -10,7 +10,7 @@ import inventory from "./inventory/module.config";
 // ... continue importing all 13 modules
 
 // Export as a single list
-export const availableModule = [
+export const availableModules = [
   hr,
   inventory,
 //   crm,

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { X, Building, Eye, EyeOff } from "lucide-react";
 import { organizationService } from "../../services/organizationService";
-import { availableModule } from "../modules/index";
-const SubOrganizationModal = ({ onClose, onSuccess }) => {
+// import { availableModules } from "../modules/index";
+const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,13 +23,8 @@ const SubOrganizationModal = ({ onClose, onSuccess }) => {
     admin_first_name: "",
     admin_last_name: "",
 
-<<<<<<< HEAD
-    // Step 3: Module Selection
-    selected_modules: [],
-=======
     // Step 3: Module Selection - FIXED: Changed to module_access
     module_access: []  // Changed from selected_modules to module_access
->>>>>>> d01179eb4bb16d3bd37bdda3c250542b438cd396
   });
 
   const handleInputChange = (e) => {
@@ -37,20 +32,9 @@ const SubOrganizationModal = ({ onClose, onSuccess }) => {
 
     // MODULE CHECKBOX HANDLING
     if (type === "checkbox") {
-      const moduleObj = availableModule.find((m) => m.code === value);
+      const moduleObj = availableModules.find((m) => m.code === value);
 
       const updatedModules = checked
-<<<<<<< HEAD
-        ? [...formData.selected_modules, moduleObj] // Add module object
-        : formData.selected_modules.filter((mod) => mod.code !== value); // Remove module
-     
-      setFormData((prev) => ({
-        ...prev,
-        selected_modules: updatedModules,
-      }));
-      
-      return;
-=======
         ? [...formData.module_access, value]  // Changed from selected_modules to module_access
         : formData.module_access.filter(mod => mod !== value);  // Changed here too
       
@@ -63,14 +47,7 @@ const SubOrganizationModal = ({ onClose, onSuccess }) => {
         ...prev,
         [name]: value
       }));
->>>>>>> d01179eb4bb16d3bd37bdda3c250542b438cd396
     }
-
-    // NORMAL INPUTS
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
 
     setError("");
   };
@@ -121,50 +98,54 @@ const SubOrganizationModal = ({ onClose, onSuccess }) => {
     setStep(step - 1);
   };
 
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const payload = {
-      ...formData,
-      selected_modules: formData.selected_modules.map(m => m.code) // 🔥 FIX
-    };
-      const result = await organizationService.createSubOrganization(payload);
+const handleSubmit = async () => {
+  try {
+    setLoading(true);
+    setError("");
 
-<<<<<<< HEAD
-=======
-      // Debug: Log what we're sending
-      console.log('📤 Submitting sub-organization data:', formData);
-      console.log('📤 Selected modules:', formData.module_access);
+    const payload = {
+  name: formData.name.trim(),
+  subdomain: formData.subdomain.trim().toLowerCase(),
+  plan_tier: formData.plan_tier,
+  email: formData.email.trim(),
+  phone: formData.phone || null,
+  address: formData.address || null,
 
-      const result = await organizationService.createSubOrganization(formData);
-      
->>>>>>> d01179eb4bb16d3bd37bdda3c250542b438cd396
-      if (result.success) {
-        onSuccess();
-        onClose();
-      } else {
-        setError(result.error || 'Failed to create sub-organization');
-      }
-    } catch (err) {
-<<<<<<< HEAD
-      setError("Failed to create sub-organization");
-=======
-      console.error('❌ Submission error:', err);
-      setError(err.message || 'Failed to create sub-organization');
->>>>>>> d01179eb4bb16d3bd37bdda3c250542b438cd396
-    } finally {
-      setLoading(false);
+  admin_first_name: formData.admin_first_name.trim(),
+  admin_last_name: (formData.admin_last_name || "").trim(),
+  admin_email: formData.admin_email.trim(),
+  admin_password: formData.admin_password,
+
+  parent_organization_id: 1,
+
+  module_access: formData.module_access  // just array of codes
+};
+
+    console.log(availableModules);
+
+    console.log("FINAL PAYLOAD →", payload);
+
+    const result = await organizationService.createSubOrganization(payload);
+
+    if (result.success) {
+      alert("Sub-organization created successfully!");
+      onSuccess();
+      onClose();
+    } else {
+      setError(result.error || "Creation failed");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    console.log("BACKEND ERROR →", err.response?.data);
+    setError(err.response?.data?.error || err.message || "Failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getModulesForPlan = (plan) => {
-<<<<<<< HEAD
-    return availableModule.filter((module) =>
-=======
     return availableModules.filter(module => 
       module.available_in_plans && 
->>>>>>> d01179eb4bb16d3bd37bdda3c250542b438cd396
       module.available_in_plans.includes(plan)
     );
   };
@@ -414,13 +395,7 @@ const SubOrganizationModal = ({ onClose, onSuccess }) => {
                     <input
                       type="checkbox"
                       value={module.code}
-<<<<<<< HEAD
-                      checked={formData.selected_modules.some(
-                        (m) => m.code === module.code
-                      )}
-=======
                       checked={formData.module_access.includes(module.code)}  // Changed from selected_modules to module_access
->>>>>>> d01179eb4bb16d3bd37bdda3c250542b438cd396
                       onChange={handleInputChange}
                       className="mt-1 text-blue-600 focus:ring-blue-500"
                     />

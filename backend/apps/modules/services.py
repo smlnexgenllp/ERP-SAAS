@@ -9,7 +9,7 @@ class ModuleAccessService:
         modules_data = []
         for module in Module.objects.all():
             pages = [{
-                "page_id": page.id,
+                "page_id": str(page.id),
                 "name": page.name,
                 "code": page.code,
                 "path": page.path,
@@ -17,15 +17,17 @@ class ModuleAccessService:
                 "icon": page.icon,
                 "order": page.order,
                 "required_permission": page.required_permission
-            } for page in module.pages.all()]
+            } for page in module.pages.all().filter(is_active=True)]
 
             modules_data.append({
-                "module_id": module.id,
+                "module_id": str(module.id),
                 "name": module.name,
                 "code": module.code,
                 "description": module.description,
                 "icon": module.icon,
                 "available_in_plans": module.available_in_plans,
+                "app_name": getattr(module, 'app_name', None), # <--- Added missing fields
+                "base_url": getattr(module, 'base_url', None),
                 "pages": pages
             })
         return modules_data

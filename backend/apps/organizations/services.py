@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 # Removed redundant imports inside methods by adding global imports (recommended)
 from apps.subscriptions.models import Module, OrganizationModule, ModulePage, SubscriptionPlan, Subscription 
-from apps.organizations.models import Organization # Assuming this exists
+# from apps.organizations.models import Organization # Assuming this exists
 
 User = get_user_model()
 
@@ -259,7 +259,8 @@ class OrganizationService:
 
             # Assign selected modules if provided
             if module_access:
-                print(f"🔧 Processing {len(module_access)} modules for assignment")  # Debug
+                print(f"🔧 Processing {len(module_access)} modules for assignment") 
+                granted_by_user = main_organization.created_by # Debug
                 for module_code in module_access:
                     try:
                         module = Module.objects.get(code=module_code, is_active=True)
@@ -271,7 +272,7 @@ class OrganizationService:
                             module=module,
                             is_active=True,
                             accessible_pages=[str(pid) for pid in page_ids],
-                            granted_by=main_organization.created_by
+                            granted_by=granted_by_user
                         )
                         print(f"✅ Assigned module: {module.name}")
                         
