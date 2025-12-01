@@ -10,6 +10,8 @@ import EmployeeList from "../src/pages/modules/hr/pages/EmployeeList";
 import AddEmployee from "../src/pages/modules/hr/pages/AddEmployee";
 import Attendance from "../src/pages/modules/hr/pages/Attendance";
 import Payroll from "../src/pages/modules/hr/pages/Payroll";
+import OrgTree from "../src/pages/modules/hr/pages/OrgTree"; // Import the OrgTree component
+
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -26,6 +28,30 @@ const ProtectedRoute = ({ children }) => {
   }
   
   return isAuthenticated ? children : <Navigate to="/login" />;
+};
+
+// HR Module Protected Route - Additional check for HR access
+const HRProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Check if user is authenticated and has HR module access
+  const hasHRAccess = user?.modules?.includes('hr') || 
+                     user?.role === 'hr_manager' || 
+                     user?.role === 'admin' ||
+                     user?.role === 'main_org_admin';
+  
+  return isAuthenticated && hasHRAccess ? children : <Navigate to="/dashboard" />;
 };
 
 // Dashboard Router - decides which dashboard to show
@@ -57,19 +83,49 @@ function App() {
             </ProtectedRoute>
           } />
            
-        {/* HR Module */}
-        <Route path="/hr/employees" element={<EmployeeList />} />
-        <Route path="/hr/employees/add" element={<AddEmployee />} />
-        <Route path="/hr/attendance" element={<Attendance />} />
-        <Route path="/hr/payroll" element={<Payroll />} />
-     
+          {/* HR Module Routes */}
+          <Route path="/hr/dashboard" element={
+            <HRProtectedRoute>
+              <HRDashboard />
+            </HRProtectedRoute>
+          } />
           
-          {/* Module Routes - Add your module routes here */}
+          <Route path="/hr/employees" element={
+            <HRProtectedRoute>
+              <EmployeeList />
+            </HRProtectedRoute>
+          } />
+          
+          <Route path="/hr/employees/add" element={
+            <HRProtectedRoute>
+              <AddEmployee />
+            </HRProtectedRoute>
+          } />
+          
+          <Route path="/hr/attendance" element={
+            <HRProtectedRoute>
+              <Attendance />
+            </HRProtectedRoute>
+          } />
+          
+          <Route path="/hr/payroll" element={
+            <HRProtectedRoute>
+              <Payroll />
+            </HRProtectedRoute>
+          } />
+          
+          {/* Organization Tree Route */}
+          <Route path="/hr/org-tree" element={
+            <HRProtectedRoute>
+              <OrgTree />
+            </HRProtectedRoute>
+          } />
           
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" />} />
-          <Route path="/hr" element={<HRDashboard/>}/>
-
+          
+          {/* Catch all route - redirect to dashboard */}
+          <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
       </Router>
     </AuthProvider>
