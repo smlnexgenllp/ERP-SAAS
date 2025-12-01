@@ -10,6 +10,7 @@ import EmployeeList from "../src/pages/modules/hr/pages/EmployeeList";
 import AddEmployee from "../src/pages/modules/hr/pages/AddEmployee";
 import Attendance from "../src/pages/modules/hr/pages/Attendance";
 import Payroll from "../src/pages/modules/hr/pages/Payroll";
+
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -62,13 +63,14 @@ function App() {
         <Route path="/hr/employees/add" element={<AddEmployee />} />
         <Route path="/hr/attendance" element={<Attendance />} />
         <Route path="/hr/payroll" element={<Payroll />} />
+        {/* <Route path="/hr/list" element={<EmployeeList/>} /> */}
      
           
           {/* Module Routes - Add your module routes here */}
           
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" />} />
-          <Route path="/hr" element={<HRDashboard/>}/>
+          <Route path="/hr/dashboard" element={<HRDashboard/>}/>
 
         </Routes>
       </Router>

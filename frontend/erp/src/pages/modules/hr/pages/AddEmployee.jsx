@@ -9,14 +9,28 @@ export default function AddEmployee() {
   const { register, handleSubmit } = useForm();
   const [msg, setMsg] = React.useState(null);
 
-
 const onSubmit = async (data) => {
-  try {
-    const response = await inviteEmployee(data.email, data.role);
-    console.log('Invite sent', response.data);
-  } catch (error) {
-    console.error(error);
-  }
+    try {
+        const response = await inviteEmployee(data.email, data.role);
+        
+        // --- ADD SUCCESS HANDLING HERE ---
+        if (response.status === 201) {
+            setMsg({ type: 'success', text: `Invitation sent to ${data.email}!` });
+            // IMPORTANT: If you are being redirected, this is where you should 
+            // put a delay or check if another library is forcing the navigation.
+        } else {
+             // Handle unexpected non-201 success (e.g., 200 with error message)
+             setMsg({ type: 'error', text: 'Invite sent but unexpected response status.' });
+        }
+        
+    } catch (error) {
+        // --- ADD DETAILED ERROR DISPLAY HERE ---
+        console.error('API Error:', error);
+        const errorText = error.response?.data?.error || 'Failed to send invite due to a server error.';
+        setMsg({ type: 'error', text: errorText });
+        
+        // If the error IS the redirect, the error.response will likely be 401/403.
+    }
 };
 
 

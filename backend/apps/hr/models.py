@@ -1,65 +1,76 @@
-import uuid
+# apps/hr/models.py
+
 from django.db import models
 from django.conf import settings
-from django.utils import timezone
+from django.core.validators import RegexValidator
+from apps.organizations.models import Organization
 
-class Organization(models.Model):
-    name = models.CharField(max_length=255)
-    slug = models.SlugField(unique=True)
+phone_validator = RegexValidator(r"^\+?1?\d{9,15}$", "Enter a valid phone number.")
+
+
+class Department(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="departments")
+    name = models.CharField(max_length=150)
+    code = models.CharField(max_length=50)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ("organization", "code")
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Designation(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="designations")
+    title = models.CharField(max_length=150)
+    grade = models.CharField(max_length=50, blank=True)
+
+    class Meta:
+        unique_together = ("organization", "title")
+
+    def __str__(self):
+        return self.title
+
+
+ROLE_CHOICES = [
+    ("admin", "Admin"),
+    ("hr", "HR"),
+    ("employee", "Employee"),
+]
+
+
+class Employee(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="employees")
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    full_name = models.CharField(max_length=200)
+    employee_code = models.CharField(max_length=30, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=20, validators=[phone_validator], blank=True, null=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="employee")
+
+    reporting_to = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="subordinates")
+
+    # Use direct class reference — Django will resolve it correctly now
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    designation = models.ForeignKey(Designation, on_delete=models.SET_NULL, null=True, blank=True)
+
+    date_of_joining = models.DateField(null=True, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    is_probation = models.BooleanField(default=False)
+    ctc = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    photo = models.ImageField(upload_to='hr/photos/', null=True, blank=True)
+    notes = models.TextField(blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ("organization", "employee_code")
+        ordering = ["-created_at"]
 
-class ERPModule(models.Model):
-    name = models.CharField(max_length=255)
-    code = models.CharField(max_length=50, unique=True)
-
-
-class OrganizationModule(models.Model):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    module = models.ForeignKey(ERPModule, on_delete=models.CASCADE)
-    enabled = models.BooleanField(default=True)
-
-
-class OrganizationUser(models.Model):
-
-    ROLE_CHOICES = [
-        ("admin", "Admin"),
-        ("hr_manager", "HR Manager"),
-        ("employee", "Employee"),
-    ]
-
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-
-    manager = models.ForeignKey(
-        "self",
-        null=True,
-        blank=True,
-        related_name="subordinates",
-        on_delete=models.SET_NULL
-    )
-
-
-class EmployeeDocument(models.Model):
-    user = models.ForeignKey(OrganizationUser, on_delete=models.CASCADE)
-    file = models.FileField(upload_to="employee_docs/")
-    doc_type = models.CharField(max_length=100)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-
-
-class Invitation(models.Model):
-    email = models.EmailField()
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    role = models.CharField(max_length=20, default="employee")
-    token = models.UUIDField(default=uuid.uuid4, unique=True)
-    accepted = models.BooleanField(default=False)
-    expires_at = models.DateTimeField()
-
-    invited_by = models.ForeignKey(
-        OrganizationUser, on_delete=models.SET_NULL, null=True
-    )
-from datetime import datetime, timedelta
-
-def get_expiry_time():
-    return datetime.now() + timedelta(days=7)
+    def __str__(self):
+        return f"{self.full_name} ({self.employee_code})" if self.employee_code else self.full_name

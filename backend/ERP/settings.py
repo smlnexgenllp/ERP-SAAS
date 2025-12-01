@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'apps.organizations',
     'apps.subscriptions',
     'apps.core',
-    'apps.hr',
+    'apps.hr.apps.HrConfig',
     'apps.inventory',
     'apps.sales',
     'apps.transport',
@@ -171,7 +171,6 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # Session settings
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = True  # Set to True in production with HTTPS
-SESSION_COOKIE_SAMESITE = 'Lax'
+# 
+
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

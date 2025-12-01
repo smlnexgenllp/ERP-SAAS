@@ -79,9 +79,9 @@ const HRDashboard = () => {
     },
     {
       icon: Users,
-      label: 'Recruitment',
-      description: 'Manage job openings',
-      onClick: () => navigate('/hr/recruitment'),
+      label: 'OrganizationTree',
+      description: 'Manage Employees',
+      onClick: () => navigate('/hr/orgtree'),
       color: 'bg-orange-500'
     }
   ];

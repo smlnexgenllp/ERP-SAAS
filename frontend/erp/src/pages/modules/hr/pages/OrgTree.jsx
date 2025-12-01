@@ -15,7 +15,13 @@ function Node({ node }) {
   );
 }
 
-export default function OrgTreePage() {
+export default funcorg_user = OrganizationUser.objects.create(
+    organization=org,
+    user=admin,
+    role="admin",   # or "owner" if your system uses it
+    is_active=True
+)
+tion OrgTreePage() {
   const [tree, setTree] = useState([]);
 
   useEffect(() => {
