@@ -1,7 +1,7 @@
 # In apps/organizations/models.py
 from django.db import models
 from django.contrib.auth import get_user_model
-
+from django.conf import settings
 User = get_user_model()
 
 class Organization(models.Model):
@@ -9,8 +9,8 @@ class Organization(models.Model):
         ('main', 'Main Organization'),
         ('sub', 'Sub Organization'),
     )
-
     name = models.CharField(max_length=255)
+    code = models.CharField(max_length=20, unique=True, null=True, blank=True)
     subdomain = models.CharField(max_length=100, unique=True)
     organization_type = models.CharField(max_length=20, choices=ORGANIZATION_TYPES, default='main')
     plan_tier = models.CharField(max_length=50, default='enterprise')
@@ -51,3 +51,18 @@ class Organization(models.Model):
     class Meta:
         verbose_name = "Organization"
         verbose_name_plural = "Organizations"
+        
+class OrganizationUser(models.Model):
+    ROLE_CHOICES = (
+        ("Admin", "Admin"),
+        ("HR Manager", "HR Manager"),
+        ("Employee", "Employee"),
+    )
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.user.email} → {self.organization.name} ({self.role})"

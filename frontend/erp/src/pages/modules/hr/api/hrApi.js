@@ -1,11 +1,11 @@
 
-import api from '../../../../services/api/' 
-import axios from 'axios';
+import api from '../../../../services/api' 
+// import axios from 'axios';
 export const fetchEmployees = () => api.get('/hr/users/');
 export const fetchEmployeeDocs = () => api.get('/hr/documents/');
 
 export const inviteEmployee = (email, role) => {
-  return axios.post('http://localhost:8000/api/hr/invite/', { email, role },{ withCredentials: true });
+  return api.post('/hr/invite/', { email, role });
 };
 export const acceptInvite = (token, payload) => api.post(`/hr/invite/accept/${token}/`, payload);
 export const uploadMyDocument = (formData) => api.post('/hr/employee/upload/', formData, {
