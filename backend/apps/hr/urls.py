@@ -1,27 +1,32 @@
-from django.urls import path, include
-# from .views.invitation_views import SendInvitationView, AcceptInvitationView
-# from .views.manager_views import HRUsersView, HRDocumentList
-# from .views.employee_views import UploadMyDocument
-# from .views.org_tree_views import OrganizationTreeView
+# apps/hr/urls.py
 
-from rest_framework import routers
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
+# ViewSets (CRUD)
 from .views import (
-DepartmentViewSet, DesignationViewSet, EmployeeViewSet
+    DepartmentViewSet,
+    DesignationViewSet,
+    EmployeeViewSet,
 )
 
-router = routers.DefaultRouter()
-router.register('departments', DepartmentViewSet)
-router.register('designations', DesignationViewSet)
-router.register('employees', EmployeeViewSet)
+# Org Tree Views (the ones we just fixed)
+from .views.org_tree_views import (
+    org_tree_view,              # Authenticated → requires login
+    public_org_tree_view,       # Public → no login needed
+)
 
-
+# Router for standard CRUD APIs
+router = DefaultRouter()
+router.register(r'departments', DepartmentViewSet, basename='department')
+router.register(r'designations', DesignationViewSet, basename='designation')
+router.register(r'employees', EmployeeViewSet, basename='employee')
 
 urlpatterns = [
-    # path("invite/", SendInvitationView.as_view()),
-    # path("invite/accept/<uuid:token>/", AcceptInvitationView.as_view()),
-    # path("users/", HRUsersView.as_view()),
-    # path("documents/", HRDocumentList.as_view()),
-    # path("employee/upload/", UploadMyDocument.as_view()),
-    # path("org-tree/", OrganizationTreeView.as_view()),
+    # 1. All ViewSet routes: /api/hr/departments/, /api/hr/employees/, etc.
     path('', include(router.urls)),
+
+    # 2. Organization Chart Endpoints
+    path('org-tree/', org_tree_view, name='org-tree'),                    # Requires login
+    path('public-org-tree/', public_org_tree_view, name='public-org-tree'),  # Public access
 ]

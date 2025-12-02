@@ -62,3 +62,32 @@ class EmployeeSerializer(serializers.ModelSerializer):
 # model = LeaveRequest
 # fields = '__all__'
 # read_only_fields = ['requested_at', 'reviewed_at']
+
+# apps/hr/serializers.py
+
+
+# apps/hr/serializers.py
+class OrgTreeSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='full_name')
+    title = serializers.CharField(source='designation.title', allow_null=True, default=None)
+    department = serializers.CharField(source='department.name', allow_null=True, default=None)
+    employee_code = serializers.CharField(allow_null=True, default=None)
+    photo = serializers.SerializerMethodField()
+    is_active = serializers.BooleanField()
+
+    children = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Employee
+        fields = ['id', 'name', 'title', 'department', 'employee_code', 'photo', 'is_active', 'children']
+
+    def get_photo(self, obj):
+        if obj.photo and hasattr(obj.photo, 'url'):
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+        return None
+
+    def get_children(self, obj):
+        children = obj.subordinates.filter(is_active=True).order_by('full_name')
+        return OrgTreeSerializer(children, many=True, context=self.context).data
