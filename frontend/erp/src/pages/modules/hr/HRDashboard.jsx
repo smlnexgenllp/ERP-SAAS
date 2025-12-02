@@ -58,9 +58,9 @@ const HRDashboard = () => {
   const quickActions = [
     {
       icon: UserPlus,
-      label: 'Add Employee',
+      label: 'Employee List',
       description: 'Add new employee to system',
-      onClick: () => navigate('/hr/employees/add'),
+      onClick: () => navigate('/hr/employees/'),
       color: 'bg-blue-500'
     },
     {
