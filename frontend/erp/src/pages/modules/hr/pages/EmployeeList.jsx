@@ -9,29 +9,40 @@ export default function EmployeeList() {
   const [error, setError] = useState(null);
 
   const fetchEmployees = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      const response = await api.get('/hr/employees/');
-      const data = response.data.results || response.data;
+    let allEmployees = [];
+    let url = '/hr/employees/';
 
-      if (!Array.isArray(data)) {
-        throw new Error('Invalid data format from server');
+    while (url) {
+      const response = await api.get(url);
+      const data = response.data;
+
+      if (Array.isArray(data)) {
+        allEmployees = data; 
+        break;
       }
 
-      setEmployees(data);
-    } catch (err) {
-      const message =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.message ||
-        'Failed to load employees';
-      setError(message);
-    } finally {
-      setLoading(false);
+      allEmployees = [...allEmployees, ...data.results];
+      url = data.next ? data.next.replace(api.defaults.baseURL, '') : null;
     }
-  };
+
+    setEmployees(allEmployees);
+
+  } catch (err) {
+    const message =
+      err.response?.data?.detail ||
+      err.response?.data?.message ||
+      err.message ||
+      'Failed to load employees';
+    setError(message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchEmployees();

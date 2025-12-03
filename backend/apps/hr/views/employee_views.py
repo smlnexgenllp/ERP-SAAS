@@ -31,6 +31,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_staff:
             return self.queryset.filter(user=self.request.user)
         return self.queryset
+    
     @action(detail=False, methods=['get'])
     def debug(self, request):
         return Response({

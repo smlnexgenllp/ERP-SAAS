@@ -10,7 +10,9 @@ import EmployeeList from "../src/pages/modules/hr/pages/EmployeeList";
 import AddEmployee from "../src/pages/modules/hr/pages/AddEmployee";
 import Attendance from "../src/pages/modules/hr/pages/Attendance";
 import Payroll from "../src/pages/modules/hr/pages/Payroll";
-
+import EmployeeLogin from './pages/modules/hr/pages/EmployeeLogin';
+import MyProfile from './pages/modules/hr/MyProfile'
+import OrgTree from './pages/modules/hr/pages/OrgTree';
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -63,11 +65,17 @@ function App() {
         <Route path="/hr/employees/add" element={<AddEmployee />} />
         <Route path="/hr/attendance" element={<Attendance />} />
         <Route path="/hr/payroll" element={<Payroll />} />
+        <Route path="/employee_login" element={<EmployeeLogin/>} />
+        <Route path="/profile" element={<MyProfile/>} />
         {/* <Route path="/hr/list" element={<EmployeeList/>} /> */}
      
           
           {/* Module Routes - Add your module routes here */}
-          
+            <Route path="/hr/org-tree" element={
+           
+              <OrgTree/>
+            
+          } />
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" />} />
           <Route path="/hr/dashboard" element={<HRDashboard/>}/>

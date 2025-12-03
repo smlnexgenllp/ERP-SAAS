@@ -137,9 +137,9 @@ export default function MyProfile() {
             
             {/* Role & Designation Badges - Neon Glow */}
             <div className="mt-6 flex justify-center gap-4 flex-wrap">
-              <span className="px-6 py-3 bg-pink-700/50 border border-pink-500 text-white font-bold rounded-full shadow-lg shadow-pink-500/30">
+              {/* <span className="px-6 py-3 bg-pink-700/50 border border-pink-500 text-white font-bold rounded-full shadow-lg shadow-pink-500/30">
                 {employee.role_display || employee.role}
-              </span>
+              </span> */}
               <span className="px-6 py-3 bg-cyan-700/50 border border-cyan-500 text-white font-bold rounded-full shadow-lg shadow-cyan-500/30">
                 {employee.designation?.title || 'Employee'}
               </span>

@@ -13,3 +13,8 @@ export const uploadMyDocument = (formData) => api.post('/hr/employee/upload/', f
 });
 export const fetchMyDocuments = () => api.get('/hr/employee/my-documents/');
 export const fetchOrgTree = () => api.get('/hr/org-tree/');
+
+export const getOrgTree = () => api.get("hr/org-tree/");
+export const getPublicOrgTree = () => api.get("hr/public-org-tree/");  // Added this
+export const getDepartmentTree = () => api.get("hr/org-tree/departments/");
+export const getEmployeeDetails = (employeeId) =>api.get(`hr/employees/${employeeId}/detail/`);
