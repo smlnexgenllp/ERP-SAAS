@@ -1,20 +1,39 @@
+// src/pages/modules/hr/api/hrApi.js
+import api from '../../../../services/api';
 
-import api from '../../../../services/api' 
-// import axios from 'axios';
-export const fetchEmployees = () => api.get('/hr/users/');
-export const fetchEmployeeDocs = () => api.get('/hr/documents/');
+export const hrApi = {
+  // ================= Organization Tree =================
+  getOrgTree: () => api.get("hr/org-tree/"),
+  getPublicOrgTree: () => api.get("hr/public-org-tree/"),  // Added this
+  getDepartmentTree: () => api.get("hr/org-tree/departments/"),
+  getEmployeeDetails: (employeeId) =>
+    api.get(`hr/employees/${employeeId}/detail/`),
 
-export const inviteEmployee = (email, role) => {
-  return api.post('/hr/invite/', { email, role });
+  // ================= Employee Management =================
+  getEmployees: (params) => api.get("hr/employees/", { params }),
+  createEmployee: (data) => api.post("hr/employees/", data),
+  updateEmployee: (id, data) => api.put(`hr/employees/${id}/`, data),
+  deleteEmployee: (id) => api.delete(`hr/employees/${id}/`),
+
+  // ================= Department Management =================
+  getDepartments: (params) => api.get("hr/departments/", { params }),
+  createDepartment: (data) => api.post("hr/departments/", data),
+  updateDepartment: (id, data) => api.put(`hr/departments/${id}/`, data),
+  deleteDepartment: (id) => api.delete(`hr/departments/${id}/`),
+
+  // ================= Designation Management =================
+  getDesignations: (params) => api.get("hr/designations/", { params }),
+  createDesignation: (data) => api.post("hr/designations/", data),
+  updateDesignation: (id, data) => api.put(`hr/designations/${id}/`, data),
+  deleteDesignation: (id) => api.delete(`hr/designations/${id}/`),
+
+  // ================= LEGACY (Backward Compatibility) =================
+  fetchEmployees: () => api.get("hr/users/"),
+  fetchEmployeeDocs: () => api.get("hr/documents/"),
 };
-export const acceptInvite = (token, payload) => api.post(`/hr/invite/accept/${token}/`, payload);
-export const uploadMyDocument = (formData) => api.post('/hr/employee/upload/', formData, {
-  headers: { 'Content-Type': 'multipart/form-data' }
-});
-export const fetchMyDocuments = () => api.get('/hr/employee/my-documents/');
-export const fetchOrgTree = () => api.get('/hr/org-tree/');
 
-export const getOrgTree = () => api.get("hr/org-tree/");
-export const getPublicOrgTree = () => api.get("hr/public-org-tree/");  // Added this
-export const getDepartmentTree = () => api.get("hr/org-tree/departments/");
-export const getEmployeeDetails = (employeeId) =>api.get(`hr/employees/${employeeId}/detail/`);
+// Old function exports (backward compatibility)
+export const fetchOrgTree = hrApi.getOrgTree;
+export const fetchEmployees = hrApi.getEmployees;
+
+export default hrApi;
