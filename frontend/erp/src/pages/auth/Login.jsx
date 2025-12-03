@@ -40,7 +40,8 @@ const Login = () => {
     if (!result.success) {
       setError(result.error || 'Invalid credentials');
     }
-    
+    console.log("Login response:", result);
+
     setLoading(false);
   };
 

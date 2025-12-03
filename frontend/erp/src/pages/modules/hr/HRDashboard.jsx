@@ -58,7 +58,14 @@ const HRDashboard = () => {
   const quickActions = [
     {
       icon: UserPlus,
-      label: 'Add Employee',
+      label: 'Employee List',
+      description: 'View All Employees',
+      onClick: () => navigate('/hr/employees/'),
+      color: 'bg-blue-500'
+    },
+     {
+      icon: UserPlus,
+      label: 'Employee Add',
       description: 'Add new employee to system',
       onClick: () => navigate('/hr/employees/add'),
       color: 'bg-blue-500'
@@ -81,7 +88,7 @@ const HRDashboard = () => {
       icon: Users,
       label: 'OrganizationTree',
       description: 'Manage Employees',
-      onClick: () => navigate('/hr/orgtree'),
+      onClick: () => navigate('/hr/org-tree'),
       color: 'bg-orange-500'
     }
   ];

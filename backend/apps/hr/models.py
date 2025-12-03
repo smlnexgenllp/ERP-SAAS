@@ -44,7 +44,6 @@ ROLE_CHOICES = [
 class Employee(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="employees")
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
-
     full_name = models.CharField(max_length=200)
     employee_code = models.CharField(max_length=30, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
@@ -74,3 +73,21 @@ class Employee(models.Model):
 
     def __str__(self):
         return f"{self.full_name} ({self.employee_code})" if self.employee_code else self.full_name
+    
+# apps/hr/models.py — ADD THIS MODEL
+
+class EmployeeDocument(models.Model):
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name='documents'
+    )
+    title = models.CharField(max_length=200)
+    file = models.FileField(upload_to='hr/documents/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.employee.full_name}"

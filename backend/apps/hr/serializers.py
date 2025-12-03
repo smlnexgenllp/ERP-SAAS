@@ -1,61 +1,81 @@
+# apps/hr/serializers.py
+
 from rest_framework import serializers
-from .models import (
-    Department, Designation, Employee)
+from .models import Department, Designation, Employee, EmployeeDocument
+
+
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
-        fields = '__all__'
+        fields = ['id', 'name', 'code']
+
 
 class DesignationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Designation
-        fields = '__all__'
+        fields = ['id', 'title', 'grade']
 
-# class EmployeeDocumentSerializer(serializers.ModelSerializer):
-# class Meta:
-# model = EmployeeDocument
-# fields = [
-# 'id', 'organization', 'user', 'full_name', 'employee_code', 'email', 'phone',
-# 'role', 'reporting_to','id', 'title', 'file', 'uploaded_at']
-# read_only_fields = ['uploaded_at']
-
-# class EmployeeBankInfoSerializer(serializers.ModelSerializer):
-# class Meta:
-# model = EmployeeBankInfo
-# fields = '__all__'
-# read_only_fields = ['updated_at']
 
 class EmployeeSerializer(serializers.ModelSerializer):
-    # documents = EmployeeDocumentSerializer(many=True, read_only=True)
-    # bank_info = EmployeeBankInfoSerializer(read_only=True)
+    # Send full nested objects instead of just IDs
+    department = DepartmentSerializer(read_only=True)
+    designation = DesignationSerializer(read_only=True)
+
+    # Allow creating/updating with IDs (write-only)
+    department_id = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all(),
+        source='department',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    designation_id = serializers.PrimaryKeyRelatedField(
+        queryset=Designation.objects.all(),
+        source='designation',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+
+    # Nice human-readable role (Admin / HR / Employee)
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+
     class Meta:
         model = Employee
         fields = [
-            'id', 'organization', 'user', 'full_name', 'employee_code', 'email', 'phone',
-            'department', 'designation', 'date_of_joining', 'date_of_birth', 'is_active',
-            'is_probation', 'ctc', 'photo', 'notes', 'created_at', 'updated_at',
-            'documents', 'bank_info'
+            'id', 'full_name', 'employee_code', 'email', 'phone',
+            'role', 'role_display',                    # ← MUST be in fields!
+            'department', 'department_id',
+            'designation', 'designation_id',
+            'date_of_joining', 'date_of_birth',
+            'is_active', 'is_probation', 'ctc', 'photo',
+            'notes', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'employee_code']
+        read_only_fields = ['created_at', 'updated_at', 'employee_code', 'role_display']
 
+# Add this at the bottom of serializers.py
 
+class EmployeeDocumentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
 
+    class Meta:
+        model = EmployeeDocument
+        fields = ['id', 'title', 'file', 'file_url', 'uploaded_at']
+        read_only_fields = ['uploaded_at', 'file_url']
 
-# class AttendanceSerializer(serializers.ModelSerializer):
-# class Meta:
-# model = Attendance
-# fields = '__all__'
+    def get_file_url(self, obj):
+        if obj.file:
+            return obj.file.url
+        return None
+class OrgTreeSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='full_name')
+    title = serializers.CharField(source='designation.title', allow_null=True, default=None)
+    department = serializers.CharField(source='department.name', allow_null=True, default=None)
+    employee_code = serializers.CharField(allow_null=True, default=None)
+    photo = serializers.SerializerMethodField()
+    is_active = serializers.BooleanField()
 
-
-
-
-# class LeaveTypeSerializer(serializers.ModelSerializer):
-# class Meta:
-# model = LeaveType
-# fields = '__all__'
-
-
-
+    children = serializers.SerializerMethodField()
 
 # class LeaveRequestSerializer(serializers.ModelSerializer):
 # class Meta:
