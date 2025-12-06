@@ -16,7 +16,7 @@ export const organizationService = {
 
   getDashboardStats: async () => {
     try {
-      const response = await api.get('/organizations/main-org/dashboard/');
+      const response = await api.get('/core/dashboard-stats/');
       return response.data.data?.main_organization || {
         totalSubOrgs: 0,
         activeModules: 0,

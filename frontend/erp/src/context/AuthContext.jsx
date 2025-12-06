@@ -19,9 +19,19 @@ export const AuthProvider = ({ children }) => {
 
   // Get CSRF token on app start
   useEffect(() => {
-    getCsrfToken();
-    checkAuthStatus();
-  }, []);
+  const init = async () => {
+    // Step 1: Get CSRF token
+    await getCsrfToken();
+
+    // Step 2: Now check auth
+    await checkAuthStatus();
+
+    setLoading(false);
+  };
+
+  init();
+}, []);
+
 
   // Function to get CSRF token
   const getCsrfToken = async () => {
@@ -87,9 +97,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-    } finally {
-      setLoading(false);
-    }
+    } 
   };
 
   // In your login function in AuthContext.jsx
@@ -98,7 +106,8 @@ const login = async (credentials) => {
     console.log('Attempting login with:', credentials);
     
     // Get CSRF token from cookie as fallback
-    const token = csrfToken || getCsrfTokenFromCookie();
+    const token = getCsrfTokenFromCookie();
+
     
     const response = await fetch('http://localhost:8000/api/auth/login/', {
       method: 'POST',

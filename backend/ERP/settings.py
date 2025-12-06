@@ -76,7 +76,7 @@ ROOT_URLCONF = 'ERP.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -172,5 +172,19 @@ AUTHENTICATION_BACKENDS = [
 
 # Session settings
 # 
+# settings.py
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# EMAIL CONFIG FOR MAILHOG (DEVELOPMENT ONLY)
+# settings.py (development only)
+# settings.py or local.py
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_USE_SSL = False
+# EMAIL_HOST_USER = 'mohanapriya14102001@gmail.com'          
+# EMAIL_HOST_PASSWORD = 'acee huqk whyp bblh'    
+# DEFAULT_FROM_EMAIL = 'mohanapriya <mohanapriya14102001@gmail.com>'

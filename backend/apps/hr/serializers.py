@@ -2,7 +2,12 @@
 
 from rest_framework import serializers
 from .models import Department, Designation, Employee, EmployeeDocument
-
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from apps.organizations.models import Organization
+from .models import EmployeeInvite
+from django.template.loader import render_to_string
+from django.core.mail import send_mail
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -91,3 +96,83 @@ class OrgTreeSerializer(serializers.ModelSerializer):
     def get_children(self, obj):
         children = obj.subordinates.filter(is_active=True).order_by('full_name')
         return OrgTreeSerializer(children, many=True, context=self.context).data
+    
+
+User = get_user_model()
+
+
+
+
+class EmployeeCreateInvitationSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(write_only=True, required=True)
+    full_name = serializers.CharField(required=True)
+
+    class Meta:
+        model = EmployeeInvite
+        fields = [
+            'full_name', 'user_email', 'phone', 'role',
+            'department', 'designation', 'date_of_joining', 'is_probation',
+            'ctc', 'notes'
+        ]
+
+    def validate_user_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        if EmployeeInvite.objects.filter(email=value).exists():
+            raise serializers.ValidationError("An invitation has already been sent to this email.")
+        return value.lower()
+
+    @transaction.atomic
+    def create(self, validated_data):
+        request = self.context.get('request')
+
+        email = validated_data.pop('user_email')
+        full_name = validated_data.pop('full_name')
+
+        # Determine which organization the invite belongs to
+        # Best: from logged-in user's employee profile
+        if request and hasattr(request.user, "employee"):
+            organization = request.user.employee.organization
+        else:
+            # Fallback (you may change this)
+            organization = Organization.objects.first()
+
+        # Allowed invite fields
+        allowed_fields = [
+            'phone', 'role', 'department', 'designation',
+            'date_of_joining', 'is_probation', 'ctc', 'notes'
+        ]
+        invite_data = {k: validated_data[k] for k in allowed_fields if k in validated_data}
+
+        # Create the invite (🔥 ORGANIZATION ADDED)
+        invite = EmployeeInvite.objects.create(
+            full_name=full_name,
+            email=email,
+            organization=organization,   # ← FIXED
+            **invite_data
+        )
+
+        # Accept URL
+        accept_url = f"http://{request.get_host()}/api/hr/employees/accept-invite/{invite.token}/"
+
+        # HTML email
+        html_message = render_to_string(
+            'emails/invitation_email.html',
+            {
+                'full_name': full_name,
+                'organization': organization.name,
+                'accept_url': accept_url
+            }
+        )
+
+        # Send the email
+        send_mail(
+            subject=f"Invitation to join {organization.name}",
+            message='',
+            html_message=html_message,
+            from_email=None,
+            recipient_list=[email],
+            fail_silently=False
+        )
+
+        return invite
