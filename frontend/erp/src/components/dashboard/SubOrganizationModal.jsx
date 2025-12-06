@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X, Building, Eye, EyeOff } from "lucide-react";
 import { organizationService } from "../../services/organizationService";
-// import { availableModules } from "../modules/index";
+
 const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -9,82 +9,44 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
-    // Step 1: Organization Details
     name: "",
     subdomain: "",
     plan_tier: "basic",
     email: "",
     phone: "",
     address: "",
-
-    // Step 2: Admin User Details
     admin_email: "",
     admin_password: "",
     admin_first_name: "",
     admin_last_name: "",
-
-    // Step 3: Module Selection - FIXED: Changed to module_access
-    module_access: []  // Changed from selected_modules to module_access
+    module_access: []
   });
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-
-    // MODULE CHECKBOX HANDLING
     if (type === "checkbox") {
-      const moduleObj = availableModules.find((m) => m.code === value);
-
       const updatedModules = checked
-        ? [...formData.module_access, value]  // Changed from selected_modules to module_access
-        : formData.module_access.filter(mod => mod !== value);  // Changed here too
-      
-      setFormData(prev => ({
-        ...prev,
-        module_access: updatedModules  // Changed from selected_modules to module_access
-      }));
+        ? [...formData.module_access, value]
+        : formData.module_access.filter((mod) => mod !== value);
+      setFormData((prev) => ({ ...prev, module_access: updatedModules }));
     } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
-
     setError("");
   };
 
   const validateStep1 = () => {
-    if (!formData.name.trim()) {
-      setError("Organization name is required");
-      return false;
-    }
-    if (!formData.subdomain.trim()) {
-      setError("Subdomain is required");
-      return false;
-    }
-    if (!formData.email.trim()) {
-      setError("Email is required");
-      return false;
-    }
+    if (!formData.name.trim()) { setError("Organization name is required"); return false; }
+    if (!formData.subdomain.trim()) { setError("Subdomain is required"); return false; }
+    if (!formData.email.trim()) { setError("Email is required"); return false; }
     return true;
   };
 
   const validateStep2 = () => {
-    if (!formData.admin_email.trim()) {
-      setError("Admin email is required");
-      return false;
-    }
-    if (!formData.admin_password.trim()) {
-      setError("Admin password is required");
-      return false;
-    }
-    if (formData.admin_password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return false;
-    }
-    if (!formData.admin_first_name.trim()) {
-      setError("Admin first name is required");
-      return false;
-    }
+    if (!formData.admin_email.trim()) { setError("Admin email is required"); return false; }
+    if (!formData.admin_password.trim()) { setError("Admin password is required"); return false; }
+    if (formData.admin_password.length < 8) { setError("Password must be at least 8 characters"); return false; }
+    if (!formData.admin_first_name.trim()) { setError("Admin first name is required"); return false; }
     return true;
   };
 
@@ -94,274 +56,179 @@ const SubOrganizationModal = ({ onClose, onSuccess, availableModules }) => {
     setStep(step + 1);
   };
 
-  const handleBack = () => {
-    setStep(step - 1);
-  };
+  const handleBack = () => setStep(step - 1);
 
-const handleSubmit = async () => {
-  try {
-    setLoading(true);
-    setError("");
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-    const payload = {
-  name: formData.name.trim(),
-  subdomain: formData.subdomain.trim().toLowerCase(),
-  plan_tier: formData.plan_tier,
-  email: formData.email.trim(),
-  phone: formData.phone || null,
-  address: formData.address || null,
+      const payload = {
+        name: formData.name.trim(),
+        subdomain: formData.subdomain.trim().toLowerCase(),
+        plan_tier: formData.plan_tier,
+        email: formData.email.trim(),
+        phone: formData.phone || null,
+        address: formData.address || null,
+        admin_first_name: formData.admin_first_name.trim(),
+        admin_last_name: (formData.admin_last_name || "").trim(),
+        admin_email: formData.admin_email.trim(),
+        admin_password: formData.admin_password,
+        parent_organization_id: 1,
+        module_access: formData.module_access
+      };
 
-  admin_first_name: formData.admin_first_name.trim(),
-  admin_last_name: (formData.admin_last_name || "").trim(),
-  admin_email: formData.admin_email.trim(),
-  admin_password: formData.admin_password,
+      const result = await organizationService.createSubOrganization(payload);
 
-  parent_organization_id: 1,
-
-  module_access: formData.module_access  // just array of codes
-};
-
-    console.log(availableModules);
-
-    console.log("FINAL PAYLOAD →", payload);
-
-    const result = await organizationService.createSubOrganization(payload);
-
-    if (result.success) {
-      alert("Sub-organization created successfully!");
-      onSuccess();
-      onClose();
-    } else {
-      setError(result.error || "Creation failed");
+      if (result.success) {
+        alert("Sub-organization created successfully!");
+        onSuccess();
+        onClose();
+      } else {
+        setError(result.error || "Creation failed");
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error || err.message || "Failed");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error(err);
-    console.log("BACKEND ERROR →", err.response?.data);
-    setError(err.response?.data?.error || err.message || "Failed");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-  const getModulesForPlan = (plan) => {
-    return availableModules.filter(module => 
-      module.available_in_plans && 
-      module.available_in_plans.includes(plan)
+  const getModulesForPlan = (plan) =>
+    availableModules.filter(
+      (module) => module.available_in_plans && module.available_in_plans.includes(plan)
     );
-  };
-
-  // Debug function to check available modules
-  const debugAvailableModules = () => {
-    console.log('🔍 Available modules:', availableModules);
-    console.log('🔍 Modules for plan:', formData.plan_tier, getModulesForPlan(formData.plan_tier));
-  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-gray-950 bg-opacity-80 flex items-center justify-center p-4 z-50">
+      <div className="bg-gray-900/30 backdrop-blur-sm rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-cyan-800">
+        
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-cyan-800">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              Create Sub Organization
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">Step {step} of 3</p>
+            <h2 className="text-xl font-bold text-pink-400">Create Sub Organization</h2>
+            <p className="text-sm text-gray-400 mt-1">Step {step} of 3</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
           >
-            <X size={20} />
+            <X size={20} className="text-cyan-400"/>
           </button>
         </div>
 
         {/* Progress Bar */}
         <div className="px-6 pt-4">
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-800 rounded-full h-2">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all"
+              className="bg-cyan-400 h-2 rounded-full transition-all"
               style={{ width: `${(step / 3) * 100}%` }}
-            ></div>
+            />
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 space-y-6 text-cyan-300 font-mono">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-6">
+            <div className="bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          {/* Step 1: Organization Details */}
+          {/* Step 1 */}
           {step === 1 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">
-                Organization Information
-              </h3>
-
+              <h3 className="text-lg font-bold text-pink-400">Organization Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Organization Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter organization name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subdomain *
-                  </label>
-                  <input
-                    type="text"
-                    name="subdomain"
-                    value={formData.subdomain}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="company-name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Plan Tier *
-                  </label>
-                  <select
-                    name="plan_tier"
-                    value={formData.plan_tier}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="basic">Basic</option>
-                    <option value="advance">Advance</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contact Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="contact@organization.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="+1 (555) 123-4567"
-                  />
-                </div>
+                {[
+                  { label: "Organization Name *", name: "name", placeholder: "Enter organization name" },
+                  { label: "Subdomain *", name: "subdomain", placeholder: "company-name" },
+                  { label: "Plan Tier *", name: "plan_tier", type: "select", options: ["basic","advance","enterprise"] },
+                  { label: "Contact Email *", name: "email", placeholder: "contact@organization.com", type: "email" },
+                  { label: "Phone", name: "phone", placeholder: "+1 (555) 123-4567" }
+                ].map((field) => (
+                  <div key={field.name}>
+                    <label className="block text-sm font-medium mb-2">{field.label}</label>
+                    {field.type === "select" ? (
+                      <select
+                        name={field.name}
+                        value={formData[field.name]}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-cyan-700 rounded-lg bg-gray-900 focus:ring-2 focus:ring-cyan-400"
+                      >
+                        {field.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type || "text"}
+                        name={field.name}
+                        value={formData[field.name]}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-cyan-700 rounded-lg bg-gray-900 focus:ring-2 focus:ring-cyan-400"
+                        placeholder={field.placeholder}
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address
-                </label>
+                <label className="block text-sm font-medium mb-2">Address</label>
                 <textarea
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-cyan-700 rounded-lg bg-gray-900 focus:ring-2 focus:ring-cyan-400"
                   placeholder="Enter organization address"
                 />
               </div>
             </div>
           )}
 
-          {/* Step 2: Admin User */}
+          {/* Step 2 */}
           {step === 2 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">
-                Admin User Account
-              </h3>
-
+              <h3 className="text-lg font-bold text-pink-400">Admin User Account</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="admin_first_name"
-                    value={formData.admin_first_name}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="John"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    name="admin_last_name"
-                    value={formData.admin_last_name}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Doe"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="admin_email"
-                    value={formData.admin_email}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="admin@organization.com"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Password *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="admin_password"
-                      value={formData.admin_password}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10"
-                      placeholder="Enter password (min. 8 characters)"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                {[
+                  { label: "First Name *", name: "admin_first_name", placeholder: "John" },
+                  { label: "Last Name", name: "admin_last_name", placeholder: "Doe" },
+                  { label: "Email *", name: "admin_email", placeholder: "admin@organization.com", colSpan: 2 },
+                  { label: "Password *", name: "admin_password", placeholder: "Enter password", colSpan: 2, password: true }
+                ].map((field) => (
+                  <div key={field.name} className={field.colSpan ? `md:col-span-${field.colSpan}` : ""}>
+                    <label className="block text-sm font-medium mb-2">{field.label}</label>
+                    {field.password ? (
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          name={field.name}
+                          value={formData[field.name]}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-cyan-700 rounded-lg bg-gray-900 focus:ring-2 focus:ring-cyan-400 pr-10"
+                          placeholder={field.placeholder}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cyan-400 hover:text-pink-400"
+                        >
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        name={field.name}
+                        value={formData[field.name]}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-cyan-700 rounded-lg bg-gray-900 focus:ring-2 focus:ring-cyan-400"
+                        placeholder={field.placeholder}
+                      />
+                    )}
                   </div>
-                </div>
+                ))}
               </div>
             </div>
           )}
@@ -369,118 +236,57 @@ const handleSubmit = async () => {
           {/* Step 3: Module Selection */}
           {step === 3 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">
-                Module Access
-              </h3>
-              <p className="text-sm text-gray-600">
-                Select which modules this sub-organization can access. Available
-                modules depend on the selected plan ({formData.plan_tier}).
+              <h3 className="text-lg font-bold text-pink-400">Module Access</h3>
+              <p className="text-gray-400 text-sm mb-3">
+                Select which modules this sub-organization can access. Available modules depend on the selected plan ({formData.plan_tier}).
               </p>
-
-              {/* Debug button - remove in production */}
-              <button 
-                type="button" 
-                onClick={debugAvailableModules}
-                className="text-xs bg-gray-100 px-2 py-1 rounded"
-              >
-                Debug Modules
-              </button>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {getModulesForPlan(formData.plan_tier).map((module) => (
-                  <label
-                    key={module.code}
-                    className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
+                  <label key={module.code} className="flex items-start space-x-3 p-4 border border-cyan-800 rounded-xl hover:bg-gray-800 cursor-pointer">
                     <input
                       type="checkbox"
                       value={module.code}
-                      checked={formData.module_access.includes(module.code)}  // Changed from selected_modules to module_access
+                      checked={formData.module_access.includes(module.code)}
                       onChange={handleInputChange}
-                      className="mt-1 text-blue-600 focus:ring-blue-500"
+                      className="mt-1 text-cyan-400 focus:ring-cyan-500"
                     />
-
-                    <div className="flex-1">
+                    <div className="flex-1 text-cyan-300">
                       <div className="flex items-center space-x-2 mb-1">
-                        <span className="font-medium text-gray-900">
-                          {module.name}
-                        </span>
+                        <span className="font-semibold">{module.name}</span>
                       </div>
-                      <p className="text-sm text-gray-600">
-                        {module.description}
-                      </p>
+                      <p className="text-gray-400 text-sm">{module.description}</p>
                       <div className="mt-2 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">
-                          {module.pages?.length || 0} pages available
-                        </span>
+                        <span className="text-xs text-gray-500">{module.pages?.length || 0} pages available</span>
                         <span className={`px-2 py-1 text-xs rounded-full ${
-                          formData.module_access.includes(module.code)  // Changed here too
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
+                          formData.module_access.includes(module.code)
+                            ? 'bg-green-900 text-green-400'
+                            : 'bg-gray-800 text-gray-400'
                         }`}>
-                          {formData.module_access.includes(module.code) ? 'Selected' : 'Not Selected'}  {/* Changed here */}
+                          {formData.module_access.includes(module.code) ? 'Selected' : 'Not Selected'}
                         </span>
                       </div>
                     </div>
                   </label>
                 ))}
               </div>
-
               {getModulesForPlan(formData.plan_tier).length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <Building className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                   <p>No modules available for the {formData.plan_tier} plan.</p>
                 </div>
               )}
-
-              {/* Show selected modules count */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Selected: {formData.module_access.length} modules</strong>  {/* Changed here */}
-                  {formData.module_access.length > 0 && (
-                    <span className="ml-2">
-                      ({formData.module_access.join(', ')})
-                    </span>
-                  )}
-                </p>
-              </div>
             </div>
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between pt-6 mt-6 border-t border-gray-200">
-            <div>
-              {step > 1 && (
-                <button
-                  onClick={handleBack}
-                  className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Back
-                </button>
-              )}
-            </div>
-
+          <div className="flex justify-between pt-6 mt-6 border-t border-cyan-800">
+            <div>{step > 1 && <button onClick={handleBack} className="px-6 py-2 text-cyan-300 border border-cyan-700 rounded-xl hover:bg-gray-800 transition">Back</button>}</div>
             <div className="flex space-x-3">
-              <button
-                onClick={onClose}
-                className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-
+              <button onClick={onClose} className="px-6 py-2 text-cyan-300 border border-cyan-700 rounded-xl hover:bg-gray-800 transition">Cancel</button>
               {step < 3 ? (
-                <button
-                  onClick={handleNext}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Next
-                </button>
+                <button onClick={handleNext} className="px-6 py-2 bg-cyan-400 text-gray-950 rounded-xl hover:bg-cyan-500 transition">Next</button>
               ) : (
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
+                <button onClick={handleSubmit} disabled={loading} className="px-6 py-2 bg-green-600 text-gray-950 rounded-xl hover:bg-green-700 transition disabled:opacity-50">
                   {loading ? "Creating..." : "Create Organization"}
                 </button>
               )}

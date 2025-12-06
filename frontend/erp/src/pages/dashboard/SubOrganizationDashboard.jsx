@@ -20,108 +20,83 @@ const SubOrganizationDashboard = () => {
       navigate("/login");
       return;
     }
-
     loadDashboardData();
   }, [user, organization, navigate]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-
-      // Load accessible modules for this sub-organization
       const modulesData = await moduleService.getAvailableModules(user?.role);
-      console.log("📦 Modules loaded:", modulesData);
       setModules(modulesData);
 
-      // Calculate stats
-      const activeModulesCount = modulesData.filter(
-        (module) => module.is_active
-      ).length;
-
+      const activeModulesCount = modulesData.filter((m) => m.is_active).length;
       setStats({
         activeModules: activeModulesCount,
         totalUsers: 1,
       });
     } catch (error) {
-      console.error("Failed to load dashboard data:", error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleModuleClick = (module) => {
-    if (module.is_active) {
-      // Navigate to module dashboard
-      switch (module.code) {
-        case "hr_management":
-          navigate("/hr/dashboard");
-          break;
-        case "inventory":
-          navigate("/inventory/dashboard");
-          break;
-        case "sales":
-          navigate("/sales/dashboard");
-          break;
-        case "transport":
-          navigate("/transport/dashboard");
-          break;
-        case "accounting":
-          navigate("/accounting/dashboard");
-          break;
-        case "crm":
-          navigate("/crm/dashboard");
-          break;
-        case "project_management":
-          navigate("/projects/dashboard");
-          break;
-        default:
-          console.log(`No route defined for module: ${module.code}`);
-      }
-    }
+    if (!module.is_active) return;
+    const routes = {
+      hr_management: "/hr/dashboard",
+      inventory: "/inventory/dashboard",
+      sales: "/sales/dashboard",
+      transport: "/transport/dashboard",
+      accounting: "/accounting/dashboard",
+      crm: "/crm/dashboard",
+      project_management: "/projects/dashboard",
+    };
+    navigate(routes[module.code] || "/");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-cyan-300">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono">
       {/* Header */}
-      <div className="bg-white shadow">
+      <div className="bg-gray-900/30 backdrop-blur-md border-b border-cyan-800 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
-              <div className="bg-green-100 p-3 rounded-lg mr-4">
-                <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center text-white font-bold">
+              <div className="bg-gray-800/50 p-3 rounded-lg mr-4">
+                <div className="w-8 h-8 bg-cyan-700 rounded flex items-center justify-center text-gray-950 font-bold">
                   {organization?.name?.charAt(0) || "S"}
                 </div>
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-pink-400">
                   {organization?.name}
                 </h1>
-                <p className="text-gray-600 mt-1">
+                <p className="text-cyan-300 mt-1">
                   Welcome back, {user?.first_name} • Sub-Organization Dashboard
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm text-gray-500">Plan</p>
-                <p className="font-semibold text-gray-900 capitalize">
+                <p className="text-sm text-cyan-400">Plan</p>
+                <p className="font-semibold text-cyan-300 capitalize">
                   {organization?.plan_tier}
                 </p>
               </div>
               <button
                 onClick={logout}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors"
+                className="bg-cyan-600 hover:bg-red-700 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
               >
                 Logout
               </button>
@@ -130,83 +105,53 @@ const SubOrganizationDashboard = () => {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="bg-blue-100 p-3 rounded-lg mr-4">
-                <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-bold">
-                  M
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[
+            { label: "Active Modules", value: stats.activeModules, color: "cyan" },
+            { label: "Total Users", value: stats.totalUsers, color: "cyan" },
+            { label: "Plan Tier", value: organization?.plan_tier, color: "cyan" },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className={`bg-gray-900/40 border border-cyan-800 rounded-xl shadow p-6 flex items-center gap-4 hover:shadow-gray-800/50 transition`}
+            >
+              <div className={`bg-gray-900/30 p-3 rounded-lg`}>
+                <div className={`w-10 h-10 bg-${stat.color}-700 rounded flex items-center justify-center text-gray-950 font-bold`}>
+                  {stat.label.charAt(0)}
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Active Modules
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.activeModules}
-                </p>
+                <p className="text-cyan-400 text-sm">{stat.label}</p>
+                <p className="text-pink-400 font-bold text-2xl">{stat.value}</p>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="bg-green-100 p-3 rounded-lg mr-4">
-                <div className="w-6 h-6 bg-green-600 rounded flex items-center justify-center text-white text-sm font-bold">
-                  U
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.totalUsers}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="bg-purple-100 p-3 rounded-lg mr-4">
-                <div className="w-6 h-6 bg-purple-600 rounded flex items-center justify-center text-white text-sm font-bold">
-                  P
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Plan Tier</p>
-                <p className="text-2xl font-bold text-gray-900 capitalize">
-                  {organization?.plan_tier}
-                </p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Modules Section */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900">Your Modules</h2>
-            <p className="text-gray-600 mt-1">
+        <div className="bg-gray-900/40 border border-cyan-800 rounded-xl shadow">
+          <div className="px-6 py-4 border-b border-cyan-800">
+            <h2 className="text-2xl font-bold text-pink-400">Your Modules</h2>
+            <p className="text-cyan-300 mt-1">
               Access and manage your organization's modules
             </p>
           </div>
-
           <div className="p-6">
             {modules.length > 0 ? (
-              <ModuleGrid modules={modules} onModuleClick={handleModuleClick} />
+              <ModuleGrid modules={modules} onModuleClick={handleModuleClick} darkTheme />
             ) : (
               <div className="text-center py-12">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <div className="w-12 h-12 bg-gray-400 rounded flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-24 h-24 bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-12 h-12 bg-gray-800 rounded flex items-center justify-center text-cyan-300 text-2xl font-bold">
                     M
                   </div>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-lg font-medium text-pink-400 mb-2">
                   No Modules Assigned
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-cyan-300 mb-6">
                   Your organization doesn't have access to any modules yet.
                   Please contact your main organization administrator.
                 </p>
@@ -216,11 +161,11 @@ const SubOrganizationDashboard = () => {
         </div>
 
         {/* Information Section */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">
+        <div className="bg-gray-900/40 border border-cyan-800 rounded-xl p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-pink-400">
             Sub-Organization Information
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-cyan-300">
             <div>
               <p>
                 <strong>Organization:</strong> {organization?.name}

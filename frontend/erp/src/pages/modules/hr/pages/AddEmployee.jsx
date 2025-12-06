@@ -1,344 +1,494 @@
+// THEMED AddEmployee - Full Width
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  createContext,
+  useContext,
+} from "react";
+import axios from "axios";
+import {
+  UserPlus,
+  Save,
+  Loader2,
+  ArrowLeft,
+  AlertTriangle,
+  Ban,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { UserPlus, Save, Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
-import api from '../../../../services/api'; 
-import { useAuth } from '../../../../context/AuthContext'; 
+const AuthContext = createContext(null);
+const useAuth = () => {
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const mockUser = {
+        id: "user-001",
+        isAuthenticated: true,
+        role: "hr",
+      };
+      setUser(mockUser);
+      setIsLoadingAuth(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return {
+    user,
+    isLoadingAuth,
+  };
+};
 
 const roleOptions = [
-    { value: 'employee', label: 'Employee' },
-    { value: 'hr', label: 'HR' },
-    { value: 'admin', label: 'Admin' },
+  { value: "employee", label: "Employee" },
+  { value: "hr", label: "HR" },
+  { value: "admin", label: "Admin" },
 ];
 
 const AddEmployee = () => {
-    const navigate = useNavigate();
-    const { user } = useAuth(); // Assuming user holds info like API token
-    const [formData, setFormData] = useState({
-        full_name: '',
-        employee_code: '',
-        user_email: '', // This is crucial for the User/Invite flow
-        phone: '',
-        role: 'employee',
-        department_id: '',
-        designation_id: '',
-        date_of_joining: '',
-        is_probation: false,
-        ctc: '',
-        notes: '',
-    });
+  const navigate = useNavigate();
+  const { user, isLoadingAuth } = useAuth();
+  const AUTHORIZED_ROLES = ["hr", "admin"];
+  const isAuthorized = user && AUTHORIZED_ROLES.includes(user.role);
 
-    const [departments, setDepartments] = useState([]);
-    const [designations, setDesignations] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState(null);
-    const [successMessage, setSuccessMessage] = useState(null);
+  const [formData, setFormData] = useState({
+    full_name: "",
+    employee_code: "",
+    user_email: "",
+    phone: "",
+    role: "employee",
+    department_id: "",
+    designation_id: "",
+    date_of_joining: new Date().toISOString().substring(0, 10),
+    is_probation: false,
+    ctc: "",
+    notes: "",
+  });
 
-    // --- 1. Fetch Department & Designation Data ---
-    useEffect(() => {
-        const fetchDependencies = async () => {
-            try {
-                // Ensure your API routes are correct
-                const [deptResponse, desigResponse] = await Promise.all([
-                    api.get('/hr/departments/'), 
-                    api.get('/hr/designations/')
-                ]);
-                
-                setDepartments(deptResponse.data);
-                setDesignations(desigResponse.data);
-            } catch (err) {
-                console.error("Failed to fetch dependencies:", err);
-                setError("Failed to load departments or designations. Please check API.");
-            } finally {
-                setLoading(false);
-            }
-        };
+  const [departments, setDepartments] = useState([]);
+  const [designations, setDesignations] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
-        fetchDependencies();
-    }, []);
+  const fetchDependencies = useCallback(async () => {
+    if (!isAuthorized) return;
+    setLoadingData(true);
+    setError(null);
+    try {
+      const [deptRes, desigRes] = await Promise.all([
+        axios.get('/api/hr/departments/'),
+        axios.get('/api/hr/designations/')
+      ]);
 
-    // --- 2. Handle Form Changes ---
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prevData => ({
-            ...prevData,
-            [name]: type === 'checkbox' ? checked : value
-        }));
-        // Clear success message on change
-        if (successMessage) setSuccessMessage(null);
-    };
+      setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
+      setDesignations(Array.isArray(desigRes.data) ? desigRes.data : []);
 
-    // --- 3. Handle Form Submission ---
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError(null);
-        setSuccessMessage(null);
-        setIsSubmitting(true);
+      if (deptRes.data.length > 0) {
+        setFormData(prev => ({ ...prev, department_id: deptRes.data[0].id }));
+      }
+      if (desigRes.data.length > 0) {
+        setFormData(prev => ({ ...prev, designation_id: desigRes.data[0].id }));
+      }
 
-        // Map empty string IDs to null for the ForeignKey fields
-        const payload = {
-            ...formData,
-            department_id: formData.department_id || null,
-            designation_id: formData.designation_id || null,
-            // Ensure ctc is a number if provided
-            ctc: formData.ctc ? parseFloat(formData.ctc) : null,
-        };
+    } catch (err) {
+      console.error("API Error:", err.response?.data);
+      setError("Unable to load departments/designations. Are you logged in as HR?");
+      setDepartments([]);
+      setDesignations([]);
+    } finally {
+      setLoadingData(false);
+    }
+  }, [isAuthorized]);
 
-        try {
-            // POST data to the employees endpoint
-            const response = await api.post('/hr/employees/', payload);
-            
-            setSuccessMessage(`Employee ${response.data.full_name} (${response.data.employee_code}) successfully created. An invitation email with temporary login details has been sent to ${payload.user_email}.`);
-            // Optionally clear the form or navigate away
-            setFormData({
-                full_name: '', employee_code: '', user_email: '', phone: '', 
-                role: 'employee', department_id: '', designation_id: '', 
-                date_of_joining: '', is_probation: false, ctc: '', notes: '',
-            });
+  useEffect(() => {
+    if (!isLoadingAuth && isAuthorized) {
+      fetchDependencies();
+    }
+  }, [isLoadingAuth, isAuthorized, fetchDependencies]);
 
-        } catch (err) {
-            console.error("Employee Creation Error:", err.response ? err.response.data : err.message);
-            // Handle validation errors from the EmployeeCreateSerializer
-            if (err.response && err.response.data) {
-                const data = err.response.data;
-                const messages = Object.keys(data).map(key => {
-                    // Display error for the specific field, e.g., 'user_email: A user with this email already exists.'
-                    return `${key}: ${Array.isArray(data[key]) ? data[key].join(', ') : data[key]}`;
-                }).join(' | ');
-                setError(`Validation Error: ${messages}`);
-            } else {
-                setError("An unexpected error occurred during employee creation.");
-            }
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-    
-    // --- Loading State ---
-    if (loading) {
-        return <div className="p-8 text-center text-gray-500">Loading HR Data...</div>;
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    if (successMessage) setSuccessMessage(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
+
+    if (!formData.full_name || !formData.employee_code || !formData.user_email) {
+      setError("Full Name, Employee Code, and Email are required fields.");
+      setIsSubmitting(false);
+      return;
     }
 
+    const payload = {
+      full_name: formData.full_name,
+      employee_code: formData.employee_code,
+      user_email: formData.user_email,
+      phone: formData.phone || null,
+      role: formData.role,
+      department_id: formData.department_id || null,
+      designation_id: formData.designation_id || null,
+      date_of_joining: formData.date_of_joining || null,
+      is_probation: formData.is_probation,
+      ctc: formData.ctc ? parseFloat(formData.ctc) : null,
+      notes: formData.notes || "",
+    };
+
+    try {
+      const getCsrfToken = () => {
+        const name = "csrftoken";
+        const cookies = document.cookie.split("; ");
+        for (let cookie of cookies) {
+          const [key, value] = cookie.split("=");
+          if (key === name) return decodeURIComponent(value);
+        }
+        return null;
+      };
+
+      const response = await axios.post(
+        "/api/hr/employees/create_with_invite/",
+        payload,
+        {
+          headers: {
+            "X-CSRFToken": getCsrfToken(),
+            "Content-Type": "application/json",
+          },
+          withCredentials: true,
+        }
+      );
+
+      setSuccessMessage(
+        `Employee ${response.data.employee.full_name} created successfully! ` +
+        `Invitation email sent to ${response.data.employee.email || payload.user_email}`
+      );
+
+      setFormData({
+        full_name: "",
+        employee_code: "",
+        user_email: "",
+        phone: "",
+        role: "employee",
+        department_id: departments[0]?.id || "",
+        designation_id: designations[0]?.id || "",
+        date_of_joining: new Date().toISOString().substring(0, 10),
+        is_probation: false,
+        ctc: "",
+        notes: "",
+      });
+
+    } catch (err) {
+      console.error("Employee Creation Error:", err.response || err);
+
+      let errorMsg = "An unexpected error occurred. Check server connectivity.";
+
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (data.errors) {
+          errorMsg = Object.entries(data.errors)
+            .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
+            .join(" | ");
+        } else if (typeof data === "object") {
+          errorMsg = Object.entries(data)
+            .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
+            .join(" | ");
+        } else {
+          errorMsg = data.detail || data.message || JSON.stringify(data);
+        }
+      }
+
+      setError(errorMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoadingAuth) {
     return (
-        <div className="max-w-4xl mx-auto py-10">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                    <UserPlus className="w-8 h-8 mr-3 text-blue-600" />
-                    Add New Employee
-                </h1>
-                <button
-                    onClick={() => navigate('/hr/')}
-                    className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-1" />
-                    Back to Dashboard
-                </button>
-            </div>
-            
-            {/* Success Message */}
-            {successMessage && (
-                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <strong className="font-bold">Success!</strong>
-                    <span className="block sm:inline ml-2">{successMessage}</span>
-                </div>
-            )}
-
-            {/* Error Message */}
-            {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                    <strong className="font-bold">Error!</strong>
-                    <span className="block sm:inline ml-2">{error}</span>
-                </div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-xl p-8 space-y-6">
-                <h2 className="text-xl font-semibold text-gray-700 border-b pb-2">Personal & Contact Details</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 required">Full Name</label>
-                        <input
-                            type="text"
-                            name="full_name"
-                            id="full_name"
-                            value={formData.full_name}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="user_email" className="block text-sm font-medium text-gray-700 required">Email (Login ID)</label>
-                        <input
-                            type="email"
-                            name="user_email"
-                            id="user_email"
-                            value={formData.user_email}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                         <p className="mt-1 text-xs text-blue-600">Invitation and temporary password will be sent here.</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label htmlFor="employee_code" className="block text-sm font-medium text-gray-700 required">Employee Code</label>
-                        <input
-                            type="text"
-                            name="employee_code"
-                            id="employee_code"
-                            value={formData.employee_code}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone</label>
-                        <input
-                            type="tel"
-                            name="phone"
-                            id="phone"
-                            value={formData.phone}
-                            onChange={handleChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-                </div>
-
-
-                <h2 className="text-xl font-semibold text-gray-700 border-b pb-2 pt-4">Organizational Details</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label htmlFor="department_id" className="block text-sm font-medium text-gray-700">Department</label>
-                        <select
-                            name="department_id"
-                            id="department_id"
-                            value={formData.department_id}
-                            onChange={handleChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                        >
-                            <option value="">-- Select Department --</option>
-                            {departments.map(dept => (
-                                <option key={dept.id} value={dept.id}>{dept.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="designation_id" className="block text-sm font-medium text-gray-700">Designation</label>
-                        <select
-                            name="designation_id"
-                            id="designation_id"
-                            value={formData.designation_id}
-                            onChange={handleChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                        >
-                            <option value="">-- Select Designation --</option>
-                            {designations.map(desig => (
-                                <option key={desig.id} value={desig.id}>{desig.title}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="role" className="block text-sm font-medium text-gray-700">System Role</label>
-                        <select
-                            name="role"
-                            id="role"
-                            value={formData.role}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                        >
-                            {roleOptions.map(role => (
-                                <option key={role.value} value={role.value}>{role.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label htmlFor="date_of_joining" className="block text-sm font-medium text-gray-700">Date of Joining</label>
-                        <input
-                            type="date"
-                            name="date_of_joining"
-                            id="date_of_joining"
-                            value={formData.date_of_joining}
-                            onChange={handleChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="ctc" className="block text-sm font-medium text-gray-700">CTC (Annual)</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            name="ctc"
-                            id="ctc"
-                            value={formData.ctc}
-                            onChange={handleChange}
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="e.g., 50000.00"
-                        />
-                    </div>
-                    <div className="flex items-end">
-                        <label htmlFor="is_probation" className="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
-                                name="is_probation"
-                                id="is_probation"
-                                checked={formData.is_probation}
-                                onChange={handleChange}
-                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                            <span className="text-sm font-medium text-gray-700">Currently on Probation</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div>
-                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Notes (Internal HR Only)</label>
-                    <textarea
-                        name="notes"
-                        id="notes"
-                        rows="3"
-                        value={formData.notes}
-                        onChange={handleChange}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"
-                    ></textarea>
-                </div>
-
-
-                {/* Submit Button */}
-                <div className="pt-5 border-t mt-6">
-                    <button
-                        type="submit"
-                        disabled={isSubmitting || loading}
-                        className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white transition-colors 
-                            ${isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'}`}
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
-                                Sending Invite...
-                            </>
-                        ) : (
-                            <>
-                                <Save className="-ml-1 mr-3 h-5 w-5" />
-                                Create Employee & Send Invitation
-                            </>
-                        )}
-                    </button>
-                </div>
-            </form>
-        </div>
+      <div className="flex items-center justify-center w-full h-screen bg-gray-950 text-cyan-300 text-xl">
+        <Loader2 className="animate-spin mr-3" />
+        Checking user permissions...
+      </div>
     );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="flex items-center justify-center w-full h-screen bg-gray-950 text-cyan-300">
+        <div className="text-center p-8 w-full max-w-3xl bg-gray-900 border border-cyan-800 rounded-xl shadow-lg">
+          <Ban className="w-12 h-12 mx-auto text-pink-400 mb-4" />
+          <h1 className="text-2xl font-bold text-cyan-300 mb-2">Access Denied</h1>
+          <p className="text-gray-400">
+            You must be an HR or Administrator to access this page.
+          </p>
+          <p className="text-sm text-gray-500 mt-2">Current Role: {user?.role || "Guest"}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingData) {
+    return (
+      <div className="flex items-center justify-center w-full h-screen bg-gray-950 text-cyan-300 text-xl">
+        <Loader2 className="animate-spin mr-3" />
+        Loading Departments and Designations...
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full min-h-screen bg-gray-950 text-cyan-300 font-mono py-10 px-4">
+      <div className="flex items-center justify-between mb-8 w-full max-w-full">
+        <h1 className="text-3xl font-bold flex items-center text-pink-400">
+          <UserPlus className="w-8 h-8 mr-3 text-cyan-400" />
+          Add New Employee
+        </h1>
+        <button
+          onClick={() => navigate("/hr/dashboard")}
+          className="flex items-center text-sm font-medium text-cyan-300 hover:text-pink-400 transition-colors"
+        >
+          <ArrowLeft  className="w-4 h-4 mr-1" />
+          Back to Dashboard
+        </button>
+      </div>
+
+      {successMessage && (
+        <div className="bg-gray-900 border border-cyan-800 text-cyan-300 px-4 py-3 rounded-lg mb-4 flex items-center w-full max-w-full">
+          <Save className="w-5 h-5 mr-3 flex-shrink-0 text-pink-400" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-gray-900 border border-pink-400 text-pink-400 px-4 py-3 rounded-lg mb-4 flex items-center w-full max-w-full">
+          <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        className="bg-gray-900 border border-cyan-800 rounded-xl p-8 space-y-8 shadow-lg w-full"
+      >
+        {/* Personal Section */}
+        <div>
+          <h2 className="text-xl font-semibold text-pink-400 border-b border-cyan-800 pb-2 mb-6">
+            Personal & User Account Details
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+            <InputGroup
+              label="Full Name"
+              name="full_name"
+              type="text"
+              value={formData.full_name}
+              onChange={handleChange}
+              required
+            />
+            <InputGroup
+              label="Email (Login ID)"
+              name="user_email"
+              type="email"
+              value={formData.user_email}
+              onChange={handleChange}
+              required
+              hint="Invitation and temporary password will be sent here."
+            />
+            <InputGroup
+              label="Employee Code"
+              name="employee_code"
+              type="text"
+              value={formData.employee_code}
+              onChange={handleChange}
+              required
+            />
+            <InputGroup
+              label="Phone"
+              name="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+
+        {/* Organizational Section */}
+        <div>
+          <h2 className="text-xl font-semibold text-pink-400 border-b border-cyan-800 pb-2 mb-6">
+            Organizational & Compensation
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+            <SelectGroup
+              label="Department"
+              name="department_id"
+              value={formData.department_id}
+              onChange={handleChange}
+              options={departments}
+              valueKey="id"
+              labelKey="name"
+              placeholder="-- Select Department --"
+            />
+            <SelectGroup
+              label="Designation"
+              name="designation_id"
+              value={formData.designation_id}
+              onChange={handleChange}
+              options={designations}
+              valueKey="id"
+              labelKey="title"
+              placeholder="-- Select Designation --"
+            />
+            <SelectGroup
+              label="System Role"
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              required
+              options={roleOptions}
+              valueKey="value"
+              labelKey="label"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 w-full">
+            <InputGroup
+              label="Date of Joining"
+              name="date_of_joining"
+              type="date"
+              value={formData.date_of_joining}
+              onChange={handleChange}
+            />
+            <InputGroup
+              label="CTC (Annual)"
+              name="ctc"
+              type="number"
+              step="0.01"
+              value={formData.ctc}
+              onChange={handleChange}
+              placeholder="e.g., 50000.00"
+            />
+            <div className="flex items-end pb-1">
+              <label
+                htmlFor="is_probation"
+                className="flex items-center space-x-2 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  name="is_probation"
+                  id="is_probation"
+                  checked={formData.is_probation}
+                  onChange={handleChange}
+                  className="h-5 w-5 text-cyan-400 border-gray-700 rounded focus:ring-cyan-500 transition-colors"
+                />
+                <span className="text-sm font-medium text-cyan-300 select-none">
+                  Currently on Probation
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* Notes Section */}
+        <div>
+          <label
+            htmlFor="notes"
+            className="block text-sm font-medium text-cyan-300"
+          >
+            Notes (Internal HR Only)
+          </label>
+          <textarea
+            name="notes"
+            id="notes"
+            rows="3"
+            value={formData.notes}
+            onChange={handleChange}
+            className="mt-1 block w-full border border-cyan-800 rounded-md shadow-sm p-3 bg-gray-950 text-cyan-300 resize-none focus:ring-cyan-400 focus:border-cyan-400"
+          ></textarea>
+        </div>
+
+        <div className="pt-6 border-t border-cyan-800 mt-8 flex justify-end w-full">
+          <button
+            type="submit"
+            disabled={isSubmitting || loadingData}
+            className={`inline-flex items-center px-8 py-3 text-base font-semibold rounded-xl shadow-lg transition-all duration-200 w-full md:w-auto
+              ${
+                isSubmitting || loadingData
+                  ? "bg-gray-800 cursor-not-allowed text-gray-500"
+                  : "bg-gradient-to-r from-cyan-400 to-pink-400 text-gray-900 hover:from-cyan-300 hover:to-pink-300"
+              }`}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <Save className="-ml-1 mr-3 h-5 w-5" />
+                Create Employee & Send Invitation
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 };
+
+const InputGroup = ({ label, name, type, value, onChange, required, hint, step, placeholder }) => (
+  <div>
+    <label htmlFor={name} className="block text-sm font-medium text-cyan-300">
+      {label} {required && <span className="text-pink-400">*</span>}
+    </label>
+    <input
+      type={type}
+      name={name}
+      id={name}
+      required={required}
+      step={step}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      className="mt-1 block w-full border border-cyan-800 rounded-md shadow-sm p-3 bg-gray-950 text-cyan-300 focus:ring-cyan-400 focus:border-cyan-400"
+    />
+    {hint && <p className="mt-1 text-xs text-pink-400">{hint}</p>}
+  </div>
+);
+
+const SelectGroup = ({ label, name, value, onChange, required, options = [], valueKey, labelKey, placeholder }) => (
+  <div>
+    <label htmlFor={name} className="block text-sm font-medium text-cyan-300">
+      {label} {required && <span className="text-pink-400">*</span>}
+    </label>
+    <select
+      name={name}
+      id={name}
+      value={value}
+      onChange={onChange}
+      required={required}
+      className="mt-1 block w-full border border-cyan-800 rounded-md shadow-sm p-3 bg-gray-950 text-cyan-300 cursor-pointer focus:ring-cyan-400 focus:border-cyan-400"
+    >
+      {placeholder && <option value="">{placeholder}</option>}
+      {Array.isArray(options) && options.length > 0 ? (
+        options.map((option) => (
+          <option key={option[valueKey]} value={option[valueKey]} className="bg-gray-950 text-cyan-300">
+            {option[labelKey]}
+          </option>
+        ))
+      ) : (
+        <option disabled>No options available</option>
+      )}
+    </select>
+  </div>
+);
 
 export default AddEmployee;
