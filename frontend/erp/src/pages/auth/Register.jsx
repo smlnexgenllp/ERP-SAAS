@@ -58,16 +58,26 @@ const Register = () => {
   };
 
   const validateForm = () => {
-    if (!formData.name.trim()) return setError("Organization name is required") && false;
-    if (!formData.subdomain.trim()) return setError("Subdomain is required") && false;
-    if (formData.subdomain.length < 3) return setError("Subdomain must be at least 3 characters") && false;
-    if (!formData.email.trim()) return setError("Organization email is required") && false;
-    if (!formData.admin_first_name.trim()) return setError("Admin first name is required") && false;
-    if (!formData.admin_email.trim()) return setError("Admin email is required") && false;
-    if (!formData.admin_password) return setError("Admin password is required") && false;
-    if (formData.admin_password.length < 8) return setError("Password must be at least 8 characters") && false;
-    if (formData.admin_password !== formData.confirm_password) return setError("Passwords do not match") && false;
-    if (subdomainAvailable === false) return setError("Subdomain is not available") && false;
+    if (!formData.name.trim())
+      return setError("Organization name is required") && false;
+    if (!formData.subdomain.trim())
+      return setError("Subdomain is required") && false;
+    if (formData.subdomain.length < 3)
+      return setError("Subdomain must be at least 3 characters") && false;
+    if (!formData.email.trim())
+      return setError("Organization email is required") && false;
+    if (!formData.admin_first_name.trim())
+      return setError("Admin first name is required") && false;
+    if (!formData.admin_email.trim())
+      return setError("Admin email is required") && false;
+    if (!formData.admin_password)
+      return setError("Admin password is required") && false;
+    if (formData.admin_password.length < 8)
+      return setError("Password must be at least 8 characters") && false;
+    if (formData.admin_password !== formData.confirm_password)
+      return setError("Passwords do not match") && false;
+    if (subdomainAvailable === false)
+      return setError("Subdomain is not available") && false;
     return true;
   };
 
@@ -84,15 +94,20 @@ const Register = () => {
     try {
       const { confirm_password, ...apiData } = formData;
       console.log("Sending data:", apiData);
-      const response = await fetch("http://localhost:8000/api/organizations/register/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(apiData),
-      });
+      const response = await fetch(
+        "http://localhost:8000/api/organizations/register/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(apiData),
+        }
+      );
       const data = await response.json();
       if (data.success) {
         navigate("/login", {
-          state: { message: "Organization registered successfully! Please login." },
+          state: {
+            message: "Organization registered successfully! Please login.",
+          },
         });
       } else {
         if (data.details) {
@@ -112,9 +127,13 @@ const Register = () => {
 
   const getSubdomainStatus = () => {
     if (!formData.subdomain) return null;
-    if (checkingSubdomain) return <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />;
+    if (checkingSubdomain)
+      return (
+        <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+      );
     if (subdomainAvailable) return <Check className="w-4 h-4 text-green-400" />;
-    if (subdomainAvailable === false) return <X className="w-4 h-4 text-red-400" />;
+    if (subdomainAvailable === false)
+      return <X className="w-4 h-4 text-red-400" />;
     return null;
   };
 
@@ -128,8 +147,12 @@ const Register = () => {
               <Building className="w-8 h-8 text-cyan-300" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-pink-400 mb-2">Create Your Organization</h1>
-          <p className="text-cyan-300">Set up your main organization and admin account</p>
+          <h1 className="text-3xl font-bold text-pink-400 mb-2">
+            Create Your Organization
+          </h1>
+          <p className="text-cyan-300">
+            Set up your main organization and admin account
+          </p>
         </div>
 
         {/* Registration Form */}
@@ -142,10 +165,14 @@ const Register = () => {
 
           {/* Organization Information */}
           <div className="border-b border-cyan-800 pb-6">
-            <h3 className="text-lg font-medium text-pink-400 mb-4">Organization Information</h3>
+            <h3 className="text-lg font-medium text-pink-400 mb-4">
+              Organization Information
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">Organization Name *</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Organization Name *
+                </label>
                 <input
                   type="text"
                   name="name"
@@ -158,7 +185,9 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">Subdomain *</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Subdomain *
+                </label>
                 <div className="relative">
                   <input
                     type="text"
@@ -169,7 +198,9 @@ const Register = () => {
                     className="w-full px-3 py-2 border border-cyan-700 bg-gray-900/20 text-cyan-200 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 pr-10"
                     placeholder="company-name"
                   />
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">{getSubdomainStatus()}</div>
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    {getSubdomainStatus()}
+                  </div>
                 </div>
                 <p className="text-xs text-cyan-400 mt-1">
                   {formData.subdomain && (
@@ -181,7 +212,9 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">Plan Tier</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Plan Tier
+                </label>
                 <select
                   name="plan_tier"
                   value={formData.plan_tier}
@@ -195,7 +228,9 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">Contact Email *</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Contact Email *
+                </label>
                 <input
                   type="email"
                   name="email"
@@ -208,7 +243,9 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">Phone</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Phone
+                </label>
                 <input
                   type="tel"
                   name="phone"
@@ -221,7 +258,9 @@ const Register = () => {
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-cyan-300 mb-2">Address</label>
+              <label className="block text-sm font-medium text-cyan-300 mb-2">
+                Address
+              </label>
               <textarea
                 name="address"
                 rows={2}
@@ -235,10 +274,14 @@ const Register = () => {
 
           {/* Admin Account */}
           <div>
-            <h3 className="text-lg font-medium text-pink-400 mb-4">Admin Account</h3>
+            <h3 className="text-lg font-medium text-pink-400 mb-4">
+              Admin Account
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">First Name *</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  First Name *
+                </label>
                 <input
                   type="text"
                   name="admin_first_name"
@@ -251,7 +294,9 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">Last Name</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Last Name
+                </label>
                 <input
                   type="text"
                   name="admin_last_name"
@@ -263,7 +308,9 @@ const Register = () => {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-cyan-300 mb-2">Admin Email *</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Admin Email *
+                </label>
                 <input
                   type="email"
                   name="admin_email"
@@ -277,7 +324,9 @@ const Register = () => {
 
               {/* Passwords */}
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">Password *</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Password *
+                </label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -299,7 +348,9 @@ const Register = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">Confirm Password *</label>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Confirm Password *
+                </label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
@@ -315,7 +366,11 @@ const Register = () => {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cyan-300 hover:text-pink-400 transition-colors"
                   >
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showConfirmPassword ? (
+                      <EyeOff size={16} />
+                    ) : (
+                      <Eye size={16} />
+                    )}
                   </button>
                 </div>
               </div>
@@ -340,7 +395,10 @@ const Register = () => {
         <div className="mt-6 text-center text-cyan-300">
           <p>
             Already have an organization?{" "}
-            <Link to="/login" className="text-pink-400 hover:text-pink-500 font-medium">
+            <Link
+              to="/login"
+              className="text-pink-400 hover:text-pink-500 font-medium"
+            >
               Sign in here
             </Link>
           </p>

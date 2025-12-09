@@ -1,7 +1,7 @@
-import api from './api'; // Import is now correct relative to its new location
+import api from "./api"; // Import is now correct relative to its new location
 
-const TOKEN_ACCESS = 'access_token';
-const TOKEN_REFRESH = 'refresh_token';
+const TOKEN_ACCESS = "access_token";
+const TOKEN_REFRESH = "refresh_token";
 
 export const authService = {
   // Utility to store tokens
@@ -12,14 +12,14 @@ export const authService = {
 
   login: async (credentials) => {
     // Assuming the backend returns { access: '...', refresh: '...', user: {...} }
-    const response = await api.post('/auth/login/', credentials);
+    const response = await api.post("/auth/login/", credentials);
     const { access, refresh } = response.data;
-    
+
     // Store tokens on successful login
     if (access && refresh) {
-        authService._setTokens(access, refresh);
+      authService._setTokens(access, refresh);
     }
-    
+
     return response.data;
   },
 
@@ -36,34 +36,34 @@ export const authService = {
       return null;
     }
     // API interceptor in api.js handles attaching the token
-    const response = await api.get('/auth/profile/');
+    const response = await api.get("/auth/profile/");
     return response.data;
   },
 
   // This function is now primarily used by the API interceptor in api.js
   refreshToken: async (refresh) => {
     if (!refresh) {
-      throw new Error('No refresh token available.');
+      throw new Error("No refresh token available.");
     }
-    const response = await api.post('/auth/token/refresh/', { refresh });
+    const response = await api.post("/auth/token/refresh/", { refresh });
     const { access } = response.data;
-    
+
     // Update access token
     localStorage.setItem(TOKEN_ACCESS, access);
-    
+
     return access;
   },
 
   register: async (userData) => {
     // Assuming the backend returns { access: '...', refresh: '...', user: {...} }
-    const response = await api.post('/auth/register/', userData);
+    const response = await api.post("/auth/register/", userData);
     const { access, refresh } = response.data;
 
     // Store tokens on successful registration
     if (access && refresh) {
-        authService._setTokens(access, refresh);
+      authService._setTokens(access, refresh);
     }
 
     return response.data;
-  }
+  },
 };

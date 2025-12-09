@@ -154,7 +154,8 @@ export default function EmployeeList() {
                   {/* Dates */}
                   <div className="mt-3 text-xs text-gray-400 space-y-1 border-t border-cyan-800 pt-3">
                     <p>
-                      <strong>DOJ:</strong> {formatDate(employee.date_of_joining)}
+                      <strong>DOJ:</strong>{" "}
+                      {formatDate(employee.date_of_joining)}
                     </p>
                     <p>
                       <strong>DOB:</strong> {formatDate(employee.date_of_birth)}

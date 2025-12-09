@@ -3,17 +3,15 @@ import api from "../../../services/api";
 import {
   Mail,
   Phone,
-  Building,
   Calendar,
   Cake,
-  DollarSign,
-  Lock,
   Upload,
   Users,
   MapPin,
+  Lock,
 } from "lucide-react";
 
-export default function MyProfileTailwind() {
+export default function MyProfile() {
   const [employee, setEmployee] = useState({
     full_name: "Loading...",
     employee_code: "---",
@@ -24,16 +22,19 @@ export default function MyProfileTailwind() {
     date_of_joining: null,
     date_of_birth: null,
     location: "—",
-    reporting_to: { name: "—" },
+    reporting_to: { id: null, name: "—" },
     employment_type: "—",
     status: "Active",
     photo: null,
     ctc: null,
   });
 
+  const [managers, setManagers] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
+
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
     current_password: "",
@@ -43,45 +44,57 @@ export default function MyProfileTailwind() {
 
   const fileInputRef = useRef(null);
   const DOC_STORAGE_KEY = "alu_core_employee_docs_v1";
-  const fetchMyDocuments = async () => {
-    try {
-      const res = await api.get("/hr/employee-documents/");
-      setDocuments(res.data); // API now returns only logged-in employee's docs
-    } catch (err) {
-      console.warn("Cannot fetch docs from API — using local fallback");
-      loadLocalDocuments();
-    }
-  };
+
+  // Leave request state
+  const [leave, setLeave] = useState({
+    type: "",
+    from: "",
+    to: "",
+    reason: "",
+    manager: "",
+  });
+
+  // Permission request state
+  const [permission, setPermission] = useState({
+    date: "",
+    from: "",
+    to: "",
+    reason: "",
+    manager: "",
+  });
 
   useEffect(() => {
     fetchMyProfile();
     fetchMyDocuments();
+    fetchManagers();
   }, []);
 
   const fetchMyProfile = async () => {
     try {
       const res = await api.get("/hr/employees/me/");
       setEmployee(res.data);
-    } catch (err) {
-      console.warn("API failed — using fallback values.");
-      setEmployee((prev) => ({
-        ...prev,
-        full_name: "John Doe",
-        employee_code: "EMP-0001",
-        email: "john.doe@example.com",
-        phone: "+91 98765 43210",
-        department: { name: "Manufacturing" },
-        designation: { title: "Sr. Process Engineer" },
-        date_of_joining: "2021-03-15",
-        date_of_birth: "1990-06-10",
-        location: "Chennai, IN",
-        reporting_to: { name: "M. Kumar" },
-        employment_type: "Full-time",
-        status: "Active",
-        ctc: 1250000,
-      }));
+    } catch {
+      console.warn("fallback employee data...");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchManagers = async () => {
+    try {
+      const res = await api.get("/hr/managers/");
+      setManagers(res.data);
+    } catch {
+      setManagers([]);
+    }
+  };
+
+  const fetchMyDocuments = async () => {
+    try {
+      const res = await api.get("/hr/employee-documents/");
+      setDocuments(res.data);
+    } catch {
+      loadLocalDocuments();
     }
   };
 
@@ -123,9 +136,7 @@ export default function MyProfileTailwind() {
       form.append("file", selectedFile);
       form.append("title", selectedFile.name);
       await api.post("/hr/employee-documents/", form);
-    } catch (err) {
-      console.log("Upload API not available — using localStorage only.");
-    }
+    } catch {}
   };
 
   const handleDelete = (id) => {
@@ -135,6 +146,29 @@ export default function MyProfileTailwind() {
 
   const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN") : "—");
 
+  // Leave submit
+  const submitLeaveRequest = async () => {
+    try {
+      await api.post("/hr/leave-requests/", leave);
+      alert("Leave Request Submitted");
+      setLeave({ type: "", from: "", to: "", reason: "", manager: "" });
+    } catch {
+      alert("Failed to submit leave");
+    }
+  };
+
+  // Permission submit
+  const submitPermissionRequest = async () => {
+    try {
+      await api.post("/hr/permission/", permission);
+      alert("Permission Request Submitted");
+      setPermission({ date: "", from: "", to: "", reason: "", manager: "" });
+    } catch {
+      alert("Failed to submit permission");
+    }
+  };
+
+  // Password update
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     if (passwordData.new_password !== passwordData.confirm_password)
@@ -147,12 +181,7 @@ export default function MyProfileTailwind() {
       });
       alert("Password updated");
       setIsChangingPassword(false);
-      setPasswordData({
-        current_password: "",
-        new_password: "",
-        confirm_password: "",
-      });
-    } catch (err) {
+    } catch {
       alert("Password update failed");
     }
   };
@@ -169,9 +198,7 @@ export default function MyProfileTailwind() {
       {/* HEADER */}
       <header className="border-b border-cyan-800 pb-3 mb-6 flex items-center gap-3">
         <div className="w-3 h-3 rounded-full bg-cyan-400 shadow"></div>
-        <h1 className="text-pink-400 text-lg font-bold">
-         EMPLOYEE PROFILE
-        </h1>
+        <h1 className="text-pink-400 text-lg font-bold">EMPLOYEE PROFILE</h1>
         <span className="ml-auto text-gray-400 text-sm">
           [ ID: {employee.employee_code} ] • [ STATUS: {employee.status} ]
         </span>
@@ -196,18 +223,6 @@ export default function MyProfileTailwind() {
           <h2 className="text-3xl font-bold text-cyan-300">
             {employee.full_name}
           </h2>
-
-          <div className="flex gap-2 mt-3 flex-wrap">
-            <span className="px-3 py-1 bg-gray-900 border border-cyan-800 rounded-full text-pink-400">
-              {employee.designation?.title}
-            </span>
-            <span className="px-3 py-1 bg-gray-900 border border-cyan-800 rounded-full text-pink-400">
-              {employee.department?.name}
-            </span>
-            <span className="px-3 py-1 bg-gray-900 border border-cyan-800 rounded-full text-pink-400">
-              {employee.employment_type}
-            </span>
-          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
             <Info icon={<Mail />} label="Email" value={employee.email} />
@@ -236,7 +251,7 @@ export default function MyProfileTailwind() {
         </div>
       </section>
 
-      {/* CORE + DOCUMENTS */}
+      {/* DOCUMENTS + CORE DATA */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* CORE CARD */}
         <div className="bg-gray-900/30 border border-cyan-900 p-6 rounded-xl">
@@ -261,7 +276,7 @@ export default function MyProfileTailwind() {
             onClick={() => setIsChangingPassword(!isChangingPassword)}
             className="mt-4 px-4 py-2 border border-cyan-700 rounded-lg text-cyan-300 hover:bg-gray-800 flex items-center gap-2"
           >
-            <Lock size={18} />{" "}
+            <Lock size={18} />
             {isChangingPassword ? "Cancel" : "Change Password"}
           </button>
 
@@ -323,35 +338,21 @@ export default function MyProfileTailwind() {
         <div className="bg-gray-900/30 border border-cyan-900 p-6 rounded-xl">
           <h3 className="text-pink-400 text-xl font-bold mb-4">Documents</h3>
 
-          <div className="flex flex-col gap-3">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={(e) => setSelectedFile(e.target.files[0])}
-              className="text-cyan-300"
-            />
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={(e) => setSelectedFile(e.target.files[0])}
+            className="text-cyan-300"
+          />
 
-            <div className="flex gap-3">
-              <button
-                disabled={!selectedFile}
-                onClick={handleUpload}
-                className="px-4 py-2 bg-gradient-to-r from-cyan-400 to-pink-400 text-gray-900 font-bold rounded disabled:opacity-40"
-              >
-                <Upload size={16} className="inline mr-1" /> Upload
-              </button>
+          <button
+            disabled={!selectedFile}
+            onClick={handleUpload}
+            className="mt-3 px-4 py-2 bg-gradient-to-r from-cyan-400 to-pink-400 text-gray-900 font-bold rounded disabled:opacity-40"
+          >
+            <Upload size={16} className="inline mr-1" /> Upload
+          </button>
 
-              <button
-                onClick={() => {
-                  setSelectedFile(null);
-                  fileInputRef.current.value = "";
-                }}
-                className="px-4 py-2 border border-cyan-700 rounded text-cyan-300 hover:bg-gray-800"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-          {/* DOCUMENT LIST */}
           <div className="mt-6">
             {documents.length === 0 ? (
               <p className="text-gray-400 text-sm">No documents uploaded.</p>
@@ -400,6 +401,154 @@ export default function MyProfileTailwind() {
               </table>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* LEAVE + PERMISSION REQUEST */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* LEAVE REQUEST */}
+        <div className="bg-gray-900/30 border border-cyan-900 p-6 rounded-xl">
+          <h3 className="text-pink-400 text-xl font-bold mb-4">
+            Leave Request
+          </h3>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitLeaveRequest();
+            }}
+            className="flex flex-col gap-3"
+          >
+            <select
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={leave.type}
+              onChange={(e) => setLeave({ ...leave, type: e.target.value })}
+              required
+            >
+              <option value="">Select Leave Type</option>
+              <option value="sick">Sick Leave</option>
+              <option value="casual">Casual Leave</option>
+              <option value="earned">Earned Leave</option>
+              <option value="wfh">Work From Home</option>
+            </select>
+
+            <input
+              type="date"
+              required
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={leave.from}
+              onChange={(e) => setLeave({ ...leave, from: e.target.value })}
+            />
+
+            <input
+              type="date"
+              required
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={leave.to}
+              onChange={(e) => setLeave({ ...leave, to: e.target.value })}
+            />
+
+            <select
+              required
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={leave.manager}
+              onChange={(e) => setLeave({ ...leave, manager: e.target.value })}
+            >
+              <option value="">Select Manager</option>
+              {managers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.full_name}
+                </option>
+              ))}
+            </select>
+
+            <textarea
+              placeholder="Reason"
+              required
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={leave.reason}
+              onChange={(e) => setLeave({ ...leave, reason: e.target.value })}
+            />
+
+            <button className="px-4 py-2 bg-gradient-to-r from-cyan-400 to-pink-400 text-gray-900 font-bold rounded">
+              Submit Leave Request
+            </button>
+          </form>
+        </div>
+
+        {/* PERMISSION REQUEST */}
+        <div className="bg-gray-900/30 border border-cyan-900 p-6 rounded-xl">
+          <h3 className="text-pink-400 text-xl font-bold mb-4">
+            Permission Request
+          </h3>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitPermissionRequest();
+            }}
+            className="flex flex-col gap-3"
+          >
+            <input
+              type="date"
+              required
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={permission.date}
+              onChange={(e) =>
+                setPermission({ ...permission, date: e.target.value })
+              }
+            />
+
+            <input
+              type="time"
+              required
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={permission.from}
+              onChange={(e) =>
+                setPermission({ ...permission, from: e.target.value })
+              }
+            />
+
+            <input
+              type="time"
+              required
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={permission.to}
+              onChange={(e) =>
+                setPermission({ ...permission, to: e.target.value })
+              }
+            />
+
+            <select
+              required
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={permission.manager}
+              onChange={(e) =>
+                setPermission({ ...permission, manager: e.target.value })
+              }
+            >
+              <option value="">Select Manager</option>
+              {managers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.full_name}
+                </option>
+              ))}
+            </select>
+
+            <textarea
+              placeholder="Reason"
+              required
+              className="bg-gray-800 border border-cyan-800 rounded px-3 py-2"
+              value={permission.reason}
+              onChange={(e) =>
+                setPermission({ ...permission, reason: e.target.value })
+              }
+            />
+
+            <button className="px-4 py-2 bg-gradient-to-r from-cyan-400 to-pink-400 text-gray-900 font-bold rounded">
+              Submit Permission Request
+            </button>
+          </form>
         </div>
       </div>
     </div>

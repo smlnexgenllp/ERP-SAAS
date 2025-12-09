@@ -1,5 +1,5 @@
-import React from 'react';
-import { Building, LogOut, User, Plus } from 'lucide-react';
+import React from "react";
+import { Building, LogOut, User, Plus } from "lucide-react";
 
 const DashboardHeader = ({ organization, user, onLogout, onCreateSubOrg }) => {
   return (
@@ -38,7 +38,7 @@ const DashboardHeader = ({ organization, user, onLogout, onCreateSubOrg }) => {
                   {user?.first_name} {user?.last_name}
                 </p>
                 <p className="text-xs text-gray-600 capitalize">
-                  {user?.role?.replace('_', ' ')}
+                  {user?.role?.replace("_", " ")}
                 </p>
               </div>
               <div className="bg-gray-100 p-2 rounded-full">

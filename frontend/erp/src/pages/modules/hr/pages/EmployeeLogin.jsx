@@ -80,7 +80,7 @@ export default function EmployeeLogin() {
           onClick={handleLogin}
           className="w-full mt-8 py-3 bg-[#1dd1a1]/20 border border-[#1dd1a1]/50 text-[#1dd1a1] font-bold rounded-lg shadow-[0_0_10px_#1dd1a155] hover:bg-[#1dd1a1]/30 hover:shadow-[0_0_15px_#1dd1a1] transition-all"
         >
-           Login
+          Login
         </button>
 
         {/* Profile Debug */}

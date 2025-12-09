@@ -8,7 +8,7 @@ class Module(models.Model):
     code = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     icon = models.CharField(max_length=100, blank=True)
-    available_in_plans = models.JSONField(default=list)  # e.g., ["enterprise", "basic"]
+    available_in_plans = models.JSONField(default=list)  
 
     def __str__(self):
         return self.name
@@ -31,10 +31,10 @@ class ModulePage(models.Model):
 
 class OrganizationModule(models.Model):
     """Assign modules to organizations (main or sub-orgs)"""
-    organization = models.ForeignKey(Organization, related_name='organization_modules', on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, related_name='modules_organization_modules', on_delete=models.CASCADE)
     module = models.ForeignKey(Module, on_delete=models.CASCADE)
     is_active = models.BooleanField(default=False)
-    accessible_pages = models.JSONField(default=list)  # list of page codes
+    accessible_pages = models.JSONField(default=list) 
 
     class Meta:
         unique_together = ("organization", "module")

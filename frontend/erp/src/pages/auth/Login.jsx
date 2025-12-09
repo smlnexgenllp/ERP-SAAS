@@ -43,7 +43,9 @@ const Login = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-pink-400 mb-2">ERP System</h1>
-          <p className="text-cyan-300">Sign in to your organization dashboard</p>
+          <p className="text-cyan-300">
+            Sign in to your organization dashboard
+          </p>
         </div>
 
         {/* Login Form */}
@@ -70,7 +72,9 @@ const Login = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-cyan-300 mb-2">Password</label>
+            <label className="block text-sm font-medium text-cyan-300 mb-2">
+              Password
+            </label>
             <div className="relative">
               <input
                 name="password"
@@ -107,8 +111,12 @@ const Login = () => {
 
         {/* Demo Info */}
         <div className="mt-8 p-4 bg-gray-900/30 border border-cyan-800 rounded-lg text-center">
-          <h3 className="text-sm font-medium text-pink-400 mb-2">Demo Credentials</h3>
-          <p className="text-cyan-300 text-sm">Use your main organization admin credentials</p>
+          <h3 className="text-sm font-medium text-pink-400 mb-2">
+            Demo Credentials
+          </h3>
+          <p className="text-cyan-300 text-sm">
+            Use your main organization admin credentials
+          </p>
         </div>
       </div>
     </div>

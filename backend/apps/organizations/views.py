@@ -594,6 +594,27 @@ def debug_modules_data(request):
         result['modules_by_plan'][plan.code] = plan_modules
     
     return Response(result)
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from .serializers import SubOrgUserCreateSerializer
+from .models import Organization
 
+
+class CreateSubOrgUser(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, org_id):
+        try:
+            org = Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return Response({"error": "Organization not found"}, status=404)
+
+
+        serializer = SubOrgUserCreateSerializer(data=request.data, context={"organization": org})
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response({"message": "User created", "user_id": user.id})
+
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     

@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'apps.hr.apps.HrConfig',
     'apps.inventory',
     'apps.sales',
+    'apps.modules',
     'apps.transport',
 ]
 
@@ -156,9 +157,9 @@ REST_FRAMEWORK = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React dev server
+    "http://localhost:3000",  
     "http://127.0.0.1:3000",
-] # Only for development
+] 
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
