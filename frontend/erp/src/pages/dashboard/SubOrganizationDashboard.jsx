@@ -109,16 +109,26 @@ const SubOrganizationDashboard = () => {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[
-            { label: "Active Modules", value: stats.activeModules, color: "cyan" },
+            {
+              label: "Active Modules",
+              value: stats.activeModules,
+              color: "cyan",
+            },
             { label: "Total Users", value: stats.totalUsers, color: "cyan" },
-            { label: "Plan Tier", value: organization?.plan_tier, color: "cyan" },
+            {
+              label: "Plan Tier",
+              value: organization?.plan_tier,
+              color: "cyan",
+            },
           ].map((stat) => (
             <div
               key={stat.label}
               className={`bg-gray-900/40 border border-cyan-800 rounded-xl shadow p-6 flex items-center gap-4 hover:shadow-gray-800/50 transition`}
             >
               <div className={`bg-gray-900/30 p-3 rounded-lg`}>
-                <div className={`w-10 h-10 bg-${stat.color}-700 rounded flex items-center justify-center text-gray-950 font-bold`}>
+                <div
+                  className={`w-10 h-10 bg-${stat.color}-700 rounded flex items-center justify-center text-gray-950 font-bold`}
+                >
                   {stat.label.charAt(0)}
                 </div>
               </div>
@@ -140,7 +150,11 @@ const SubOrganizationDashboard = () => {
           </div>
           <div className="p-6">
             {modules.length > 0 ? (
-              <ModuleGrid modules={modules} onModuleClick={handleModuleClick} darkTheme />
+              <ModuleGrid
+                modules={modules}
+                onModuleClick={handleModuleClick}
+                darkTheme
+              />
             ) : (
               <div className="text-center py-12">
                 <div className="w-24 h-24 bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-4">

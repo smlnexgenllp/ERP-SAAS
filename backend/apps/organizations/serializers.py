@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from apps.organizations.models import Organization
+from apps.organizations.models import Organization,OrganizationUser
 from django.contrib.auth import get_user_model
+from apps.modules.models import Module
 
 User = get_user_model()
 
@@ -95,14 +96,10 @@ class SubOrganizationCreationSerializer(serializers.Serializer):
     email = serializers.EmailField()
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     address = serializers.CharField(required=False, allow_blank=True)
-    
-    # Admin User Details
     admin_email = serializers.EmailField()
     admin_password = serializers.CharField(write_only=True, min_length=8)
     admin_first_name = serializers.CharField(max_length=100)
-    admin_last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    
-    # Module Access
+    admin_last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)    
     module_access = serializers.ListField(
         child=serializers.CharField(max_length=100),
         required=False,
@@ -195,3 +192,74 @@ class SubOrganizationCreateSerializer(serializers.Serializer):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Admin email already exists")
         return value
+    
+class OrganizationUserSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(write_only=True)
+    first_name = serializers.CharField(write_only=True)
+    last_name = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, required=True)
+    modules = serializers.ListField(
+        child=serializers.CharField(),
+        write_only=True,
+        required=True
+    )
+
+    class Meta:
+        model = OrganizationUser
+        fields = ['id', 'email', 'first_name', 'last_name', 'password', 'role', 'organization', 'modules']
+
+    def create(self, validated_data):
+        email = validated_data.pop('email')
+        first_name = validated_data.pop('first_name')
+        last_name = validated_data.pop('last_name')
+        password = validated_data.pop('password')
+        module_codes = validated_data.pop('modules')
+        organization = validated_data.get('organization')
+        role = validated_data.get('role')
+
+        # Create user
+        user = User.objects.create(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+        )
+        user.set_password(password)
+        user.save()
+
+        # Assign organization and role
+        org_user = OrganizationUser.objects.create(
+            user=user,
+            organization=organization,
+            role=role
+        )
+
+        # Assign modules to the user
+        # We'll use a simple ManyToMany style mapping, for simplicity store module codes
+        # (In production, you can create a separate UserModule table)
+        user.profile_modules = module_codes  # or use JSONField on User
+        user.save()
+
+        return org_user
+    
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from .models import UserOrganizationAccess, Organization
+User = get_user_model()
+class SubOrgUserCreateSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+    modules = serializers.ListField(child=serializers.CharField())
+    def create(self, validated_data):
+        org = self.context.get("organization")
+        user = User.objects.create_user(
+            email=validated_data['email'],
+            username=validated_data['username'],
+            password=validated_data['password'],
+        )
+        UserOrganizationAccess.objects.create(
+            user=user,
+            organization=org,
+            modules=validated_data["modules"],
+        )
+        return user

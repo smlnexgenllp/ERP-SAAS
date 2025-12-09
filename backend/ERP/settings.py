@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'apps.hr.apps.HrConfig',
     'apps.inventory',
     'apps.sales',
+    'apps.modules',
     'apps.transport',
 ]
 
@@ -156,9 +157,9 @@ REST_FRAMEWORK = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React dev server
+    "http://localhost:3000",  
     "http://127.0.0.1:3000",
-] # Only for development
+] 
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
@@ -186,5 +187,5 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # EMAIL_USE_TLS = True
 # EMAIL_USE_SSL = False
 # EMAIL_HOST_USER = 'mohanapriya14102001@gmail.com'          
-# EMAIL_HOST_PASSWORD = 'acee huqk whyp bblh'    
+# EMAIL_HOST_PASSWORD = '************************'    
 # DEFAULT_FROM_EMAIL = 'mohanapriya <mohanapriya14102001@gmail.com>'

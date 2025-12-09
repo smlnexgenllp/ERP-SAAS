@@ -66,3 +66,17 @@ class OrganizationUser(models.Model):
 
     def __str__(self):
         return f"{self.user.email} → {self.organization.name} ({self.role})"
+    
+from django.db import models
+from django.contrib.auth import get_user_model
+from .models import Organization
+
+User = get_user_model()
+
+
+class UserOrganizationAccess(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="org_access")
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="user_access")
+    modules = models.JSONField(default=list) # e.g. ['employees', 'attendance']
+    def __str__(self):
+        return f"{self.user.username} → {self.organization.name}"

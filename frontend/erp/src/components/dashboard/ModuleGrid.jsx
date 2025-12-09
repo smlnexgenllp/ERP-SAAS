@@ -1,37 +1,37 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const ModuleGrid = ({ modules, onModuleClick }) => {
   const navigate = useNavigate();
 
   // Temporary: force all modules active
-  const modulesWithForcedActive = modules.map(module => ({
+  const modulesWithForcedActive = modules.map((module) => ({
     ...module,
-    is_active: true
+    is_active: true,
   }));
 
   const handleModuleClick = (module) => {
     switch (module.code) {
-      case 'hr_management':
-        navigate('/hr/dashboard');
+      case "hr_management":
+        navigate("/hr/dashboard");
         break;
-      case 'inventory':
-        navigate('/inventory/dashboard');
+      case "inventory":
+        navigate("/inventory/dashboard");
         break;
-      case 'accounting':
-        navigate('/accounting/dashboard');
+      case "accounting":
+        navigate("/accounting/dashboard");
         break;
-      case 'crm':
-        navigate('/crm/dashboard');
+      case "crm":
+        navigate("/crm/dashboard");
         break;
-      case 'project_management':
-        navigate('/projects/dashboard');
+      case "project_management":
+        navigate("/projects/dashboard");
         break;
-      case 'sales':
-        navigate('/sales/dashboard');
+      case "sales":
+        navigate("/sales/dashboard");
         break;
-      case 'transport':
-        navigate('/transport/dashboard');
+      case "transport":
+        navigate("/transport/dashboard");
         break;
       default:
         if (onModuleClick) onModuleClick(module);
@@ -53,7 +53,9 @@ const ModuleGrid = ({ modules, onModuleClick }) => {
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-cyan-300">{module.name}</h3>
+              <h3 className="text-lg font-semibold text-cyan-300">
+                {module.name}
+              </h3>
               <p className="text-sm text-gray-400">{module.description}</p>
             </div>
           </div>
@@ -63,7 +65,7 @@ const ModuleGrid = ({ modules, onModuleClick }) => {
               Active
             </span>
             <span className="text-xs text-gray-500">
-              {module.available_in_plans?.join(', ')}
+              {module.available_in_plans?.join(", ")}
             </span>
           </div>
         </div>

@@ -80,7 +80,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono">
-
       {/* HEADER */}
       <div className="bg-gray-900/30 backdrop-blur-md border-b border-cyan-800 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -113,7 +112,6 @@ const Dashboard = () => {
 
       {/* MAIN CONTENT */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-
         {/* STATS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
