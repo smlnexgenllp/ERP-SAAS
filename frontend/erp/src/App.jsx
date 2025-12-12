@@ -18,6 +18,9 @@ import Payroll from "../src/pages/modules/hr/pages/Payroll";
 import EmployeeLogin from "./pages/modules/hr/pages/EmployeeLogin";
 import MyProfile from "./pages/modules/hr/MyProfile";
 import OrgTree from "./pages/modules/hr/pages/OrgTree";
+import LeaveManagement from "./pages/modules/hr/pages/LeaveManagement";
+import UserDashboard from "./pages/dashboard/UserDashboard";
+import SubOrgLogin from "./pages/auth/SubOrgLogin";
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -75,6 +78,9 @@ function App() {
           <Route path="/hr/payroll" element={<Payroll />} />
           <Route path="/employee_login" element={<EmployeeLogin />} />
           <Route path="/profile" element={<MyProfile />} />
+          <Route path="/hr/leaves" element={<LeaveManagement/>} />
+          <Route path="/users" element={<UserDashboard/>} />
+
           {/* <Route path="/hr/list" element={<EmployeeList/>} /> */}
 
           {/* Module Routes - Add your module routes here */}
@@ -82,6 +88,7 @@ function App() {
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" />} />
           <Route path="/hr/dashboard" element={<HRDashboard />} />
+          <Route path='/suborglogin' element={<SubOrgLogin/>}/>
         </Routes>
       </Router>
     </AuthProvider>

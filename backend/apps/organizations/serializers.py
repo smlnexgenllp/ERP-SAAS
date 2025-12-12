@@ -2,6 +2,8 @@ from rest_framework import serializers
 from apps.organizations.models import Organization,OrganizationUser
 from django.contrib.auth import get_user_model
 from apps.modules.models import Module
+from django.db import transaction
+
 
 User = get_user_model()
 
@@ -241,25 +243,56 @@ class OrganizationUserSerializer(serializers.ModelSerializer):
 
         return org_user
     
+# serializers.py
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import UserOrganizationAccess, Organization
+
 User = get_user_model()
-class SubOrgUserCreateSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
-    modules = serializers.ListField(child=serializers.CharField())
+
+SUB_ORG_ROLES = ["Admin", "HR Manager", "Employee"]
+
+class SubOrgUserCreateSerializer(serializers.ModelSerializer):
+    modules = serializers.ListField(child=serializers.CharField(), required=False)
+    role = serializers.ChoiceField(choices=SUB_ORG_ROLES)
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'password', 'role', 'modules']
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("User with this email already exists")
+        return value
+
     def create(self, validated_data):
-        org = self.context.get("organization")
-        user = User.objects.create_user(
-            email=validated_data['email'],
-            username=validated_data['username'],
-            password=validated_data['password'],
-        )
-        UserOrganizationAccess.objects.create(
-            user=user,
-            organization=org,
-            modules=validated_data["modules"],
-        )
+        modules = validated_data.pop('modules', [])
+        password = validated_data.pop('password')
+
+        # Map sub-org role to your User.role
+        role_map = {
+            "Admin": User.SUB_ORG_ADMIN,
+            "HR Manager": User.USER,
+            "Employee": User.USER
+        }
+        role = validated_data.pop('role')
+        validated_data['role'] = role_map.get(role, User.USER)
+
+        # Auto-generate username
+        base_username = validated_data['email'].split("@")[0].lower()
+        username = base_username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+
+        validated_data['username'] = username
+
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+
+        # Save module info somewhere if needed
+        # user.modules = modules
+        # user.save()
+
         return user

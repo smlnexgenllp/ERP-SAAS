@@ -6,10 +6,15 @@ from .views.employee_views import (
     DepartmentViewSet,
     DesignationViewSet,
     accept_invite_view,
+    LeaveRequestViewSet, 
+    PermissionRequestViewSet, 
+    ManagerListView,
+    ManagerLeaveList,
+    ManagerPermissionList,
 )
 from .views.org_tree_views import (
-    org_tree_view,              # Authenticated → requires login
-    public_org_tree_view,       # Public → no login needed
+    org_tree_view,              
+    public_org_tree_view,     
 )
 from django.conf import settings
 from django.conf.urls.static import static
@@ -19,7 +24,9 @@ router.register('employees', EmployeeViewSet, basename='employees')
 router.register('employee-documents', EmployeeDocumentViewSet, basename='employee-documents')
 router.register('departments', DepartmentViewSet, basename='departments')
 router.register('designations', DesignationViewSet, basename='designations')
-
+router.register(r'leave-requests', LeaveRequestViewSet, basename='leave-requests')
+router.register(r'permission', PermissionRequestViewSet, basename='permission')
+router.register(r'managers', ManagerListView, basename='managers')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -27,6 +34,8 @@ urlpatterns = [
     path('org-tree/', org_tree_view, name='org-tree'),                    # Requires login
     path('public-org-tree/', public_org_tree_view, name='public-org-tree'),  # Public access
     path('employees/accept-invite/<uuid:token>/', accept_invite_view, name='accept-invite'),
+    path("manager/leave-requests/", ManagerLeaveList.as_view()),
+    path("manager/permission-requests/", ManagerPermissionList.as_view())
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

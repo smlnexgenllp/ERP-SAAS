@@ -272,6 +272,7 @@ const Dashboard = () => {
           availableModules={modules}
         />
       )}
+      
     </div>
   );
 };

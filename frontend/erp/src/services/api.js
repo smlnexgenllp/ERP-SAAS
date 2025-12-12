@@ -28,7 +28,7 @@ const processQueue = (error, token = null) => {
 export const createSubOrgUser = async (orgId, payload) => {
   try {
     const response = await api.post(
-      `/organization/${orgId}/create-user/`,
+      `/organizations/${orgId}/create-user/`,
       payload
     );
     return response.data; // axios auto-parses JSON
@@ -37,6 +37,7 @@ export const createSubOrgUser = async (orgId, payload) => {
     throw error;
   }
 };
+
 
 // Helper function to get CSRF token (kept from original file)
 function getCsrfToken() {
@@ -54,6 +55,8 @@ function getCsrfToken() {
   }
   return cookieValue;
 }
+
+
 
 // === REQUEST INTERCEPTOR ===
 api.interceptors.request.use(
