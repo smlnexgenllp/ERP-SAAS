@@ -196,3 +196,86 @@ class EmployeeCreateInvitationSerializer(serializers.ModelSerializer):
         )
 
         return invite
+    
+
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from .models import LeaveRequest, PermissionRequest
+
+User = get_user_model()
+
+class SimpleUserSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'full_name', 'first_name', 'last_name', 'email')
+
+    def get_full_name(self, obj):
+        return f"{getattr(obj,'first_name','') or ''} {getattr(obj,'last_name','') or ''}".strip() or obj.username
+
+class LeaveRequestSerializer(serializers.ModelSerializer):
+    employee = SimpleUserSerializer(read_only=True)
+    manager_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = LeaveRequest
+        fields = ('id','employee','leave_type','start_date','end_date','reason','manager','manager_id','status','applied_at','responded_at','response_note')
+        read_only_fields = ('status','applied_at','responded_at','response_note','manager')
+
+    def create(self, validated_data):
+        manager_id = validated_data.pop('manager_id', None)
+        request = self.context['request']
+
+    # Set employee = Employee.user?
+        validated_data['employee'] = request.user
+
+        if manager_id:
+            try:
+                mgr = User.objects.get(pk=manager_id)
+            except User.DoesNotExist:
+                mgr = None
+            validated_data['manager'] = mgr
+
+        return super().create(validated_data)
+
+
+class LeaveRequestUpdateSerializer(serializers.ModelSerializer):
+    # used by managers to approve/reject
+    status = serializers.ChoiceField(choices=LeaveRequest._meta.get_field('status').choices)
+    response_note = serializers.CharField(allow_blank=True, required=False)
+
+    class Meta:
+        model = LeaveRequest
+        fields = ('status','response_note')
+
+class PermissionRequestSerializer(serializers.ModelSerializer):
+    employee = SimpleUserSerializer(read_only=True)
+    manager_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = PermissionRequest
+        fields = ('id','employee','date','time_from','time_to','reason','manager','manager_id','status','applied_at','responded_at','response_note')
+        read_only_fields = ('status','applied_at','responded_at','response_note','manager')
+
+    def create(self, validated_data):
+        manager_id = validated_data.pop('manager_id', None)
+        request = self.context['request']
+        validated_data['employee'] = request.user
+        if manager_id:
+            from django.contrib.auth import get_user_model
+            try:
+                mgr = get_user_model().objects.get(pk=manager_id)
+            except get_user_model().DoesNotExist:
+                mgr = None
+            validated_data['manager'] = mgr
+        return super().create(validated_data)
+
+class PermissionRequestUpdateSerializer(serializers.ModelSerializer):
+    status = serializers.ChoiceField(choices=PermissionRequest._meta.get_field('status').choices)
+    response_note = serializers.CharField(allow_blank=True, required=False)
+
+    class Meta:
+        model = PermissionRequest
+        fields = ('status','response_note')
+

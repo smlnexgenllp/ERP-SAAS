@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { moduleService } from "../../services/moduleService";
 import ModuleGrid from "../../components/dashboard/ModuleGrid";
+import CreateSubOrgUserModal from "../dashboard/CreateSubOrgUser";
 
 const SubOrganizationDashboard = () => {
   const { user, organization, logout } = useAuth();
@@ -10,6 +11,8 @@ const SubOrganizationDashboard = () => {
 
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openCreateUser, setOpenCreateUser] = useState(false);
+
   const [stats, setStats] = useState({
     activeModules: 0,
     totalUsers: 0,
@@ -87,6 +90,7 @@ const SubOrganizationDashboard = () => {
                 </p>
               </div>
             </div>
+
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-sm text-cyan-400">Plan</p>
@@ -94,6 +98,15 @@ const SubOrganizationDashboard = () => {
                   {organization?.plan_tier}
                 </p>
               </div>
+
+              {/* NEW: Create User Button */}
+              <button
+                onClick={() => setOpenCreateUser(true)}
+                className="bg-pink-500 hover:bg-pink-600 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
+              >
+                + Create User
+              </button>
+
               <button
                 onClick={logout}
                 className="bg-cyan-600 hover:bg-red-700 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
@@ -205,6 +218,14 @@ const SubOrganizationDashboard = () => {
           </div>
         </div>
       </main>
+
+      {/* NEW: Create User Modal */}
+      <CreateSubOrgUserModal
+        isOpen={openCreateUser}
+        onClose={() => setOpenCreateUser(false)}
+        subOrgId={organization?.id}
+        onSuccess={() => console.log("User created")}
+      />
     </div>
   );
 };

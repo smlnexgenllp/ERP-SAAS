@@ -25,6 +25,18 @@ class EmployeeAdmin(admin.ModelAdmin):
     search_fields = ('full_name', 'employee_code', 'email')
     list_filter = ('is_active', 'designation', 'department')
 
+from django.contrib import admin
+from .models import LeaveRequest, PermissionRequest
+
+@admin.register(LeaveRequest)
+class LeaveRequestAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'leave_type', 'start_date', 'end_date', 'status', 'manager', 'applied_at')
+    list_filter = ('status', 'leave_type', 'manager')
+
+@admin.register(PermissionRequest)
+class PermissionRequestAdmin(admin.ModelAdmin):
+    list_display = ('employee','date','time_from','time_to','status','manager','applied_at')
+    list_filter = ('status','manager')
 
 
 

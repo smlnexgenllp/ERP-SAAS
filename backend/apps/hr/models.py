@@ -10,6 +10,8 @@ from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+
+
 phone_validator = RegexValidator(r"^\+?1?\d{9,15}$", "Enter a valid phone number.")
 class Department(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="departments")
@@ -138,3 +140,61 @@ class EmployeeInvite(models.Model):
 
     def __str__(self):
         return f"{self.full_name} <{self.email}>"
+
+User = settings.AUTH_USER_MODEL
+class LeaveRequest(models.Model):
+    LEAVE_TYPES = (
+        ('sick', 'Sick Leave'),
+        ('casual', 'Casual Leave'),
+        ('earned', 'Earned Leave'),
+        ('wfh', 'Work From Home'),
+    )
+    STATUS = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+    )
+
+    employee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='leave_requests')
+    leave_type = models.CharField(max_length=20, choices=LEAVE_TYPES)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    reason = models.TextField(blank=True)
+    manager = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='leave_approvals')
+    status = models.CharField(max_length=20, choices=STATUS, default='pending')
+    applied_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    response_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-applied_at']
+
+    def __str__(self):
+        return f"{self.employee} - {self.leave_type} ({self.start_date} → {self.end_date})"
+
+
+class PermissionRequest(models.Model):
+    STATUS = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+    )
+    employee=models.ForeignKey(User,on_delete=models.CASCADE)
+    date = models.DateField()
+    time_from = models.TimeField()
+    time_to = models.TimeField()
+    reason = models.TextField(blank=True)
+    manager = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='permission_approvals')
+    status = models.CharField(max_length=20, choices=STATUS, default='pending')
+    applied_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    response_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-applied_at']
+
+    def __str__(self):
+        return f"{self.employee} permission on {self.date} ({self.time_from}-{self.time_to})"
+

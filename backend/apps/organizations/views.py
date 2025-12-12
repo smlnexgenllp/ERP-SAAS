@@ -600,21 +600,140 @@ from .serializers import SubOrgUserCreateSerializer
 from .models import Organization
 
 
-class CreateSubOrgUser(APIView):
-    permission_classes = [IsAuthenticated]
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import IntegrityError
+from django.contrib.auth import get_user_model
+from .models import Organization
+from .serializers import SubOrgUserCreateSerializer
+
+User = get_user_model()
+
+class CreateSubOrgUserView(APIView):
+    """
+    Create a user under a specific sub-organization.
+    Automatically handles username uniqueness and email validation.
+    """
+
     def post(self, request, org_id):
         try:
-            org = Organization.objects.get(id=org_id)
+            organization = Organization.objects.get(id=org_id)
         except Organization.DoesNotExist:
-            return Response({"error": "Organization not found"}, status=404)
+            return Response(
+                {"success": False, "error": "Organization not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
+        serializer = SubOrgUserCreateSerializer(data=request.data, context={'organization': organization})
 
-        serializer = SubOrgUserCreateSerializer(data=request.data, context={"organization": org})
         if serializer.is_valid():
             user = serializer.save()
-            return Response({"message": "User created", "user_id": user.id})
+            return Response(
+                {"success": True, "message": "User created successfully", "user_id": user.id},
+                status=status.HTTP_201_CREATED
+            )
 
+        # Return detailed serializer errors
+        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    # apps/organizations/views.py
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from apps.organizations.models import UserOrganizationAccess
+from apps.subscriptions.models import Module, ModulePage
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class UserDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    
+    def get(self, request):
+        user = request.user
+
+        # Get the user's module access
+        try:
+            access = UserOrganizationAccess.objects.get(user=user)
+        except UserOrganizationAccess.DoesNotExist:
+            return Response({
+                "success": True,
+                "modules": [],
+            })
+
+        modules_data = []
+
+        for module_code in access.modules:
+            try:
+                module = Module.objects.get(code=module_code, is_active=True)
+            except Module.DoesNotExist:
+                continue
+
+            # Get pages allowed for this module
+            allowed_page_ids = access.accessible_pages.get(module_code, [])
+
+            pages = []
+            if allowed_page_ids:
+                module_pages = ModulePage.objects.filter(
+                    page_id__in=allowed_page_ids,
+                    is_active=True
+                )
+
+                for page in module_pages:
+                    pages.append({
+                        "page_id": str(page.page_id),
+                        "name": page.name,
+                        "code": page.code,
+                        "path": page.path,
+                        "description": page.description,
+                        "icon": page.icon,
+                    })
+
+            modules_data.append({
+                "module_id": str(module.module_id),
+                "name": module.name,
+                "code": module.code,
+                "description": module.description,
+                "icon": module.icon,
+                "pages": pages
+            })
+
+        return Response({
+            "success": True,
+            "modules": modules_data
+        })
+        
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.contrib.auth import authenticate
+from apps.organizations.models import Organization
+
+class SubOrgLoginView(APIView):
+    def post(self, request):
+        subdomain = request.data.get("subdomain")
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        # Validate organization
+        try:
+            org = Organization.objects.get(subdomain=subdomain)
+        except Organization.DoesNotExist:
+            return Response({"success": False, "message": "Invalid Sub-Organization"}, status=400)
+
+        # Validate user
+        user = authenticate(request, username=username, password=password)
+
+        if not user:
+            return Response({"success": False, "message": "Invalid username or password"}, status=400)
+
+        # Ensure user belongs to the sub-org
+        if user.organization != org:
+            return Response({"success": False, "message": "User not part of this sub-organization"}, status=403)
+
+        # Get token
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            "success": True,
+            "token": str(refresh.access_token),
+            "subdomain": org.subdomain,
+        })
+
