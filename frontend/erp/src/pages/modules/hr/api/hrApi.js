@@ -68,4 +68,15 @@ export const rejectPermission = (id, response_note = "") =>
 // =================== MANAGER LEAVE MANAGEMENT ===================
 export const getManagerLeaves = () => api.get("/hr/manager/leave-requests/");
 
+// src/pages/modules/hr/api/hrApi.js
+export const fetchTrainingVideos = () =>
+  api.get("/organizations/training-videos/");
 
+// DELETE a specific training video (Used by the dashboard/manager component)
+export const deleteTrainingVideo = (videoId) =>
+   api.delete(`/organizations/training-videos/${videoId}/`);
+
+export const uploadTrainingVideo = (formData) =>
+  api.post("/organizations/training-videos/upload/", formData, {
+  headers: { "Content-Type": "multipart/form-data" },
+  });

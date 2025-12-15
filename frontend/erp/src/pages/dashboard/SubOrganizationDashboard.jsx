@@ -4,6 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { moduleService } from "../../services/moduleService";
 import ModuleGrid from "../../components/dashboard/ModuleGrid";
 import CreateSubOrgUserModal from "../dashboard/CreateSubOrgUser";
+import UploadTrainingVideoModal from "../../../src/pages/modules/hr/components/UploadTrainingVideoModal";
+import {
+  fetchTrainingVideos,
+  deleteTrainingVideo,
+} from "../modules/hr/api/hrApi";
 
 const SubOrganizationDashboard = () => {
   const { user, organization, logout } = useAuth();
@@ -12,7 +17,8 @@ const SubOrganizationDashboard = () => {
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openCreateUser, setOpenCreateUser] = useState(false);
-
+  const [openUploadVideo, setOpenUploadVideo] = useState(false);
+  const [trainingVideos, setTrainingVideos] = useState([]);
   const [stats, setStats] = useState({
     activeModules: 0,
     totalUsers: 0,
@@ -24,6 +30,15 @@ const SubOrganizationDashboard = () => {
       return;
     }
     loadDashboardData();
+  }, [user, organization, navigate]);
+
+  useEffect(() => {
+    if (!user || !organization) {
+      navigate("/login");
+      return;
+    }
+    loadDashboardData();
+    loadTrainingVideos(); // Load videos when component mounts
   }, [user, organization, navigate]);
 
   const loadDashboardData = async () => {
@@ -43,7 +58,36 @@ const SubOrganizationDashboard = () => {
       setLoading(false);
     }
   };
+  const loadTrainingVideos = async () => {
+    try {
+      const response = await fetchTrainingVideos();
+      setTrainingVideos(response.data);
+    } catch (error) {
+      console.error("Error loading training videos:", error);
+    }
+  };
 
+  // Called after a successful upload in the modal to refresh the list
+  const handleVideoUploadSuccess = () => {
+    console.log("Video uploaded successfully. Refreshing list...");
+    loadTrainingVideos();
+  };
+
+  // Handles the delete action from the modal/list
+  const handleVideoDelete = async (videoId) => {
+    if (
+      window.confirm("Are you sure you want to delete this training video?")
+    ) {
+      try {
+        await deleteTrainingVideo(videoId);
+        loadTrainingVideos(); // Refresh the list after deletion
+        console.log(`Video ID ${videoId} deleted successfully.`);
+      } catch (error) {
+        console.error("Failed to delete video:", error);
+        alert("Failed to delete video. Check network or permissions.");
+      }
+    }
+  };
   const handleModuleClick = (module) => {
     if (!module.is_active) return;
     const routes = {
@@ -100,6 +144,13 @@ const SubOrganizationDashboard = () => {
               </div>
 
               {/* NEW: Create User Button */}
+              <button
+                onClick={() => setOpenUploadVideo(true)}
+                className="bg-cyan-500 hover:bg-cyan-600 text-gray-950 px-4 py-2 rounded-lg"
+              >
+                Training Video
+              </button>
+
               <button
                 onClick={() => setOpenCreateUser(true)}
                 className="bg-pink-500 hover:bg-pink-600 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
@@ -225,6 +276,13 @@ const SubOrganizationDashboard = () => {
         onClose={() => setOpenCreateUser(false)}
         subOrgId={organization?.id}
         onSuccess={() => console.log("User created")}
+      />
+      <UploadTrainingVideoModal
+        isOpen={openUploadVideo}
+        onClose={() => setOpenUploadVideo(false)}
+        videos={trainingVideos} // Pass the current list of videos
+        onDeleteVideo={handleVideoDelete} // Pass the function to delete a video
+        onVideoUploadSuccess={handleVideoUploadSuccess} // Pass the function to refresh the list
       />
     </div>
   );
