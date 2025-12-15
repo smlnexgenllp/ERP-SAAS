@@ -11,7 +11,7 @@ import {
 import api from "../../../services/api";
 import {
   Upload, Eye, Trash2, FileText, Calendar, Clock, X, ChevronRight,
-  Gift, Users, CheckCircle, XCircle, Clock as ClockIcon
+  Gift, Users, CheckCircle, XCircle, Clock as ClockIcon, PlayCircle
 } from "lucide-react";
 
 export default function MyProfile() {
@@ -29,8 +29,17 @@ export default function MyProfile() {
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [showVideosModal, setShowVideosModal] = useState(false);
+  
+  const [trainingVideos, setTrainingVideos] = useState([]);
+  const [videosLoading, setVideosLoading] = useState(false);
+  const [watchedVideos, setWatchedVideos] = useState(new Set());
+  const [allCompleted, setAllCompleted] = useState(false);
+
   const [leave, setLeave] = useState({ type: "", from: "", to: "", reason: "", manager_id: "" });
   const [permission, setPermission] = useState({ date: "", from: "", to: "", reason: "", manager_id: "" });
+
+  const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
   useEffect(() => {
     loadData();
@@ -81,6 +90,55 @@ export default function MyProfile() {
       const res = await fetchMyDocuments();
       setUploadedDocs(res.data || []);
     } catch (err) { console.log("Documents error:", err); }
+  };
+
+  const fetchTrainingVideos = async () => {
+    setVideosLoading(true);
+    try {
+      const res = await api.get("/organizations/training-videos/");
+      let videos = res.data || [];
+      videos.sort((a, b) => a.id - b.id);
+      setTrainingVideos(videos);
+      setWatchedVideos(new Set());
+      setAllCompleted(false);
+    } catch (err) {
+      console.error("Failed to fetch training videos:", err);
+      setTrainingVideos([]);
+    } finally {
+      setVideosLoading(false);
+    }
+  };
+
+  const openVideosModal = async () => {
+    setShowVideosModal(true);
+    await fetchTrainingVideos();
+  };
+
+  const handleVideoEnded = (videoId) => {
+    setWatchedVideos(prev => {
+      const newSet = new Set(prev);
+      newSet.add(videoId);
+      if (newSet.size === trainingVideos.length) {
+        setAllCompleted(true);
+      }
+      return newSet;
+    });
+  };
+
+  const isVideoUnlocked = (index) => {
+    if (index === 0) return true;
+    const prevVideo = trainingVideos[index - 1];
+    return prevVideo && watchedVideos.has(prevVideo.id);
+  };
+
+  const markTrainingCompleted = async () => {
+    try {
+      await api.post("/organizations/training-completed/");
+      alert("Training marked as completed successfully!");
+      setShowVideosModal(false);
+    } catch (err) {
+      alert("Failed to mark training as completed");
+    }
   };
 
   const handleFileChange = (e) => {
@@ -190,10 +248,15 @@ export default function MyProfile() {
   }
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const currentYear = 2025;
+  const currentMonth = 11;
+  const currentDay = 15;
+  const monthName = new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-800">
-      {/* Header Banner */}
       <div className="bg-gradient-to-r from-emerald-600 to-green-700 text-white px-8 py-12">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
@@ -207,23 +270,20 @@ export default function MyProfile() {
       </div>
 
       <div className="max-w-7xl mx-auto px-8 py-10 grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Left Sidebar */}
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h3 className="font-bold text-lg mb-4 text-gray-700">Quick Actions</h3>
             <div className="space-y-3">
-              <button
-                onClick={() => setShowLeaveModal(true)}
-                className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center justify-between transition"
-              >
+              <button onClick={() => setShowLeaveModal(true)} className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center justify-between transition">
                 <span className="flex items-center gap-3"><Calendar className="w-5 h-5 text-blue-600" /> Apply Leave</span>
                 <ChevronRight className="w-5 h-5 text-gray-400" />
               </button>
-              <button
-                onClick={() => setShowPermissionModal(true)}
-                className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg flex items-center justify-between transition"
-              >
+              <button onClick={() => setShowPermissionModal(true)} className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg flex items-center justify-between transition">
                 <span className="flex items-center gap-3"><Clock className="w-5 h-5 text-purple-600" /> Request Permission</span>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
+              <button onClick={openVideosModal} className="w-full text-left px-4 py-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center justify-between transition">
+                <span className="flex items-center gap-3"><PlayCircle className="w-5 h-5 text-indigo-600" /> View Training Videos</span>
                 <ChevronRight className="w-5 h-5 text-gray-400" />
               </button>
             </div>
@@ -238,9 +298,7 @@ export default function MyProfile() {
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Birthday Widget */}
           <div className="bg-gradient-to-r from-yellow-100 to-amber-100 rounded-xl p-6 shadow-lg flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Gift className="w-12 h-12 text-amber-600" />
@@ -252,7 +310,6 @@ export default function MyProfile() {
             <button className="text-amber-700 font-medium hover:underline">View Wishes</button>
           </div>
 
-          {/* Leave Balance */}
           <div className="bg-white rounded-xl shadow-lg p-8">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-bold text-gray-800">Leave Balance</h3>
@@ -280,33 +337,14 @@ export default function MyProfile() {
             </div>
           </div>
 
-          {/* Main Card with Tabs */}
           <div className="bg-white rounded-xl shadow-lg p-8">
             <h3 className="text-2xl font-bold text-gray-800 mb-6">My Requests & Documents</h3>
-
-            {/* Tabs */}
             <div className="flex border-b border-gray-200 mb-6 text-sm font-medium">
-              <button
-                onClick={() => setActiveTab("documents")}
-                className={`px-6 py-3 ${activeTab === "documents" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-              >
-                My Documents
-              </button>
-              <button
-                onClick={() => setActiveTab("upload")}
-                className={`px-6 py-3 ${activeTab === "upload" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-              >
-                Upload Documents
-              </button>
-              <button
-                onClick={() => setActiveTab("status")}
-                className={`px-6 py-3 ${activeTab === "status" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}
-              >
-                Request Status
-              </button>
+              <button onClick={() => setActiveTab("documents")} className={`px-6 py-3 ${activeTab === "documents" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}>My Documents</button>
+              <button onClick={() => setActiveTab("upload")} className={`px-6 py-3 ${activeTab === "upload" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}>Upload Documents</button>
+              <button onClick={() => setActiveTab("status")} className={`px-6 py-3 ${activeTab === "status" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}>Request Status</button>
             </div>
 
-            {/* My Documents Tab */}
             {activeTab === "documents" && (
               <div>
                 <h4 className="font-semibold text-gray-700 mb-4">Uploaded Documents</h4>
@@ -340,7 +378,6 @@ export default function MyProfile() {
               </div>
             )}
 
-            {/* Upload Documents Tab - With "Already Submitted" */}
             {activeTab === "upload" && (
               <div>
                 <h4 className="font-semibold text-gray-700 mb-6">Upload New Documents</h4>
@@ -349,10 +386,7 @@ export default function MyProfile() {
                     const isUploaded = uploadedDocs.some(doc => doc.title === key);
                     return (
                       <div key={key}>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {formatTitle(key)}
-                        </label>
-
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{formatTitle(key)}</label>
                         {isUploaded ? (
                           <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 flex items-center justify-center gap-3 shadow-sm">
                             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -370,29 +404,21 @@ export default function MyProfile() {
                     );
                   })}
                 </div>
-
                 <button
                   onClick={saveDocuments}
-                  disabled={
-                    Object.values(newDocs).every(f => !f) || 
-                    Object.keys(newDocs).every(key => uploadedDocs.some(doc => doc.title === key))
-                  }
+                  disabled={Object.values(newDocs).every(f => !f) || Object.keys(newDocs).every(key => uploadedDocs.some(doc => doc.title === key))}
                   className={`w-full px-8 py-3 font-bold rounded-lg shadow-lg transition flex items-center justify-center gap-2 ${
-                    Object.values(newDocs).some(f => f) && 
-                    !Object.keys(newDocs).every(key => uploadedDocs.some(doc => doc.title === key))
+                    Object.values(newDocs).some(f => f) && !Object.keys(newDocs).every(key => uploadedDocs.some(doc => doc.title === key))
                       ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer transform hover:scale-105"
                       : "bg-gray-400 text-gray-600 cursor-not-allowed"
                   }`}
                 >
                   <Upload className="w-5 h-5" />
-                  {Object.keys(newDocs).every(key => uploadedDocs.some(doc => doc.title === key))
-                    ? "All Documents Submitted"
-                    : "Upload Selected Documents"}
+                  {Object.keys(newDocs).every(key => uploadedDocs.some(doc => doc.title === key)) ? "All Documents Submitted" : "Upload Selected Documents"}
                 </button>
               </div>
             )}
 
-            {/* Request Status Tab */}
             {activeTab === "status" && (
               <div>
                 <h4 className="font-semibold text-gray-700 mb-6">Leave & Permission Requests</h4>
@@ -411,7 +437,6 @@ export default function MyProfile() {
                       ))}
                     </div>
                   )}
-
                   {permissionHistory.length > 0 && (
                     <div>
                       <h5 className="font-medium text-gray-600 mb-3">Permission Requests</h5>
@@ -427,7 +452,6 @@ export default function MyProfile() {
                       ))}
                     </div>
                   )}
-
                   {leaveHistory.length === 0 && permissionHistory.length === 0 && (
                     <p className="text-gray-500 italic text-center py-12">No requests submitted yet</p>
                   )}
@@ -437,7 +461,6 @@ export default function MyProfile() {
           </div>
         </div>
 
-        {/* Right Sidebar */}
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex justify-between items-center mb-4">
@@ -445,14 +468,17 @@ export default function MyProfile() {
               <a href="#" className="text-blue-600 text-sm hover:underline">Go to Calendar</a>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-800">March 2025</p>
+              <p className="text-2xl font-bold text-gray-800">{monthName}</p>
               <div className="grid grid-cols-7 gap-2 mt-6 text-sm">
-                {["S", "M", "T", "W", "T", "F", "S"].map(d => (
-                  <div key={d} className="font-bold text-gray-600 py-2">{d}</div>
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                  <div key={day} className="font-bold text-gray-600 py-2">{day.charAt(0)}</div>
                 ))}
-                {Array(31).fill().map((_, i) => (
-                  <div key={i} className={`py-3 rounded-lg ${i + 1 === 12 ? 'bg-red-500 text-white font-bold' : ''}`}>
-                    {i + 1}
+                {Array(firstDayOfMonth).fill(null).map((_, i) => (
+                  <div key={`empty-${i}`} className="py-3" />
+                ))}
+                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
+                  <div key={day} className={`py-3 rounded-lg ${day === currentDay ? 'bg-red-500 text-white font-bold' : ''}`}>
+                    {day}
                   </div>
                 ))}
               </div>
@@ -461,7 +487,6 @@ export default function MyProfile() {
         </div>
       </div>
 
-      {/* Leave Modal */}
       {showLeaveModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg">
@@ -495,7 +520,6 @@ export default function MyProfile() {
         </div>
       )}
 
-      {/* Permission Modal */}
       {showPermissionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg">
@@ -519,6 +543,118 @@ export default function MyProfile() {
                 <button type="button" onClick={() => setShowPermissionModal(false)} className="flex-1 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold rounded-lg transition">Cancel</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showVideosModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800">Training Videos</h2>
+              <button onClick={() => setShowVideosModal(false)} className="text-gray-500 hover:text-gray-700">
+                <X className="w-8 h-8" />
+              </button>
+            </div>
+
+            <div className="p-8">
+              {videosLoading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600"></div>
+                  <p className="mt-4 text-gray-600">Loading videos...</p>
+                </div>
+              ) : trainingVideos.length === 0 ? (
+                <p className="text-center text-gray-500 py-12 italic">No training videos available yet.</p>
+              ) : (
+                <>
+                  <div className="mb-8">
+                    <p className="text-sm text-gray-600">Progress: {watchedVideos.size} / {trainingVideos.length} completed</p>
+                    <div className="w-full bg-gray-200 rounded-full h-3 mt-2">
+                      <div className="bg-indigo-600 h-3 rounded-full transition-all duration-500" style={{ width: `${(watchedVideos.size / trainingVideos.length) * 100}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    {trainingVideos.map((video, index) => {
+                      const unlocked = isVideoUnlocked(index);
+                      const watched = watchedVideos.has(video.id);
+
+                      return (
+                        <div key={video.id} className={`bg-gray-50 rounded-lg overflow-hidden shadow hover:shadow-lg transition ${!unlocked ? "opacity-60" : ""}`}>
+                          <div className="aspect-video bg-black relative">
+                            {video.video ? (
+                              <video
+                                controls={unlocked}
+                                controlsList="nodownload"
+                                className="w-full h-full object-cover"
+                                poster={video.thumbnail || undefined}
+                                onEnded={() => handleVideoEnded(video.id)}
+                              >
+                                <source src={`${BACKEND_URL}${video.video}`} type="video/mp4" />
+                                Your browser does not support the video tag.
+                              </video>
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                                <PlayCircle className="w-16 h-16 text-gray-500" />
+                              </div>
+                            )}
+
+                            {!unlocked && (
+                              <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center">
+                                <div className="text-white text-center">
+                                  <svg className="w-16 h-16 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                  </svg>
+                                  <p className="text-lg font-semibold">Locked</p>
+                                  <p className="text-sm mt-1">Complete previous video first</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {watched && (
+                              <div className="absolute top-4 right-4 bg-green-600 text-white rounded-full p-2">
+                                <CheckCircle className="w-8 h-8" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                                  <span className="text-sm font-bold text-indigo-600">#{index + 1}</span>
+                                  {video.title || "Untitled Video"}
+                                </h4>
+                                {video.description && <p className="text-sm text-gray-600 mt-1">{video.description}</p>}
+                              </div>
+                              {watched && <span className="text-sm text-green-600 font-medium">Completed</span>}
+                              {!unlocked && !watched && <span className="text-sm text-gray-500">Locked</span>}
+                            </div>
+                            {video.created_at && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Uploaded on {new Date(video.created_at).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {allCompleted && (
+                    <div className="mt-12 text-center">
+                      <button
+                        onClick={markTrainingCompleted}
+                        className="px-10 py-5 bg-green-600 hover:bg-green-700 text-white font-bold text-xl rounded-lg shadow-lg transition transform hover:scale-105 flex items-center gap-3 mx-auto"
+                      >
+                        <CheckCircle className="w-10 h-10" />
+                        Mark Training as Completed
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

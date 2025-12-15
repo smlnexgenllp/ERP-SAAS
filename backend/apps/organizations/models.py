@@ -80,3 +80,58 @@ class UserOrganizationAccess(models.Model):
     modules = models.JSONField(default=list) # e.g. ['employees', 'attendance']
     def __str__(self):
         return f"{self.user.username} → {self.organization.name}"
+    
+from django.db import models
+from django.conf import settings
+
+User = settings.AUTH_USER_MODEL
+
+
+class TrainingVideo(models.Model):
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="training_videos"
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    video = models.FileField(upload_to="training_videos/")
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.title} ({self.organization.name})"
+
+
+
+# In apps/organizations/models.py (at the bottom)
+
+class TrainingVideoView(models.Model):
+    user = models.ForeignKey(  # Changed from 'employee' to 'user'
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='training_video_views'
+    )
+    video = models.ForeignKey(
+        'TrainingVideo',
+        on_delete=models.CASCADE,
+        related_name='views'
+    )
+    watched_at = models.DateTimeField(auto_now_add=True)
+    completed = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('user', 'video')
+        ordering = ['-watched_at']
+
+    def __str__(self):
+        return f"{self.user.get_full_name() or self.user.email} watched {self.video.title}"

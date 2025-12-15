@@ -1,6 +1,6 @@
 from django.urls import path, include
 from . import views
-from .views import CreateSubOrgUserView, SubOrgLoginView
+from .views import TrainingVideoDetailView, CreateSubOrgUserView, SubOrgLoginView, TrainingVideoUploadView, TrainingVideoListView, MarkVideoWatchedView
 
 urlpatterns = [
     # Organization registration
@@ -12,7 +12,11 @@ urlpatterns = [
     
     # Sub-organization creation
     path('sub-organizations/create/', views.SubOrganizationCreationView.as_view(), name='create-sub-organization'),
-    
+    path("training-videos/upload/", TrainingVideoUploadView.as_view()),
+    path("training-videos/", TrainingVideoListView.as_view()),
+    path('training-videos/<int:pk>/', TrainingVideoDetailView.as_view()),
+    # urls.py
+    path('training-videos/<int:video_id>/watch/', MarkVideoWatchedView.as_view(), name='mark-video-watched'),
     # Main organization dashboard routes
     path('main-org/dashboard/', views.MainOrganizationViewSet.as_view({'get': 'dashboard'}), name='main-org-dashboard'),
     path('main-org/sub-organizations/', views.MainOrganizationViewSet.as_view({'get': 'sub_organizations_list'}), name='main-org-sub-organizations'),
