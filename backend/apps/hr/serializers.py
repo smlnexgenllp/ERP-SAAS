@@ -279,3 +279,34 @@ class PermissionRequestUpdateSerializer(serializers.ModelSerializer):
         model = PermissionRequest
         fields = ('status','response_note')
 
+from .models import EmployeeReimbursement
+
+class EmployeeReimbursementSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source='employee.full_name', read_only=True)
+    manager_name = serializers.CharField(source='manager.full_name', read_only=True)
+
+    class Meta:
+        model = EmployeeReimbursement
+        fields = [
+            "id",
+            "employee",
+            "employee_name",
+            "manager",
+            "manager_name",
+            "amount",
+            "date",
+            "reason",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "status",
+            "created_at",
+            "updated_at",
+            "employee_name",
+            "manager_name",
+        ]
+
+

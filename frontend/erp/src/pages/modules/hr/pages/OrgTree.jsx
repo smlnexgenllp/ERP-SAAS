@@ -143,9 +143,11 @@ export default function OrgTree() {
           Organization Tree
         </h1>
       </div>
+
+      {/* Scrollable container with centered content */}
       <div className="w-full overflow-x-auto overflow-y-visible">
-        <div className="inline-block min-w-max pb-20"> {/* This is the magic */}
-          <div className="flex justify-center gap-22 ">
+        <div className="flex justify-center min-w-max pb-20">
+          <div className="inline-flex gap-22"> {/* Changed from justify-center to inline-flex for better centering */}
             {treeData.length === 1 ? (
               <TreeNode node={treeData[0]} />
             ) : (

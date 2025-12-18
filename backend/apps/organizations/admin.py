@@ -1,7 +1,8 @@
 # apps/organizations/admin.py
 
 from django.contrib import admin
-from .models import Organization, TrainingVideo
+from .models import Organization, TrainingVideo, TrainingCompletion
+
 
 @admin.register(TrainingVideo)
 class TrainingVideoAdmin(admin.ModelAdmin):
@@ -9,6 +10,13 @@ class TrainingVideoAdmin(admin.ModelAdmin):
     list_filter = ['organization', 'created_at']
     search_fields = ['title', 'description']
     # readonly_fields = ['created_at', 'updated_at']
+    
+@admin.register(TrainingCompletion)
+class TrainingCompletionAdmin(admin.ModelAdmin):
+    list_display = ("user", "organization", "completed_at")
+    list_filter = ("organization",)
+    search_fields = ("user__username", "user__email", "organization__name")
+
 
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):

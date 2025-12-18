@@ -13,6 +13,7 @@ from .views import (
     ManagerListView,
     ManagerLeaveList,
     ManagerPermissionList,
+    EmployeeReimbursementViewSet
     EmployeeViewSet,
 )
 
@@ -33,6 +34,7 @@ router.register('designations', DesignationViewSet, basename='designations')
 router.register(r'leave-requests', LeaveRequestViewSet, basename='leave-requests')
 router.register(r'permission', PermissionRequestViewSet, basename='permission')
 router.register(r'managers', ManagerListView, basename='managers')
+router.register(r'reimbursements', EmployeeReimbursementViewSet, basename="reimbursements")
 
 urlpatterns = [
     # 1. All ViewSet routes: /api/hr/departments/, /api/hr/employees/, etc.

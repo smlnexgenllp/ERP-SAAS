@@ -19,10 +19,6 @@ from apps.hr.serializers import (
     EmployeeCreateInvitationSerializer,
 )
 
-
-# ──────────────────────────────
-# Department & Designation
-# ──────────────────────────────
 class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
 
@@ -33,12 +29,9 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             return Department.objects.filter(organization=employee.organization).order_by('name')
         except Employee.DoesNotExist:
             return Department.objects.none()
-
-
-
+        
 class DesignationViewSet(viewsets.ModelViewSet):
     serializer_class = DesignationSerializer
-
     def get_queryset(self):
         user = self.request.user
         try:
@@ -47,26 +40,16 @@ class DesignationViewSet(viewsets.ModelViewSet):
         except Employee.DoesNotExist:
             return Designation.objects.none()
 
-
-
-# ──────────────────────────────
-# Employee ViewSet
-# ──────────────────────────────
 class EmployeeViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeSerializer
-
     def get_queryset(self):
         user = self.request.user
-
-    # If HR/Admin (not an Employee), get organization from user model
         if hasattr(user, "role") and user.role in ["HR", "Admin"]:
             return Employee.objects.select_related(
                 'department', 'designation', 'user'
             ).filter(
                 organization=user.organization
             ).order_by("full_name")
-
-    # Else: normal employee
         try:
             current_employee = Employee.objects.get(user=user)
             return Employee.objects.select_related(
@@ -76,17 +59,12 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             ).order_by("full_name")
         except Employee.DoesNotExist:
             return Employee.objects.none()
-
-
-    # Debug endpoint
     @action(detail=False, methods=['get'])
     def debug(self, request):
         return Response({
             "message": "EmployeeViewSet is working!",
             "user": request.user.username if request.user.is_authenticated else "Anonymous"
         })
-
-    # Current employee profile
     @action(detail=False, methods=['get'], url_path='me', permission_classes=[IsAuthenticated])
     def me(self, request):
         try:
@@ -94,8 +72,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             return Response(self.get_serializer(employee).data)
         except Employee.DoesNotExist:
             return Response({"detail": "No employee profile found"}, status=404)
-
-    # Create Employee + Send Invite
     @action(detail=False, methods=['post'])
     def create_with_invite(self, request):
         serializer = EmployeeCreateInvitationSerializer(
@@ -109,14 +85,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                 "message": f"Employee {employee.full_name} created and invitation sent!",
                 "employee": EmployeeSerializer(employee).data
             }, status=201)
-
         return Response({"success": False, "errors": serializer.errors}, status=400)
-
-
-# ──────────────────────────────
-# Documents
-# ──────────────────────────────
-# Example in Django REST Framework
 class EmployeeDocumentViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeDocumentSerializer
 
@@ -127,8 +96,6 @@ class EmployeeDocumentViewSet(viewsets.ModelViewSet):
             return EmployeeDocument.objects.filter(employee__organization=user.organization)
         # Else only the employee’s own documents
         return EmployeeDocument.objects.filter(employee__user=user)
-
-
     def perform_create(self, serializer):
         try:
             employee = Employee.objects.get(user=self.request.user)
@@ -136,11 +103,6 @@ class EmployeeDocumentViewSet(viewsets.ModelViewSet):
         except Employee.DoesNotExist:
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Employee profile not found")
-
-
-# ──────────────────────────────
-# ACCEPT INVITE — MAIN LOGIC FIXED
-# ──────────────────────────────
 @api_view(['GET', 'POST'])
 def accept_invite_view(request, token):
     try:
@@ -159,7 +121,6 @@ def accept_invite_view(request, token):
             'phone': invite.phone,
             'role': invite.role,
         })
-
     # Handle accept invite POST
     if request.method == 'POST':
         password = request.data.get('password')
@@ -171,12 +132,10 @@ def accept_invite_view(request, token):
             )
 
         with transaction.atomic():
-
-            # 🔥 FIXED — create user from custom user model
             user = User.objects.create_user(
                 email=invite.email,
                 password=password,
-                username=invite.email,  # optional depending on your model
+                username=invite.email, 
                 first_name=invite.full_name.split(' ')[0],
                 last_name=' '.join(invite.full_name.split(' ')[1:]) if len(invite.full_name.split(' ')) > 1 else ''
             )
@@ -218,21 +177,16 @@ from apps.hr.serializers import (
     SimpleUserSerializer
 )
 from apps.hr.permissions import IsOwnerOrManager
-
 User = get_user_model()
-
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from apps.hr.models import Employee
 from apps.hr.serializers import SimpleUserSerializer
-
 User = get_user_model()
-
 class ManagerListView(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = SimpleUserSerializer
-
     def get_queryset(self):
         user = self.request.user
         try:
@@ -240,7 +194,6 @@ class ManagerListView(mixins.ListModelMixin, viewsets.GenericViewSet):
             org = current_employee.organization
         except Employee.DoesNotExist:
             return User.objects.none()
-
         # Use exact lowercase roles from DB
         manager_roles = ["hr", "admin"]  # include hr and admin if they are managers
         managers = Employee.objects.filter(
@@ -248,16 +201,10 @@ class ManagerListView(mixins.ListModelMixin, viewsets.GenericViewSet):
             role__in=manager_roles,
             is_active=True
         ).exclude(user=current_employee.user)
-
         return User.objects.filter(employee__in=managers)
-
-
-
-
 class LeaveRequestViewSet(viewsets.ModelViewSet):
     queryset = LeaveRequest.objects.all().select_related('employee','manager')
     permission_classes = [IsAuthenticated, IsOwnerOrManager]
-
     def get_serializer_class(self):
         if self.action in ['update','partial_update','approve','reject']:
             return LeaveRequestUpdateSerializer
@@ -267,131 +214,124 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
-        def get_queryset(self):
+    def get_queryset(self):
             user = self.request.user
-        # Attempt to get the Employee profile for the current user
-            emp = getattr(user, "employee", None)
-
-        # 1. Admin/HR role: See all leave requests in the organization
-            if emp and emp.organization and emp.role.lower() in ["admin", "hr"]:
-                return self.queryset.filter(
-                    employee__organization=emp.organization
-                ).order_by('-applied_at') # Add ordering for clarity
-
-        # 2. Manager role: See requests assigned to them as manager
-        # (This is a common role check, but your ManagerLeaveList already handles this)
-        # We can keep it simple: if staff, they are likely a manager/reviewer.
-            if user.is_staff:
-                return self.queryset.filter(manager=user).order_by('-applied_at')
-
-        # 3. Regular Employee: Only see their own requests
-            return self.queryset.filter(employee=user).order_by('-applied_at')
-
-
+            admin_roles = [User.SUB_ORG_ADMIN, User.MAIN_ORG_ADMIN, User.SUPER_ADMIN]
+            queryset = LeaveRequest.objects.select_related('employee', 'manager')
+            if user.role in admin_roles or user.is_staff or user.is_superuser:
+                return queryset.all()
+            return queryset.filter(employee=user)
     def perform_create(self, serializer):
         serializer.save()
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsOwnerOrManager])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
     def approve(self, request, pk=None):
         obj = self.get_object()
-        if not request.user.is_staff and not request.user.is_superuser:
-            return Response({"detail":"Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+        # if not request.user.is_staff and not request.user.is_superuser:
+        #     return Response({"detail":"Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         obj.status = 'approved'
         obj.response_note = request.data.get('response_note','')
         obj.responded_at = timezone.now()
         obj.save()
         return Response(LeaveRequestSerializer(obj, context={'request': request}).data)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsOwnerOrManager])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
     def reject(self, request, pk=None):
         obj = self.get_object()
-        if not request.user.is_staff and not request.user.is_superuser:
-            return Response({"detail":"Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+        # if not request.user.is_staff and not request.user.is_superuser:
+        #     return Response({"detail":"Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         obj.status = 'rejected'
         obj.response_note = request.data.get('response_note','')
         obj.responded_at = timezone.now()
         obj.save()
         return Response(LeaveRequestSerializer(obj, context={'request': request}).data)
-
 class PermissionRequestViewSet(viewsets.ModelViewSet):
     queryset = PermissionRequest.objects.all().select_related('employee', 'manager')
     permission_classes = [IsAuthenticated, IsOwnerOrManager]
-
     def get_serializer_class(self):
         if self.action in ['update', 'partial_update', 'approve', 'reject']:
             return PermissionRequestUpdateSerializer
         return PermissionRequestSerializer
-
     def get_queryset(self):
         user = self.request.user
-        emp = getattr(user, "employee", None)
-
-    # Admin + HR → see all
-        if emp and emp.role.lower() in ["admin", "hr"]:
-            return self.queryset.all()
-
-    # Manager → see assigned leaves
-        if emp and emp.role.lower() == "manager":
-            return self.queryset.filter(manager=user)
-
-    # Employee → only their own requests
-        return self.queryset.filter(employee=user)
-
-
+        admin_roles = [User.SUB_ORG_ADMIN, User.MAIN_ORG_ADMIN, User.SUPER_ADMIN]
+        queryset = PermissionRequest.objects.select_related('employee', 'manager')
+        if user.role in admin_roles or user.is_staff or user.is_superuser:
+            return queryset.all()
+        return queryset.filter(employee=user)
     @action(detail=True, methods=['post'], permission_classes=[AllowAny])
     def approve(self, request, pk=None):
         obj = self.get_object()
         emp = getattr(request.user, "employee", None)
-
         # Allow Admin + HR + Manager
-        if not (emp and emp.role in ["admin", "hr", "manager"]):
-            return Response({"detail": "Not allowed"}, status=403)
-
+        # if not (emp and emp.role in ["admin", "hr", "manager"]):
+        #     return Response({"detail": "Not allowed"}, status=403)
         obj.status = 'approved'
         obj.response_note = request.data.get('response_note', '')
         obj.responded_at = timezone.now()
         obj.save()
-
         return Response(PermissionRequestSerializer(obj, context={'request': request}).data)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
     def reject(self, request, pk=None):
         obj = self.get_object()
         emp = getattr(request.user, "employee", None)
-
-        if not (request.user.is_staff or (emp and emp.role in ["admin", "hr"])):
-            return Response({"detail":"Not allowed"}, status=status.HTTP_403_FORBIDDEN)
-
+        # if not (request.user.is_staff or (emp and emp.role in ["admin", "hr"])):
+        #     return Response({"detail":"Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         obj.status = 'rejected'
         obj.response_note = request.data.get('response_note','')
         obj.responded_at = timezone.now()
         obj.save()
         return Response(PermissionRequestSerializer(obj, context={'request': request}).data)
-
-
-    
-
 from rest_framework.views import APIView
-
 class ManagerLeaveList(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
         leaves = LeaveRequest.objects.filter(
             manager=request.user,
             status="pending"
         ).select_related("employee")
         return Response(LeaveRequestSerializer(leaves, many=True).data)
-
+    
 class ManagerPermissionList(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
         user = request.user
-
         permissions = PermissionRequest.objects.filter(
             manager=user,
             status="pending"
         ).select_related("employee")
-
         return Response(PermissionRequestSerializer(permissions, many=True).data)
+    
+from rest_framework import viewsets, status
+from apps.hr.models import EmployeeReimbursement
+from apps.hr.serializers import EmployeeReimbursementSerializer
+from rest_framework.decorators import action
+class EmployeeReimbursementViewSet(viewsets.ModelViewSet):
+    queryset = EmployeeReimbursement.objects.all()
+    serializer_class = EmployeeReimbursementSerializer
+    permission_classes = [IsAuthenticated]
+    def get_queryset(self):
+        user = self.request.user
+        admin_roles = [User.SUB_ORG_ADMIN, User.MAIN_ORG_ADMIN, User.SUPER_ADMIN]
+        queryset = EmployeeReimbursement.objects.select_related('employee', 'manager')
+        if user.role in admin_roles or user.is_staff or user.is_superuser:
+            return queryset.all()
+        return queryset.filter(employee=user)
+    def perform_create(self, serializer):
+        serializer.save(employee=self.request.user)
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        reimbursement = self.get_object()
+        reimbursement.status = "approved"
+        reimbursement.save()
+        return Response(
+            {"message": "Reimbursement approved"},
+            status=status.HTTP_200_OK
+        )
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        reimbursement = self.get_object()
+        reimbursement.status = "rejected"
+        reimbursement.save()
+        return Response(
+            {"message": "Reimbursement rejected"},
+            status=status.HTTP_200_OK
+        )

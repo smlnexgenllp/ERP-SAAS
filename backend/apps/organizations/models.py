@@ -110,13 +110,10 @@ class TrainingVideo(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.organization.name})"
-
-
-
 # In apps/organizations/models.py (at the bottom)
 
 class TrainingVideoView(models.Model):
-    user = models.ForeignKey(  # Changed from 'employee' to 'user'
+    user = models.ForeignKey(  
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='training_video_views'
@@ -126,12 +123,31 @@ class TrainingVideoView(models.Model):
         on_delete=models.CASCADE,
         related_name='views'
     )
+    progress = models.PositiveSmallIntegerField(default=0)
     watched_at = models.DateTimeField(auto_now_add=True)
-    completed = models.BooleanField(default=True)
+    completed = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('user', 'video')
         ordering = ['-watched_at']
 
-    def __str__(self):
+    def __str__(self): 
         return f"{self.user.get_full_name() or self.user.email} watched {self.video.title}"
+# apps/training/models.py
+
+from django.db import models
+from django.conf import settings
+from apps.organizations.models import Organization
+
+User = settings.AUTH_USER_MODEL
+
+class TrainingCompletion(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'organization')
+
+    def __str__(self):
+        return f"{self.user} - Training Completed"
