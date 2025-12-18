@@ -84,16 +84,14 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-      <div className="bg-white w-[500px] rounded-xl shadow-lg p-6 relative max-h-[90vh] overflow-y-auto">
+      <div className="bg-black w-[500px] rounded-xl shadow-lg p-6 relative max-h-[90vh] overflow-y-auto">
         <button
           className="absolute right-3 top-3 text-gray-500 hover:text-black"
           onClick={onClose}
         >
           <X size={20} />
         </button>
-
         <h2 className="text-xl font-semibold mb-4">Create User for Sub-Organization</h2>
-
         {/* First Name */}
         <label className="block mb-2 font-medium">First Name</label>
         <input

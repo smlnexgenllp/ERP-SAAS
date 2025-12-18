@@ -21,6 +21,7 @@ import OrgTree from "./pages/modules/hr/pages/OrgTree";
 import LeaveManagement from "./pages/modules/hr/pages/LeaveManagement";
 import UserDashboard from "./pages/dashboard/UserDashboard";
 import SubOrgLogin from "./pages/auth/SubOrgLogin";
+import Reimbursement from "./pages/modules/hr/pages/Reimbursement";
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -80,6 +81,7 @@ function App() {
           <Route path="/profile" element={<MyProfile />} />
           <Route path="/hr/leaves" element={<LeaveManagement/>} />
           <Route path="/users" element={<UserDashboard/>} />
+          <Route path="/hr/reimbursements" element={<Reimbursement/>} />
 
           {/* <Route path="/hr/list" element={<EmployeeList/>} /> */}
 

@@ -198,3 +198,24 @@ class PermissionRequest(models.Model):
     def __str__(self):
         return f"{self.employee} permission on {self.date} ({self.time_from}-{self.time_to})"
 
+class EmployeeReimbursement(models.Model):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    STATUS_CHOICES = [
+        (PENDING, "Pending"),
+        (APPROVED, "Approved"),
+        (REJECTED, "Rejected"),
+    ]
+
+    employee = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reimbursements")
+    manager = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reimbursements_to_approve")
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    date = models.DateField()
+    reason = models.TextField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.employee.full_name} - {self.amount} ({self.status})"

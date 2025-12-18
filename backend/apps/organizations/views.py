@@ -191,7 +191,7 @@ class MainOrganizationViewSet(viewsets.ViewSet):
                 return Response({
                     'success': False,
                     'error': 'User has no organization'
-                }, status=status.HTTP_400_BAD_REQUEST)
+                }, status=status.HTTP_400_BAD_REQUEST) 
             current_organization = request.user.organization
             current_user = request.user
             org_modules = OrganizationModule.objects.filter(
@@ -569,7 +569,7 @@ class TrainingVideoListView(APIView):
 class TrainingVideoDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request, pk):  # pk will be injected via URL
+    def delete(self, request, pk):  
         try:
             org_user = OrganizationUser.objects.get(user=request.user)
             video = get_object_or_404(
@@ -589,73 +589,139 @@ class TrainingVideoDetailView(APIView):
                 {"error": "Video not found or you don't have permission"},
                 status=status.HTTP_404_NOT_FOUND
             )
-class MarkVideoWatchedView(APIView):
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from django.utils import timezone
+
+from apps.organizations.models import Organization, TrainingCompletion
+from apps.hr.models import Employee
+
+
+def get_user_organization(user):
+    # Case 1: User is an employee
+    employee = Employee.objects.filter(user=user).select_related("organization").first()
+    if employee and employee.organization:
+        return employee.organization
+
+    # Case 2: User created the organization (admin)
+    org = Organization.objects.filter(created_by=user).first()
+    if org:
+        return org
+
+    return None
+
+
+class TrainingCompletedView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, video_id):
-        """
-        Check if the current employee has watched the given video.
-        Returns: {"watched": true/false}
-        """
-        try:
-            video = get_object_or_404(TrainingVideo, id=video_id)
-            employee = request.user.employee  # Assuming OneToOne or similar relation
+    def post(self, request):
+        organization = get_user_organization(request.user)
 
-            watched = TrainingVideoView.objects.filter(
-                employee=employee,
-                video=video
-            ).exists()
+        if not organization:
+            return Response(
+                {"error": "Organization not found for this user"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-            return Response({"watched": watched}, status=status.HTTP_200_OK)
+        completion, created = TrainingCompletion.objects.get_or_create(
+            user=request.user,
+            organization=organization
+        )
+
+        return Response({
+            "employee": request.user.get_full_name() or request.user.username,
+            "completed_at": completion.completed_at,
+            "created": created
+        }, status=status.HTTP_200_OK)
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from apps.organizations.models import TrainingCompletion, Organization
+from apps.hr.models import Employee
+
+class TrainingCompletedStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
         
-        except AttributeError:
-            # In case request.user has no .employee
+        # FIX: Get the organization the user belongs to from your User model
+        organization = user.organization 
+
+        if not organization:
             return Response(
-                {"error": "User is not linked to an employee"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "User is not associated with any organization."},
+                status=404
             )
 
-    def post(self, request, video_id):
-        """
-        Mark the video as watched for the current employee.
-        If already watched, it just confirms (idempotent).
-        """
-        try:
-            video = get_object_or_404(TrainingVideo, id=video_id)
-            employee = request.user.employee
+        # Logic for Sub-Org Admin: See everyone in their org
+        if user.role == User.SUB_ORG_ADMIN:
+            completions = TrainingCompletion.objects.filter(
+                organization=organization
+            ).select_related("user")
+        
+        # Logic for Employee: See only their own completions
+        else:
+            completions = TrainingCompletion.objects.filter(
+                organization=organization,
+                user=user
+            ).select_related("user")
 
-            # get_or_create ensures it's idempotent — safe to call multiple times
-            TrainingVideoView.objects.get_or_create(
-                employee=employee,
-                video=video,
-                defaults={'completed': True}
-            )
+        data = [
+            {
+                "employee_id": tc.user.id,
+                "employee_name": tc.user.get_full_name(), # Get name instead of just ID
+                "employee_email": tc.user.email,
+                "completed_at": tc.completed_at
+            }
+            for tc in completions
+        ]
 
-            # Optionally update completed=True if record existed but was False
-            TrainingVideoView.objects.filter(
-                employee=employee,
-                video=video
-            ).update(completed=True)
+        return Response(data)
 
-            return Response({"status": "watched"}, status=status.HTTP_200_OK)
+class TrainingProgressView(APIView):
+    permission_classes = [IsAuthenticated]
 
-        except AttributeError:
+    def get(self, request):
+        user = request.user
+
+        organization = Organization.objects.filter(created_by=user).first()
+        if not organization:
             return Response(
-                {"error": "User is not linked to an employee"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except TrainingVideo.DoesNotExist:
-            return Response(
-                {"error": "Video not found"},
+                {"detail": "Organization not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+
+        total_videos = TrainingVideo.objects.filter(organization=organization).count()
+        if total_videos == 0:
+            return Response([])
+
+        employees = User.objects.filter(employee__organization=organization).distinct()
+
+        # Pre-fetch all completions for efficiency
+        completed_users = set(
+            TrainingCompletion.objects.filter(
+                organization=organization
+            ).values_list('user_id', flat=True)
+        )
+
+        response = []
+        for emp in employees:
+            is_completed = emp.id in completed_users
+            percentage = 100 if is_completed else 0
+            completed_count = total_videos if is_completed else 0
+
+            response.append({
+                "employee_id": emp.id,
+                "employee_email": emp.email,
+                "employee_name": emp.get_full_name().strip() or emp.email,
+                "completed": completed_count,
+                "total": total_videos,
+                "percentage": percentage,
+            })
+
+        return Response(response)

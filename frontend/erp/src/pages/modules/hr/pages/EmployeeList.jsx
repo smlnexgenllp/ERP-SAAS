@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../../../services/api";
-import { ChevronDown, ChevronUp, Calendar, Cake, DollarSign, Users, Building2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Calendar, Cake, DollarSign, Users, Building2, IndianRupee } from "lucide-react";
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState([]);
@@ -74,7 +74,6 @@ export default function EmployeeList() {
             {loading ? "Syncing..." : "Refresh List"}
           </button>
         </div>
-
         {/* Loading */}
         {loading && employees.length === 0 && (
           <div className="text-center py-28">
@@ -82,7 +81,6 @@ export default function EmployeeList() {
             <p className="mt-6 text-xl text-gray-400">Loading employee data...</p>
           </div>
         )}
-
         {/* Error */}
         {error && (
           <div className="mb-8 p-6 bg-red-900/30 border border-red-700 rounded-xl text-center">
@@ -93,7 +91,6 @@ export default function EmployeeList() {
             </button>
           </div>
         )}
-
         {/* Empty State */}
         {!loading && !error && employees.length === 0 && (
           <div className="text-center py-28 bg-gray-900/60 backdrop-blur-xl rounded-2xl border border-cyan-800/50">
@@ -101,7 +98,6 @@ export default function EmployeeList() {
             <p className="text-2xl text-gray-500">No employees found</p>
           </div>
         )}
-
         {/* Compact & Professional Expandable Table */}
         {employees.length > 0 && (
           <div className="bg-gray-900/60 backdrop-blur-xl border border-cyan-800/70 rounded-2xl overflow-hidden shadow-2xl">
@@ -188,7 +184,7 @@ export default function EmployeeList() {
                                 {employee.ctc && (
                                   <div className="flex items-center gap-4">
                                     <div className="p-3 bg-emerald-900/40 rounded-lg border border-emerald-700">
-                                      <DollarSign className="w-7 h-7 text-emerald-400" />
+                                      <IndianRupee className="w-7 h-7 text-emerald-400" />
                                     </div>
                                     <div>
                                       <p className="text-xs text-gray-500 uppercase tracking-wider">Annual CTC</p>

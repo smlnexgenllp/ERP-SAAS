@@ -80,3 +80,24 @@ export const uploadTrainingVideo = (formData) =>
   api.post("/organizations/training-videos/upload/", formData, {
   headers: { "Content-Type": "multipart/form-data" },
   });
+
+  export const fetchTrainingCompletions = async () => {
+  return api.get("organizations/training-completed/status"); 
+};
+
+export const fetchReimbursements = async () => {
+  return api.get("/hr/reimbursements/");
+};
+
+export const submitReimbursementRequest = async (data) => {
+  return api.post("/hr/reimbursements/", data);
+};
+
+export const approveReimbursement = async (id) => {
+  return api.post(`/hr/reimbursements/${id}/approve/`);
+};
+
+// Reject reimbursement
+export const rejectReimbursement = async (id) => {
+  return api.post(`/hr/reimbursements/${id}/reject/`);
+};
