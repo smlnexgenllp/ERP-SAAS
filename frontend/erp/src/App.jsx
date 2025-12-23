@@ -41,6 +41,31 @@ const ProtectedRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
+// HR Module Protected Route - Additional check for HR access
+const HRProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Check if user is authenticated and has HR module access
+  const hasHRAccess = user?.modules?.includes('hr') || 
+                     user?.role === 'hr_manager' || 
+                     user?.role === 'admin' ||
+                     user?.role === 'main_org_admin';
+  
+  return isAuthenticated && hasHRAccess ? children : <Navigate to="/dashboard" />;
+};
+
+// Dashboard Router - decides which dashboard to show
 const DashboardRouter = () => {
   const { user, isLoading } = useAuth();
 
