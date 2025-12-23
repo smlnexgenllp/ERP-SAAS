@@ -76,6 +76,13 @@ export default function HRDashboardTailwind() {
       description: "Employees structure",
       action: () => navigate("/hr/org-tree"),
     },
+    {
+      icon: FileText,
+      label: "Payroll Management",
+      description: "Manage Salary",
+      action: () => navigate("/hr/payroll"),
+    },
+
   ];
   // === COMMAND HANDLER ===
   const handleCommand = (e) => {
@@ -232,7 +239,7 @@ export default function HRDashboardTailwind() {
       <div
         className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t-2 border-cyan-500 px-6 py-4 flex items-center cursor-text shadow-2xl"
         onClick={handleCommandBarClick}
-      > 
+      >
         <span className="text-green-400 font-bold mr-3">&gt;</span>
         <input
           ref={inputRef}
