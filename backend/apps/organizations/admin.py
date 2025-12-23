@@ -9,7 +9,6 @@ class TrainingVideoAdmin(admin.ModelAdmin):
     list_display = ['id', 'title', 'organization', 'created_at']  # Customize fields you want to see
     list_filter = ['organization', 'created_at']
     search_fields = ['title', 'description']
-    # readonly_fields = ['created_at', 'updated_at']
     
 @admin.register(TrainingCompletion)
 class TrainingCompletionAdmin(admin.ModelAdmin):

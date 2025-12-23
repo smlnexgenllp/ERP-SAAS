@@ -23,6 +23,8 @@ from .views.employee_views import (
     salary_list_create,
     get_employee_salary,
     get_current_organization,
+    punch_in, punch_out,
+    late_punch_requests, handle_late_request, monthly_attendance_report,AttendanceListView,today_attendance
 )
 
 # Org Tree Views
@@ -65,6 +67,14 @@ urlpatterns = [
     # path('payroll/invoice/', invoice_list, name='invoice-list'),
     # path('payroll/invoice/<int:invoice_id>/', invoice_detail, name='invoice-detail'),
     # path('payroll/invoice/download/<int:invoice_id>/', download_invoice, name='download-invoice'),
+    path("attendance/punch-in/", punch_in, name="employee-punch-in"),
+    path("attendance/punch-out/", punch_out, name="employee-punch-out"),
+    path("attendance/late-requests/", late_punch_requests, name="late-requests"),
+    path("attendance/late-requests/<int:pk>/", handle_late_request, name="late-request-action"),
+    path("attendance/monthly/", monthly_attendance_report, name="monthly-report"),
+    path("attendance/", AttendanceListView.as_view(), name="attendance-list"),
+    path("attendance/today/", today_attendance),
+
 ]
 
 if settings.DEBUG:

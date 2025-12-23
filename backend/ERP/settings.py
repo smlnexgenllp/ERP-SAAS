@@ -104,6 +104,20 @@ DATABASES = {
 }
 
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'erpsaas',
+#         'USER': 'neondb_owner',
+#         'PASSWORD': 'npg_CuQ0EAL7ntDO',
+#         'HOST': 'ep-red-bush-adlmw5qg-pooler.c-2.us-east-1.aws.neon.tech',
+#         'PORT': '5432',
+#         'OPTIONS': {
+#             'sslmode': 'require',
+#         },
+#     }
+# }
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 

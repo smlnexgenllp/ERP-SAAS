@@ -18,8 +18,25 @@ class EmployeeLoginView(APIView):
 
         # Log in using Django session (employee.user)
         login(request, employee.user)
+        
+        employee.is_logged_in = True
+        employee.save(update_fields=["is_logged_in"])
 
         return Response({
             "message": "Login Success",
             "employee": EmployeeSerializer(employee).data
         })
+        
+from django.contrib.auth import logout
+
+class EmployeeLogoutView(APIView):
+    def post(self, request):
+        employee = request.user.employee
+
+        employee.is_logged_in = False
+        employee.save(update_fields=["is_logged_in"])
+
+        logout(request)
+
+        return Response({"message": "Logged out successfully"})
+

@@ -18,49 +18,43 @@ from .models import Organization
 from django.db import IntegrityError
 from django.contrib.auth import get_user_model
 
-class OrganizationRegistrationView(generics.CreateAPIView):
-    queryset = Organization.objects.all()
-    serializer_class = OrganizationRegistrationSerializer
-    permission_classes = [permissions.AllowAny]
-    @transaction.atomic
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+# In your views.py
+class OrganizationRegistrationView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = OrganizationRegistrationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        organization_data = {
+            "name": serializer.validated_data["name"],
+            "subdomain": serializer.validated_data["subdomain"],
+            "email": serializer.validated_data["email"],
+            "phone": serializer.validated_data.get("phone", ""),
+            "address": serializer.validated_data.get("address", ""),
+            "plan_tier": serializer.validated_data["plan_tier"],
+        }
+
+        admin_user_data = {
+            "first_name": serializer.validated_data["admin_first_name"],
+            "last_name": serializer.validated_data.get("admin_last_name", ""),
+            "email": serializer.validated_data["admin_email"],
+            "password": serializer.validated_data["admin_password"],
+        }
+
         try:
-            organization_data = {
-                'name': serializer.validated_data['name'],
-                'subdomain': serializer.validated_data['subdomain'],
-                'plan_tier': serializer.validated_data.get('plan_tier', 'enterprise'),
-                'email': serializer.validated_data['email'],
-                'phone': serializer.validated_data.get('phone', ''),
-                'address': serializer.validated_data.get('address', ''),
-            }
-            admin_data = {
-                'email': serializer.validated_data['admin_email'],
-                'password': serializer.validated_data['admin_password'],
-                'first_name': serializer.validated_data['admin_first_name'],
-                'last_name': serializer.validated_data.get('admin_last_name', ''),
-            }
             organization, admin_user = OrganizationService.create_main_organization(
-                organization_data, 
-                admin_data
+                organization_data=organization_data,
+                admin_user_data=admin_user_data,
+                module_access=None  # or get from request if needed
             )
             return Response({
-                'success': True,
-                'message': 'Organization registered successfully',
-                'organization': OrganizationSerializer(organization).data,
-                'user': {
-                    'id': admin_user.id,
-                    'email': admin_user.email,
-                    'first_name': admin_user.first_name,
-                    'last_name': admin_user.last_name,
-                }
-            }, status=status.HTTP_201_CREATED)
+                "success": True,
+                "message": "Organization created successfully!"
+            }, status=201)
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": str(e)}, status=400)
 
 class CurrentOrganizationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -187,60 +181,48 @@ class MainOrganizationViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def available_modules(self, request):
         try:
-            if not hasattr(request.user, 'organization') or not request.user.organization:
-                return Response({
-                    'success': False,
-                    'error': 'User has no organization'
-                }, status=status.HTTP_400_BAD_REQUEST) 
-            current_organization = request.user.organization
-            current_user = request.user
-            org_modules = OrganizationModule.objects.filter(
-                organization=current_organization,
-                is_active=True
-            ).select_related('module')
-            modules_data = []
-            for org_module in org_modules:
-                module = org_module.module
-                if module.is_active:
-                    module_data = {
-                        'module_id': str(module.module_id),
-                        'name': module.name,
-                        'code': module.code,
-                        'description': module.description,
-                        'icon': module.icon,
-                        'available_in_plans': module.available_in_plans,
-                        'app_name': module.app_name,
-                        'base_url': module.base_url,
-                        'is_active': True,  # Always true since they have access
-                        'pages': []
-                    }
-                    for page_id in org_module.accessible_pages:
-                        try:
-                            page = ModulePage.objects.get(page_id=page_id, is_active=True)
-                            page_data = {
-                                'page_id': str(page.page_id),
-                                'name': page.name,
-                                'code': page.code,
-                                'path': page.path,
-                                'description': page.description,
-                                'icon': page.icon,
-                                'order': page.order,
-                                'required_permission': page.required_permission
+            org = request.user.organization
+
+            # 🔥 MAIN ORG → LOAD ALL MODULES
+            if org.organization_type == "main":
+                modules = Module.objects.filter(is_active=True)
+
+                modules_data = []
+                for module in modules:
+                    pages = ModulePage.objects.filter(
+                        module=module,
+                        is_active=True
+                    ).order_by("order")
+
+                    modules_data.append({
+                        "module_id": str(module.module_id),
+                        "name": module.name,
+                        "code": module.code,
+                        "description": module.description,
+                        "icon": module.icon,
+                        "available_in_plans": module.available_in_plans,
+                        "app_name": module.app_name,
+                        "base_url": module.base_url,
+                        "is_active": True,
+                        "pages": [
+                            {
+                                "page_id": str(p.page_id),
+                                "name": p.name,
+                                "code": p.code,
+                                "path": p.path,
+                                "description": p.description,
+                                "icon": p.icon,
+                                "order": p.order,
+                                "required_permission": p.required_permission
                             }
-                            module_data['pages'].append(page_data)
-                        except ModulePage.DoesNotExist:
-                            print(f"❌ Page not found: {page_id}")
-                            continue
-                    modules_data.append(module_data)
-                    print(f"✅ Added module to response: {module.name}")
-                else:
-                    print(f"❌ Module not active: {module.name}")
-            print(f"📦 Returning {len(modules_data)} accessible modules for {current_organization.name}")
-            return Response({
-                'success': True,
-                'data': modules_data,
-                'count': len(modules_data)
-            })
+                            for p in pages
+                        ]
+                    })
+                return Response({
+                    "success": True,
+                    "data": modules_data,
+                    "count": len(modules_data)
+                })
         except Exception as e:
             print(f"💥 Error in available_modules: {str(e)}")
             return Response({
@@ -447,48 +429,113 @@ def debug_modules_data(request):
 User = get_user_model()
 
 class CreateSubOrgUserView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request, org_id):
         try:
             organization = Organization.objects.get(id=org_id)
         except Organization.DoesNotExist:
-            return Response(
-                {"success": False, "error": "Organization not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        serializer = SubOrgUserCreateSerializer(data=request.data, context={'organization': organization})
+            return Response({"success": False, "error": "Organization not found"}, status=404)
+
+        # Ensure only admins of this org can create users
+        # try:
+        #     org_user = OrganizationUser.objects.get(user=request.user, organization=organization)
+        #     if org_user.role != "Admin":
+        #         return Response({"success": False, "error": "Permission denied"}, status=403)
+        # except OrganizationUser.DoesNotExist:
+        #     return Response({"success": False, "error": "Not authorized"}, status=403)
+
+        serializer = SubOrgUserCreateSerializer(
+            data=request.data,
+            context={'organization': organization}
+        )
         if serializer.is_valid():
             user = serializer.save()
-            return Response(
-                {"success": True, "message": "User created successfully", "user_id": user.id},
-                status=status.HTTP_201_CREATED
-            )
-        return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-from apps.organizations.models import UserOrganizationAccess
-from apps.subscriptions.models import Module, ModulePage
-class UserDashboardView(APIView):
-    permission_classes = [IsAuthenticated]
-    def get(self, request):
-        user = request.user
-        try:
-            access = UserOrganizationAccess.objects.get(user=user)
-        except UserOrganizationAccess.DoesNotExist:
             return Response({
                 "success": True,
-                "modules": [],
+                "message": "User created successfully",
+                "user_id": user.id,
+                "email": user.email
+            }, status=201)
+        return Response({"success": False, "errors": serializer.errors}, status=400)
+from apps.organizations.models import UserOrganizationAccess
+from apps.subscriptions.models import Module, ModulePage
+# In your views.py
+from apps.organizations.models import UserOrganizationAccess, OrganizationUser
+from apps.subscriptions.models import Module, ModulePage, OrganizationModule
+
+class UserDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Find user's organization via OrganizationUser
+        try:
+            org_user = OrganizationUser.objects.get(user=user, is_active=True)
+            organization = org_user.organization
+        except OrganizationUser.DoesNotExist:
+            return Response({
+                "success": False,
+                "error": "User not linked to any organization"
+            }, status=400)
+
+        # Priority 1: Per-user module access (most restrictive)
+        try:
+            user_access = UserOrganizationAccess.objects.get(user=user, organization=organization)
+            allowed_module_codes = user_access.modules
+            print(f"Per-user access: {allowed_module_codes}")
+        except UserOrganizationAccess.DoesNotExist:
+            allowed_module_codes = []
+
+        # Priority 2: If no per-user access, fallback to organization-wide modules (for admins)
+        if not allowed_module_codes and org_user.role == "Admin":
+            org_modules = OrganizationModule.objects.filter(
+                organization=organization,
+                is_active=True
+            ).select_related('module')
+            allowed_module_codes = [om.module.code for om in org_modules]
+
+        # If still empty and not admin → no access
+        if not allowed_module_codes:
+            return Response({
+                "success": True,
+                "modules": []
             })
+
+        # Build response
         modules_data = []
-        for module_code in access.modules:
+        for module_code in allowed_module_codes:
             try:
                 module = Module.objects.get(code=module_code, is_active=True)
             except Module.DoesNotExist:
                 continue
-            allowed_page_ids = access.accessible_pages.get(module_code, [])
+
+            # Get pages: use org-level accessible_pages if admin, else default all (or restrict later)
             pages = []
-            if allowed_page_ids:
-                module_pages = ModulePage.objects.filter(
-                    page_id__in=allowed_page_ids,
-                    is_active=True
-                )
+            if org_user.role == "Admin":
+                try:
+                    org_module = OrganizationModule.objects.get(
+                        organization=organization,
+                        module=module,
+                        is_active=True
+                    )
+                    page_ids = org_module.accessible_pages
+                    module_pages = ModulePage.objects.filter(page_id__in=page_ids, is_active=True)
+                    for page in module_pages:
+                        pages.append({
+                            "page_id": str(page.page_id),
+                            "name": page.name,
+                            "code": page.code,
+                            "path": page.path,
+                            "description": page.description,
+                            "icon": page.icon,
+                        })
+                except OrganizationModule.DoesNotExist:
+                    pass
+            else:
+                # For regular users: show all pages of allowed modules (or restrict further later)
+                module_pages = module.pages.filter(is_active=True)
                 for page in module_pages:
                     pages.append({
                         "page_id": str(page.page_id),
@@ -498,6 +545,7 @@ class UserDashboardView(APIView):
                         "description": page.description,
                         "icon": page.icon,
                     })
+
             modules_data.append({
                 "module_id": str(module.module_id),
                 "name": module.name,
@@ -509,7 +557,8 @@ class UserDashboardView(APIView):
 
         return Response({
             "success": True,
-            "modules": modules_data
+            "modules": modules_data,
+            "count": len(modules_data)
         })
 from django.contrib.auth import authenticate
 class SubOrgLoginView(APIView):
@@ -534,176 +583,199 @@ class SubOrgLoginView(APIView):
             "subdomain": org.subdomain,
         })
 
-from .models import TrainingVideo
-from .serializers import TrainingVideoSerializer
-from apps.organizations.models import OrganizationUser
-class TrainingVideoUploadView(generics.CreateAPIView):
-    serializer_class = TrainingVideoSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {"success": False, "errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        serializer.save(
-            organization=request.user.organization,
-            uploaded_by=request.user
-        )
-        return Response(
-            {"success": True, "message": "Video uploaded successfully"},
-            status=status.HTTP_201_CREATED
-        )
-class TrainingVideoListView(APIView):
-    permission_classes = [AllowAny]
-    def get(self, request):
-        try:
-            org_user = OrganizationUser.objects.get(user=request.user)
-            videos = TrainingVideo.objects.filter(organization=org_user.organization)
-        except OrganizationUser.DoesNotExist:
-            videos = TrainingVideo.objects.all()  
-        serializer = TrainingVideoSerializer(videos, many=True)
-        return Response(serializer.data)
-    
-class TrainingVideoDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request, pk):  
-        try:
-            org_user = OrganizationUser.objects.get(user=request.user)
-            video = get_object_or_404(
-                TrainingVideo,
-                pk=pk,
-                organization=org_user.organization
-            )
-            video.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except OrganizationUser.DoesNotExist:
-            return Response(
-                {"error": "You are not associated with any organization"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        except Exception as e:
-            return Response(
-                {"error": "Video not found or you don't have permission"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-
 from rest_framework.views import APIView
+from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import status, permissions
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from apps.organizations.models import Organization, TrainingCompletion
+from apps.organizations.models import TrainingVideo, TrainingVideoView
+from apps.organizations.serializers import TrainingVideoSerializer
+from apps.organizations.models import Organization, OrganizationUser, TrainingCompletion
 from apps.hr.models import Employee
+from apps.accounts.models import User  # Adjust if your User model is elsewhere
 
 
 def get_user_organization(user):
-    # Case 1: User is an employee
-    employee = Employee.objects.filter(user=user).select_related("organization").first()
-    if employee and employee.organization:
-        return employee.organization
+    
+    # Case 1: User has an Employee profile
+    try:
+        employee = user.employee  # Assuming OneToOne or reverse relation
+        if employee and employee.organization:
+            return employee.organization
+    except (AttributeError, Employee.DoesNotExist):
+        pass
 
-    # Case 2: User created the organization (admin)
+    # Case 2: User is the creator of the organization (main admin)
     org = Organization.objects.filter(created_by=user).first()
     if org:
         return org
 
+    # Optional fallback: OrganizationUser table (if still used)
+    try:
+        org_user = OrganizationUser.objects.get(user=user)
+        return org_user.organization
+    except OrganizationUser.DoesNotExist:
+        pass
+
     return None
 
+
+class TrainingVideoUploadView(CreateAPIView):
+    serializer_class = TrainingVideoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        organization = get_user_organization(self.request.user)
+        if not organization:
+            raise permissions.exceptions.PermissionDenied("You are not associated with any organization.")
+
+        serializer.save(
+            organization=organization,
+            uploaded_by=self.request.user
+        )
+
+
+class TrainingVideoListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        organization = get_user_organization(request.user)
+        if not organization:
+            return Response(
+                {"error": "You are not associated with any organization."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        videos = TrainingVideo.objects.filter(organization=organization).order_by('-created_at')
+        
+        serializer = TrainingVideoSerializer(videos, many=True)  # ← Remove context here
+        return Response(serializer.data)
+
+
+class TrainingVideoDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        organization = get_user_organization(request.user)
+        if not organization:
+            return Response(
+                {"error": "You are not associated with any organization"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        video = get_object_or_404(
+            TrainingVideo,
+            pk=pk,
+            organization=organization
+        )
+
+        # Optional: Only allow uploaders or admins to delete
+        # if video.uploaded_by != request.user and request.user.role not in admin_roles:
+        #     return Response({"error": "Permission denied"}, status=403)
+
+        video.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
+from .models import TrainingCompletion
 
 class TrainingCompletedView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         organization = get_user_organization(request.user)
-
         if not organization:
             return Response(
                 {"error": "Organization not found for this user"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        completion, created = TrainingCompletion.objects.get_or_create(
+        # This will create or update the record
+        completion, created = TrainingCompletion.objects.update_or_create(
             user=request.user,
-            organization=organization
+            organization=organization,
+            defaults={
+                'completed': True,
+                'completed_at': timezone.now(),  # Now this WILL update every time!
+            }
         )
 
         return Response({
-            "employee": request.user.get_full_name() or request.user.username,
-            "completed_at": completion.completed_at,
-            "created": created
+            "message": "Training marked as completed successfully",
+            "employee": request.user.get_full_name() or request.user.email,
+            "completed": True,
+            "completed_at": completion.completed_at.isoformat(),
         }, status=status.HTTP_200_OK)
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from apps.organizations.models import TrainingCompletion, Organization
-from apps.hr.models import Employee
+
 
 class TrainingCompletedStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        
-        # FIX: Get the organization the user belongs to from your User model
-        organization = user.organization 
-
+        organization = get_user_organization(request.user)
         if not organization:
             return Response(
                 {"detail": "User is not associated with any organization."},
-                status=404
+                status=status.HTTP_404_NOT_FOUND
             )
 
-        # Logic for Sub-Org Admin: See everyone in their org
-        if user.role == User.SUB_ORG_ADMIN:
-            completions = TrainingCompletion.objects.filter(
-                organization=organization
-            ).select_related("user")
-        
-        # Logic for Employee: See only their own completions
+        # Admins see all, regular users see only themselves
+        admin_roles = [User.SUB_ORG_ADMIN, User.MAIN_ORG_ADMIN, User.SUPER_ADMIN]
+        is_admin = getattr(request.user, 'role', None) in admin_roles or request.user.is_staff
+
+        if is_admin:
+            completions = TrainingCompletion.objects.filter(organization=organization).select_related("user")
         else:
             completions = TrainingCompletion.objects.filter(
                 organization=organization,
-                user=user
+                user=request.user
             ).select_related("user")
 
-        data = [
-            {
+        data = []
+        for tc in completions:
+            data.append({
                 "employee_id": tc.user.id,
-                "employee_name": tc.user.get_full_name(), # Get name instead of just ID
+                "employee_name": tc.user.get_full_name().strip() or tc.user.email,
                 "employee_email": tc.user.email,
-                "completed_at": tc.completed_at
-            }
-            for tc in completions
-        ]
-
+                "completed": tc.completed,                    # Uses the BooleanField
+                "completed_at": tc.completed_at.isoformat() if tc.completed_at else None,
+            })
         return Response(data)
-
 class TrainingProgressView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-
-        organization = Organization.objects.filter(created_by=user).first()
+        organization = get_user_organization(request.user)
         if not organization:
             return Response(
                 {"detail": "Organization not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # Restrict to admins only (or adjust as needed)
+        admin_roles = [User.SUB_ORG_ADMIN, User.MAIN_ORG_ADMIN, User.SUPER_ADMIN]
+        if getattr(request.user, 'role', None) not in admin_roles and not request.user.is_staff:
+            return Response(
+                {"detail": "Permission denied"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         total_videos = TrainingVideo.objects.filter(organization=organization).count()
         if total_videos == 0:
             return Response([])
 
-        employees = User.objects.filter(employee__organization=organization).distinct()
+        # Get all users (employees) in this organization
+        employees = User.objects.filter(
+            employee__organization=organization
+        ).distinct().select_related('employee')
 
-        # Pre-fetch all completions for efficiency
-        completed_users = set(
+        # Get set of users who completed training
+        completed_user_ids = set(
             TrainingCompletion.objects.filter(
                 organization=organization
             ).values_list('user_id', flat=True)
@@ -711,17 +783,53 @@ class TrainingProgressView(APIView):
 
         response = []
         for emp in employees:
-            is_completed = emp.id in completed_users
-            percentage = 100 if is_completed else 0
+            is_completed = emp.id in completed_user_ids
             completed_count = total_videos if is_completed else 0
+            percentage = 100 if is_completed else 0
 
             response.append({
                 "employee_id": emp.id,
                 "employee_email": emp.email,
                 "employee_name": emp.get_full_name().strip() or emp.email,
-                "completed": completed_count,
-                "total": total_videos,
+                "completed_count": completed_count,
+                "total_videos": total_videos,
                 "percentage": percentage,
+                "is_completed": is_completed
             })
 
         return Response(response)
+    
+# views.py
+class MarkVideoWatchedView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        video_id = request.data.get("video_id")
+        if not video_id:
+            return Response({"error": "video_id required"}, status=400)
+
+        organization = get_user_organization(request.user)
+        if not organization:
+            return Response({"error": "No organization"}, status=400)
+
+        try:
+            video = TrainingVideo.objects.get(id=video_id, organization=organization)
+        except TrainingVideo.DoesNotExist:
+            return Response({"error": "Video not found"}, status=404)
+
+        view_record, created = TrainingVideoView.objects.update_or_create(
+            user=request.user,
+            video=video,
+            defaults={
+                'organization': organization,
+                'completed': True,
+                'progress': 100,  # or calculate based on time if you track duration
+                'watched_at': timezone.now(),
+            }
+        )
+
+        return Response({
+            "message": "Video marked as completed",
+            "video_id": video.id,
+            "completed": True
+        })

@@ -73,7 +73,7 @@ export default function Reimbursement() {
       {/* HEADER */}
       <header className="flex items-center gap-3 border-b border-cyan-800 pb-4 mb-6">
         <IndianRupee className="w-6 h-6 text-cyan-400" />
-        <h1 className="text-pink-400 text-xl font-bold">
+        <h1 className="text-blue-300 text-xl font-bold">
           Reimbursement Requests
         </h1>
       </header>
