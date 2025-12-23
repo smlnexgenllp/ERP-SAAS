@@ -167,16 +167,10 @@ class ModuleAccessService:
             return False
 
 class OrganizationService:
-    """Service for organization management"""
-
-    # ... your existing create_main_organization method ...
-
     @staticmethod
     @transaction.atomic
     def create_sub_organization(main_organization, organization_data, admin_user_data, module_access=None):
-        """
-        Create a sub-organization with admin user and module access
-        """
+        
         try:
             # Import inside method to avoid circular imports
             from apps.organizations.models import Organization
@@ -265,3 +259,114 @@ class OrganizationService:
         except Exception as e:
             # Rollback transaction on any error
             raise Exception(f"Failed to create sub-organization: {str(e)}")
+    @staticmethod
+    @transaction.atomic
+    def create_main_organization(organization_data, admin_user_data, module_access=None):
+        """
+        Create the main (root) organization during initial registration.
+        Includes: organization, super admin user, subscription, and optional module assignments.
+        
+        Args:
+            organization_data (dict): Contains name, subdomain, email, phone, address, plan_tier (optional)
+            admin_user_data (dict): Contains email, password, first_name, last_name (optional)
+            module_access (list[str], optional): List of module codes to assign with full page access
+        
+        Returns:
+            tuple: (organization, admin_user)
+        
+        Raises:
+            Exception: With descriptive message on failure
+        """
+        try:
+            # Avoid circular imports
+            from apps.organizations.models import Organization
+            from apps.subscriptions.models import SubscriptionPlan, Subscription, Module, OrganizationModule
+
+            print(f"🔧 Creating main organization: {organization_data['name']}")
+
+            # Prevent duplicate admin user
+            if User.objects.filter(email__iexact=admin_user_data['email']).exists():
+                raise Exception("A user with this email already exists.")
+
+            # Create super admin user
+            admin_user = User.objects.create_user(
+                username=admin_user_data['email'],
+                email=admin_user_data['email'],
+                password=admin_user_data['password'],
+                first_name=admin_user_data['first_name'],
+                last_name=admin_user_data.get('last_name', ''),
+                role=User.SUPER_ADMIN,
+                is_verified=True,
+                is_active=True
+            )
+
+            # Create the main organization (no parent)
+            main_organization = Organization.objects.create(
+                name=organization_data['name'],
+                subdomain=organization_data['subdomain'],
+                organization_type='main',  # or 'root' depending on your choices field
+                plan_tier=organization_data.get('plan_tier', 'basic'),
+                email=organization_data['email'],
+                phone=organization_data.get('phone', ''),
+                address=organization_data.get('address', ''),
+                parent_organization=None,
+                created_by=admin_user,
+                is_active=True
+            )
+
+            # Assign organization to user
+            admin_user.organization = main_organization
+            admin_user.save()
+
+            # Resolve subscription plan
+            plan_tier = main_organization.plan_tier
+            try:
+                plan = SubscriptionPlan.objects.get(code__iexact=plan_tier)
+            except SubscriptionPlan.DoesNotExist:
+                plan = SubscriptionPlan.objects.filter(is_active=True).first()
+
+            if not plan:
+                raise Exception(
+                    "No active subscription plan found in the database. "
+                    "Please create at least one SubscriptionPlan (e.g., 'basic') via admin or migration."
+                )
+
+            # Create subscription
+            Subscription.objects.create(
+                organization=main_organization,
+                plan=plan,
+                start_date=timezone.now(),
+                end_date=timezone.now() + timedelta(days=365),  # 1-year subscription
+                status='active',
+                is_trial=False
+            )
+
+            # Assign modules if provided
+            if module_access:
+                print(f"🔧 Assigning {len(module_access)} modules to main organization")
+                for module_code in module_access:
+                    try:
+                        module = Module.objects.get(code=module_code, is_active=True)
+                        all_page_ids = list(module.pages.filter(is_active=True).values_list('page_id', flat=True))
+                        string_page_ids = [str(pid) for pid in all_page_ids]
+
+                        OrganizationModule.objects.create(
+                            organization=main_organization,
+                            module=module,
+                            is_active=True,
+                            accessible_pages=string_page_ids,
+                            granted_by=admin_user
+                        )
+                        print(f"✅ Assigned module: {module.name}")
+                    except Module.DoesNotExist:
+                        print(f"❌ Module not found: {module_code}")
+                        continue
+            else:
+                print("ℹ️ No modules requested for main organization")
+
+            print(f"🎉 Main organization created successfully: {main_organization.name}")
+            return main_organization, admin_user
+
+        except Exception as e:
+            # Any error will trigger transaction rollback
+            raise Exception(f"Failed to create main organization: {str(e)}")

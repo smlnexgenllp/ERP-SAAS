@@ -290,3 +290,26 @@ class EmployeeReimbursementSerializer(serializers.ModelSerializer):
         ]
 
 
+# apps/hr/serializers.py
+from rest_framework import serializers
+from apps.hr.models import LatePunchRequest
+
+# apps/hr/serializers.py
+
+class LatePunchRequestSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source="attendance.employee.full_name", read_only=True)
+    date = serializers.DateField(source="attendance.date", read_only=True)
+    reason = serializers.CharField(source="attendance.late_request.reason", read_only=True)
+
+    class Meta:
+        model = LatePunchRequest
+        fields = ["id", "employee_name", "date", "reason"]
+from rest_framework import serializers
+from apps.hr.models import Attendance
+
+class AttendanceSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True)
+
+    class Meta:
+        model = Attendance
+        fields = ["id", "employee_name", "date", "punch_in", "punch_out", "status", "is_late"]

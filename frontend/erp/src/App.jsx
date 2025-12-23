@@ -13,7 +13,7 @@ import SubOrganizationDashboard from "./pages/dashboard/SubOrganizationDashboard
 import HRDashboard from "./pages/modules/hr/HRDashboard";
 import EmployeeList from "../src/pages/modules/hr/pages/EmployeeList";
 import AddEmployee from "../src/pages/modules/hr/pages/AddEmployee";
-import Attendance from "../src/pages/modules/hr/pages/Attendance";
+// import Attendance from "../src/pages/modules/hr/pages/Attendance";
 import Payroll from "../src/pages/modules/hr/pages/Payroll";
 import EmployeeLogin from "./pages/modules/hr/pages/EmployeeLogin";
 import MyProfile from "./pages/modules/hr/MyProfile";
@@ -22,6 +22,7 @@ import LeaveManagement from "./pages/modules/hr/pages/LeaveManagement";
 import UserDashboard from "./pages/dashboard/UserDashboard";
 import SubOrgLogin from "./pages/auth/SubOrgLogin";
 import Reimbursement from "./pages/modules/hr/pages/Reimbursement";
+import HRAttendance from "./components/modules/hr/HRAttendance";
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -40,17 +41,34 @@ const ProtectedRoute = ({ children }) => {
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-// Dashboard Router - decides which dashboard to show
 const DashboardRouter = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (user?.role === "main_org_admin") {
-    return <Dashboard />;
-  } else if (user?.role === "sub_org_admin") {
-    return <SubOrganizationDashboard />;
-  } else {
-    return <Navigate to="/login" />;
+  // Show loader while checking auth/user data
+  if (isLoading) {
+    return <div>Loading...</div>; // Or your spinner
   }
+
+  // Not logged in at all → go to login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Main Org Admin
+  if (user.role === "main_org_admin") {
+    return <Dashboard />;
+  }
+
+  // Sub-org Admin OR any other sub-org user (Employee, HR Manager, etc.)
+  // Assuming your backend sends `organization_type: "sub"` or similar
+  // OR just check if role is not main_org_admin
+  if (user.organization_type === "sub" || user.role !== "main_org_admin") {
+    return <SubOrganizationDashboard />;
+  }
+
+  // Fallback (should never hit if roles are correct)
+  console.warn("Unexpected user role:", user.role);
+  return <Navigate to="/login" replace />;
 };
 
 function App() {
@@ -75,14 +93,14 @@ function App() {
           {/* HR Module */}
           <Route path="/hr/employees" element={<EmployeeList />} />
           <Route path="/hr/employees/add" element={<AddEmployee />} />
-          <Route path="/hr/attendance" element={<Attendance />} />
+          
           <Route path="/hr/payroll" element={<Payroll />} />
           <Route path="/employee_login" element={<EmployeeLogin />} />
           <Route path="/profile" element={<MyProfile />} />
           <Route path="/hr/leaves" element={<LeaveManagement/>} />
           <Route path="/users" element={<UserDashboard/>} />
           <Route path="/hr/reimbursements" element={<Reimbursement/>} />
-
+          <Route path="/hr/attendance" element={<HRAttendance/>}/>
           {/* <Route path="/hr/list" element={<EmployeeList/>} /> */}
 
           {/* Module Routes - Add your module routes here */}

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-Department, Designation, Employee
+Department, Designation, Employee,Attendance
 )
 
 @admin.register(Department)
@@ -38,8 +38,7 @@ class PermissionRequestAdmin(admin.ModelAdmin):
     list_display = ('employee','date','time_from','time_to','status','manager','applied_at')
     list_filter = ('status','manager')
 
+@admin.register(Attendance)
+class AttendanceAdmin(admin.ModelAdmin):
+    list_display=('employee','organization','date','punch_in','punch_out','status')
 
-
-# @admin.register(EmployeeDocument)
-# class EmployeeDocumentAdmin(admin.ModelAdmin):
-# list_display = ('title', 'employee', 'uploaded_at')

@@ -92,6 +92,11 @@ export const fetchReimbursements = async () => {
 export const submitReimbursementRequest = async (data) => {
   return api.post("/hr/reimbursements/", data);
 };
+export const markVideoWatched = (videoId) =>
+  api.post("/organizations/training-video-watched/", { video_id: videoId });
+
+export const fetchMyTrainingProgress = () =>
+  api.get("/organizations/my-training-progress/");
 
 export const approveReimbursement = async (id) => {
   return api.post(`/hr/reimbursements/${id}/approve/`);

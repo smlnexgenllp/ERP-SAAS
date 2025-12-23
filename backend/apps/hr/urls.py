@@ -11,7 +11,9 @@ from .views.employee_views import (
     ManagerListView,
     ManagerLeaveList,
     ManagerPermissionList,
-    EmployeeReimbursementViewSet
+    EmployeeReimbursementViewSet,
+    punch_in, punch_out,
+    late_punch_requests, handle_late_request, monthly_attendance_report,AttendanceListView,today_attendance
 )
 from .views.org_tree_views import (
     org_tree_view,              
@@ -37,7 +39,15 @@ urlpatterns = [
     path('public-org-tree/', public_org_tree_view, name='public-org-tree'),  # Public access
     path('employees/accept-invite/<uuid:token>/', accept_invite_view, name='accept-invite'),
     path("manager/leave-requests/", ManagerLeaveList.as_view()),
-    path("manager/permission-requests/", ManagerPermissionList.as_view())
+    path("manager/permission-requests/", ManagerPermissionList.as_view()),
+    path("attendance/punch-in/", punch_in, name="employee-punch-in"),
+    path("attendance/punch-out/", punch_out, name="employee-punch-out"),
+    path("attendance/late-requests/", late_punch_requests, name="late-requests"),
+    path("attendance/late-requests/<int:pk>/", handle_late_request, name="late-request-action"),
+    path("attendance/monthly/", monthly_attendance_report, name="monthly-report"),
+    path("attendance/", AttendanceListView.as_view(), name="attendance-list"),
+    path("attendance/today/", today_attendance),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

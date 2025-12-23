@@ -65,7 +65,7 @@ class Employee(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    is_logged_in = models.BooleanField(default=False)
     class Meta:
         unique_together = ("organization", "employee_code")
         ordering = ["-created_at"]
@@ -155,7 +155,7 @@ class LeaveRequest(models.Model):
         ('rejected', 'Rejected'),
         ('cancelled', 'Cancelled'),
     )
-
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="leave_requests",null=True, blank=True)
     employee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='leave_requests')
     leave_type = models.CharField(max_length=20, choices=LEAVE_TYPES)
     start_date = models.DateField()
@@ -181,6 +181,7 @@ class PermissionRequest(models.Model):
         ('rejected', 'Rejected'),
         ('cancelled', 'Cancelled'),
     )
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="permission_requests",null=True, blank=True)
     employee=models.ForeignKey(User,on_delete=models.CASCADE)
     date = models.DateField()
     time_from = models.TimeField()
@@ -207,7 +208,7 @@ class EmployeeReimbursement(models.Model):
         (APPROVED, "Approved"),
         (REJECTED, "Rejected"),
     ]
-
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="reimbursements",null=True, blank=True)
     employee = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reimbursements")
     manager = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reimbursements_to_approve")
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -219,3 +220,67 @@ class EmployeeReimbursement(models.Model):
 
     def __str__(self):
         return f"{self.employee.full_name} - {self.amount} ({self.status})"
+    
+class Attendance(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE
+    )
+
+    date = models.DateField()
+    punch_in = models.DateTimeField(null=True, blank=True)
+    punch_out = models.DateTimeField(null=True, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("PRESENT", "Present"),
+            ("LATE", "Late"),
+            ("LEAVE", "Leave"),
+            ("PENDING", "Pending Approval"),
+        ],
+        default="PENDING"
+    )
+
+    is_late = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="approved_attendance"
+    )
+
+    class Meta:
+        unique_together = ("employee", "organization", "date")
+
+class LatePunchRequest(models.Model):
+    attendance = models.OneToOneField(
+        Attendance,
+        on_delete=models.CASCADE,
+        related_name="late_request",
+        blank=True, null=True
+    )
+    reason = models.TextField(blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("PENDING", "Pending"),
+            ("APPROVED", "Approved"),
+            ("REJECTED", "Rejected"),
+        ],
+        default="PENDING"
+    )
+    
+    requested_at = models.DateTimeField(auto_now_add=True,blank=True, null=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="approved_late_requests"
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+
