@@ -1,7 +1,7 @@
 # apps/hr/serializers.py
 
 from rest_framework import serializers
-from .models import Department, Designation, Employee, EmployeeDocument
+from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from apps.organizations.models import Organization
@@ -309,4 +309,34 @@ class EmployeeReimbursementSerializer(serializers.ModelSerializer):
             "manager_name",
         ]
 
+class SalarySerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source='employee.full_name', read_only=True)
+    employee_code = serializers.CharField(source='employee.employee_code', read_only=True)
 
+    effective_date = serializers.DateField(
+        input_formats=["%Y-%m-%d"],
+        required=True
+    )
+
+    class Meta:
+        model = Salary
+        fields = '__all__'
+        read_only_fields = [
+            'total_allowances', 'gross_salary', 'total_deductions', 'net_salary',
+            'esi_employee_amount', 'esi_employer_amount', 'pf_employee_amount',
+            'pf_employer_amount', 'pf_voluntary_amount', 'created_at', 'updated_at'
+        ]
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source='employee.full_name', read_only=True)
+    employee_code = serializers.CharField(source='employee.employee_code', read_only=True)
+    month_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Invoice
+        fields = '__all__'
+        read_only_fields = ['invoice_number', 'generated_date', 'created_at', 'updated_at']
+    
+    def get_month_name(self, obj):
+        from datetime import datetime
+        return datetime.strptime(str(obj.month), "%m").strftime("%B")

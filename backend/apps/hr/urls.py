@@ -2,9 +2,11 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from django.conf import settings
+from django.conf.urls.static import static
 
-# ViewSets (CRUD)
-from .views import (
+# Import all views from employee_views
+from .views.employee_views import (
     DepartmentViewSet,
     DesignationViewSet,
     accept_invite_view,
@@ -13,17 +15,21 @@ from .views import (
     ManagerListView,
     ManagerLeaveList,
     ManagerPermissionList,
-    EmployeeReimbursementViewSet
+    EmployeeReimbursementViewSet,
     EmployeeViewSet,
+    EmployeeDocumentViewSet,
+    # Import payroll views
+    get_organization_employees,
+    salary_list_create,
+    get_employee_salary,
+    get_current_organization,
 )
 
-# Org Tree Views (the ones we just fixed)
+# Org Tree Views
 from .views.org_tree_views import (
     org_tree_view,              
     public_org_tree_view,     
 )
-from django.conf import settings
-from django.conf.urls.static import static
 
 # Router for standard CRUD APIs
 router = DefaultRouter()
@@ -45,7 +51,21 @@ urlpatterns = [
     path('public-org-tree/', public_org_tree_view, name='public-org-tree'),  # Public access
     path('employees/accept-invite/<uuid:token>/', accept_invite_view, name='accept-invite'),
     path("manager/leave-requests/", ManagerLeaveList.as_view()),
-    path("manager/permission-requests/", ManagerPermissionList.as_view())
+    path("manager/permission-requests/", ManagerPermissionList.as_view()),
+
+    # 3. Payroll endpoints - Only include the views you have
+    path('payroll/organization/', get_current_organization, name='current-organization'),
+    path('payroll/employees/', get_organization_employees, name='organization-employees'),
+    path('payroll/salary/', salary_list_create, name='salary-list-create'),
+    path('payroll/salary/<int:employee_id>/', get_employee_salary, name='get-employee-salary'),
+    
+    # Remove these for now since you don't have the functions:
+    # path('payroll/salary/<int:employee_id>/', salary_detail, name='salary-detail'),
+    # path('payroll/invoice/generate/', generate_invoice, name='generate-invoice'),
+    # path('payroll/invoice/', invoice_list, name='invoice-list'),
+    # path('payroll/invoice/<int:invoice_id>/', invoice_detail, name='invoice-detail'),
+    # path('payroll/invoice/download/<int:invoice_id>/', download_invoice, name='download-invoice'),
 ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

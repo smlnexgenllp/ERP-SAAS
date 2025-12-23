@@ -1,7 +1,7 @@
 # apps/hr/views/employee_views.py
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view,permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
@@ -10,14 +10,18 @@ User = get_user_model()
 
 from django.db import transaction
 
-from apps.hr.models import Department, Designation, Employee, EmployeeDocument, EmployeeInvite
+from apps.hr.models import Department, Designation, Employee, EmployeeDocument, EmployeeInvite, Salary, Invoice
 from apps.hr.serializers import (
     DepartmentSerializer,
     DesignationSerializer,
     EmployeeSerializer,
     EmployeeDocumentSerializer,
     EmployeeCreateInvitationSerializer,
+    SalarySerializer, InvoiceSerializer
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
@@ -335,3 +339,221 @@ class EmployeeReimbursementViewSet(viewsets.ModelViewSet):
             {"message": "Reimbursement rejected"},
             status=status.HTTP_200_OK
         )
+
+# Even simpler version to avoid errors
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_organization_employees(request):
+    """Get employees from user's organization - Simplified"""
+    try:
+        user = request.user
+        
+        if not user.organization:
+            return Response({
+                'success': False,
+                'error': 'User is not associated with any organization'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        organization = user.organization
+        
+        # Simple query without complex joins
+        employees = Employee.objects.filter(
+            organization=organization,
+            is_active=True
+        ).only('id', 'full_name', 'employee_code', 'email', 'designation', 'department')
+        
+        data = []
+        for emp in employees:
+            # Handle designation safely
+            designation_title = None
+            if emp.designation:
+                designation_title = emp.designation.title
+                
+            # Handle department safely
+            department_name = None
+            if emp.department:
+                department_name = emp.department.name
+            
+            emp_data = {
+                'id': emp.id,
+                'full_name': emp.full_name,
+                'employee_code': emp.employee_code,
+                'email': emp.email,
+                'designation': designation_title,  # Just the title string
+                'department': department_name,      # Just the name string
+                'has_salary': hasattr(emp, 'salary_info'),
+            }
+            data.append(emp_data)
+        
+        return Response({
+            'success': True,
+            'data': data,
+            'organization': {
+                'id': organization.id,
+                'name': organization.name,
+                'type': organization.organization_type
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching employees: {str(e)}")
+        return Response({
+            'success': False,
+            'error': f'Error: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def salary_list_create(request):
+    """
+    Set or update salary for an employee
+    Only allow setting salary for employees in user's organization
+    """
+    try:
+        user = request.user
+        
+        # Check if user has organization
+        if not user.organization:
+            return Response({
+                'success': False,
+                'error': 'User is not associated with any organization'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        organization = user.organization
+        data = request.data.copy()
+        employee_id = data.get('employee_id')
+        
+        if not employee_id:
+            return Response({
+                'success': False,
+                'error': 'Employee ID is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verify employee belongs to user's organization
+        employee = get_object_or_404(
+            Employee, 
+            id=employee_id, 
+            organization=organization,
+            is_active=True
+        )
+        
+        # Create or update salary
+        salary, created = Salary.objects.get_or_create(employee=employee)
+        
+        # Update salary fields
+        for field in [
+            'basic_salary', 'hra', 'medical_allowance', 'conveyance_allowance',
+            'special_allowance', 'other_allowances', 'professional_tax',
+            'income_tax', 'other_deductions', 'has_esi', 'esi_number',
+            'esi_employee_share_percentage', 'esi_employer_share_percentage',
+            'has_pf', 'pf_number', 'uan_number', 'pf_employee_share_percentage',
+            'pf_employer_share_percentage', 'pf_voluntary_percentage',
+            'effective_date', 'notes'
+        ]:
+            if field in data:
+                setattr(salary, field, data[field])
+        
+        # Calculate and save
+        salary.save()
+        
+        serializer = SalarySerializer(salary)
+        
+        return Response({
+            'success': True,
+            'message': 'Salary saved successfully' if created else 'Salary updated successfully',
+            'data': serializer.data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error saving salary: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_employee_salary(request, employee_id):
+    """
+    Get salary for specific employee
+    Only allow if employee belongs to user's organization
+    """
+    try:
+        user = request.user
+        
+        # Check if user has organization
+        if not user.organization:
+            return Response({
+                'success': False,
+                'error': 'User is not associated with any organization'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        organization = user.organization
+        
+        # Get employee from user's organization
+        employee = get_object_or_404(
+            Employee, 
+            id=employee_id, 
+            organization=organization,
+            is_active=True
+        )
+        
+        try:
+            salary = Salary.objects.get(employee=employee)
+            serializer = SalarySerializer(salary)
+            return Response({
+                'success': True,
+                'data': serializer.data
+            })
+        except Salary.DoesNotExist:
+            return Response({
+                'success': True,
+                'data': None,
+                'message': 'No salary configuration found for this employee'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error fetching employee salary: {str(e)}")
+        return Response({
+            'success': False,
+            'error': 'Failed to fetch salary data'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# View to get current user's organization info
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_current_organization(request):
+    """
+    Get current user's organization details
+    """
+    try:
+        user = request.user
+        
+        if not user.organization:
+            return Response({
+                'success': False,
+                'error': 'User is not associated with any organization'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        organization = user.organization
+        
+        return Response({
+            'success': True,
+            'organization': {
+                'id': organization.id,
+                'name': organization.name,
+                'type': organization.organization_type,
+                'code': organization.code,
+                'email': organization.email,
+                'phone': organization.phone,
+                'address': organization.address,
+                'is_active': organization.is_active
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching organization: {str(e)}")
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

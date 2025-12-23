@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-Department, Designation, Employee
+Department, Designation, Employee,Salary
 )
 
 @admin.register(Department)
@@ -37,6 +37,10 @@ class LeaveRequestAdmin(admin.ModelAdmin):
 class PermissionRequestAdmin(admin.ModelAdmin):
     list_display = ('employee','date','time_from','time_to','status','manager','applied_at')
     list_filter = ('status','manager')
+
+@admin.register(Salary)
+class SalaryAdmin(admin.ModelAdmin):
+    list_display = ('employee','basic_salary')
 
 
 
