@@ -24,47 +24,61 @@ logger = logging.getLogger(__name__)
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
+    permission_classes = [IsAuthenticated]
     def get_queryset(self):
         user = self.request.user
+        if hasattr(user, 'organization') and user.organization:
+            return Department.objects.filter(
+                organization=user.organization
+            ).order_by('name')
         try:
             employee = Employee.objects.get(user=user)
-            return Department.objects.filter(organization=employee.organization).order_by('name')
+            return Department.objects.filter(
+                organization=employee.organization
+            ).order_by('name')
         except Employee.DoesNotExist:
             return Department.objects.none()
 class DesignationViewSet(viewsets.ModelViewSet):
     serializer_class = DesignationSerializer
+    permission_classes = [IsAuthenticated]
     def get_queryset(self):
         user = self.request.user
+        if hasattr(user, 'organization') and user.organization:
+            return Designation.objects.filter(
+                organization=user.organization
+            ).order_by('title')
         try:
             employee = Employee.objects.get(user=user)
-            return Designation.objects.filter(organization=employee.organization).order_by('title')
+            return Designation.objects.filter(
+                organization=employee.organization
+            ).order_by('title')
         except Employee.DoesNotExist:
             return Designation.objects.none()
 class EmployeeViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeSerializer
+
     def get_queryset(self):
         user = self.request.user
-        if hasattr(user, "role") and user.role in ["HR", "Admin"]:
-            return Employee.objects.select_related(
-                'department', 'designation', 'user'
-            ).filter(
-                organization=user.organization
-            ).order_by("full_name")
-        try:
-            current_employee = Employee.objects.get(user=user)
-            return Employee.objects.select_related(
-                'department', 'designation', 'user'
-            ).filter(
-                organization=current_employee.organization
-            ).order_by("full_name")
-        except Employee.DoesNotExist:
+        
+        # If user has no organization, return empty
+        if not hasattr(user, "organization") or not user.organization:
             return Employee.objects.none()
+
+        # Return all employees in the user's organization
+        return Employee.objects.select_related(
+            'department', 'designation', 'user'
+        ).filter(
+            organization=user.organization
+        ).order_by("full_name")
+
     @action(detail=False, methods=['get'])
     def debug(self, request):
         return Response({
             "message": "EmployeeViewSet is working!",
-            "user": request.user.username if request.user.is_authenticated else "Anonymous"
+            "user": request.user.username if request.user.is_authenticated else "Anonymous",
+            "organization": str(request.user.organization) if hasattr(request.user, 'organization') else "None"
         })
+
     @action(detail=False, methods=['get'], url_path='me', permission_classes=[IsAuthenticated])
     def me(self, request):
         try:
@@ -72,6 +86,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             return Response(self.get_serializer(employee).data)
         except Employee.DoesNotExist:
             return Response({"detail": "No employee profile found"}, status=404)
+
     @action(detail=False, methods=['post'])
     def create_with_invite(self, request):
         serializer = EmployeeCreateInvitationSerializer(
@@ -86,6 +101,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                 "employee": EmployeeSerializer(employee).data
             }, status=201)
         return Response({"success": False, "errors": serializer.errors}, status=400)
+        
 class EmployeeDocumentViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeDocumentSerializer
     def get_queryset(self):
@@ -780,25 +796,27 @@ from apps.hr.models import Attendance, Employee
 from apps.hr.serializers import AttendanceSerializer
 
 class AttendanceListView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
         
-        try:
-            # Get the employee's organization (any authenticated user must have an Employee profile)
-            employee = user.employee
-            organization = employee.organization
-        except (AttributeError, Employee.DoesNotExist):
-            return Response(
-                {"detail": "Employee profile not found."},
-                status=404
-            )
+        if not hasattr(user, 'organization') or not user.organization:
+            return Response({"detail": "No organization found."}, status=403)
 
-        # NOW: Everyone (HR, Admin, or regular employee) sees ALL attendance in the organization
-        queryset = Attendance.objects.filter(
-            organization=organization
-        ).select_related('employee').order_by('-date', '-punch_in')
+        organization = user.organization
+
+        queryset = Attendance.objects.filter(organization=organization)
+
+        # Regular employees see only their own attendance
+        if user.role not in ['admin', 'hr', 'sub_org_admin']:
+            try:
+                employee = Employee.objects.get(user=user)
+                queryset = queryset.filter(employee=employee)
+            except Employee.DoesNotExist:
+                return Response({"detail": "No employee profile found."}, status=404)
+
+        queryset = queryset.select_related('employee').order_by('-date', '-punch_in')
 
         serializer = AttendanceSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -814,13 +832,15 @@ from django.utils import timezone
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def late_punch_requests(request):
-    try:
-        employee = request.user.employee
-        org = employee.organization
-    except (AttributeError, Employee.DoesNotExist):
-        return Response({"detail": "Employee profile not found."}, status=404)
+    user = request.user
+    
+    # Check if user has an organization
+    if not hasattr(user, 'organization') or not user.organization:
+        return Response({"detail": "No organization found for this user."}, status=403)
 
-    # NOW: All authenticated users in the organization can see ALL pending late requests
+    org = user.organization
+
+    # Fetch all pending late punch requests in the organization
     queryset = LatePunchRequest.objects.filter(
         attendance__organization=org,
         status="PENDING"
@@ -833,14 +853,21 @@ def late_punch_requests(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def handle_late_request(request, pk):
+    user = request.user
+    
     try:
         lpr = LatePunchRequest.objects.get(pk=pk)
     except LatePunchRequest.DoesNotExist:
         return Response({"detail": "Not found"}, status=404)
 
-    # REMOVED: Role check - Now anyone authenticated can approve/reject
-    # Everyone in the organization can take action
+    # Ensure user is in the same organization
+    if not hasattr(user, 'organization') or not user.organization:
+        return Response({"detail": "No organization found."}, status=403)
 
+    if lpr.attendance.organization != user.organization:
+        return Response({"detail": "Unauthorized: Not in the same organization."}, status=403)
+
+    # Your existing action logic
     action = request.data.get("action", "").strip().upper()
     if action not in ["APPROVE", "REJECT"]:
         return Response({"detail": "Invalid action. Use 'APPROVE' or 'REJECT'"}, status=400)
@@ -852,7 +879,7 @@ def handle_late_request(request, pk):
         lpr.attendance.save(update_fields=["status", "is_late"])
     else:  # REJECT
         lpr.status = "REJECTED"
-        lpr.attendance.status = "LEAVE"  # Change to "ABSENT" if that's your policy
+        lpr.attendance.status = "LEAVE"  # or "ABSENT" based on your policy
         lpr.attendance.save(update_fields=["status"])
 
     # Record who took the action
@@ -866,23 +893,28 @@ def handle_late_request(request, pk):
         "approved_by": request.user.username
     }, status=200)
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def monthly_attendance_report(request):
+    user = request.user
+    
+    # Check if user has an organization
+    if not hasattr(user, 'organization') or not user.organization:
+        return Response({"detail": "No organization found for this user."}, status=403)
+
+    org = user.organization
+
     month = request.GET.get("month")  # format: YYYY-MM
     if not month:
-        return Response({"detail": "Month required"}, status=400)
+        return Response({"detail": "Month required (YYYY-MM)"}, status=400)
 
     try:
-        employee = request.user.employee
-        org = employee.organization
-    except AttributeError:
-        return Response([])
-
-    year, month_num = map(int, month.split("-"))
+        year, month_num = map(int, month.split("-"))
+    except ValueError:
+        return Response({"detail": "Invalid month format. Use YYYY-MM"}, status=400)
 
     from django.db.models import Count, Q
-    from apps.hr.models import Attendance
 
     report = Attendance.objects.filter(
         organization=org,
@@ -894,15 +926,14 @@ def monthly_attendance_report(request):
         leave=Count("id", filter=Q(status="LEAVE"))
     )
 
-    data = []
-    for r in report:
-        data.append({
+    data = [
+        {
             "employee_name": r["employee__full_name"],
             "present": r["present"],
             "late": r["late"],
             "leave": r["leave"]
-        })
+        }
+        for r in report
+    ]
 
     return Response(data)
-
-

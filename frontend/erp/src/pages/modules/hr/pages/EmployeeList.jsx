@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../../../services/api";
-import { ChevronDown, ChevronUp, Calendar, Cake, DollarSign, Users, Building2, IndianRupee } from "lucide-react";
+import { ChevronDown, ChevronUp, Calendar, Cake, Users, Building2, IndianRupee } from "lucide-react";
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState([]);
