@@ -10,6 +10,9 @@ from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.core.validators import MinValueValidator, MaxValueValidator
+import uuid
+from datetime import date  # <-- Add this line!
 
 
 phone_validator = RegexValidator(r"^\+?1?\d{9,15}$", "Enter a valid phone number.")
@@ -220,6 +223,237 @@ class EmployeeReimbursement(models.Model):
 
     def __str__(self):
         return f"{self.employee.full_name} - {self.amount} ({self.status})"
+
+class Invoice(models.Model):
+    """
+    Payroll Invoice model for monthly salary invoices
+    """
+    INVOICE_STATUS = [
+        ('DRAFT', 'Draft'),
+        ('GENERATED', 'Generated'),
+        ('PENDING', 'Pending Payment'),
+        ('PAID', 'Paid'),
+        ('CANCELLED', 'Cancelled')
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    invoice_number = models.CharField(max_length=50, unique=True)
+    employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='invoices')
+    
+    # Invoice period
+    month = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)])
+    year = models.IntegerField()
+    
+    # Salary components
+    basic_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    hra = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    medical_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    conveyance_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    special_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Deductions
+    professional_tax = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    income_tax = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ESI contributions
+    esi_employee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    esi_employer_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # PF contributions
+    pf_employee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pf_employer_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pf_voluntary_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Totals
+    total_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    gross_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    net_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Status and dates
+    status = models.CharField(max_length=20, choices=INVOICE_STATUS, default='DRAFT')
+    generated_date = models.DateTimeField(auto_now_add=True)
+    paid_date = models.DateTimeField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    
+    # Payment info
+    payment_method = models.CharField(max_length=50, blank=True, null=True)
+    transaction_id = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Notes
+    notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-year', '-month', 'employee__full_name']
+        unique_together = ['employee', 'month', 'year']
+        verbose_name = 'Payroll Invoice'
+        verbose_name_plural = 'Payroll Invoices'
+    
+    def __str__(self):
+        return f"Invoice #{self.invoice_number} - {self.employee.full_name} ({self.month}/{self.year})"
+    
+    def save(self, *args, **kwargs):
+        # Generate invoice number if not set
+        if not self.invoice_number:
+            self.invoice_number = self.generate_invoice_number()
+        super().save(*args, **kwargs)
+    
+    def generate_invoice_number(self):
+        """Generate unique invoice number"""
+        return f"INV-{self.year}-{self.month:02d}-{str(self.id)[:8].upper()}"
+    
+    def get_month_name(self):
+        """Get month name from month number"""
+        from datetime import datetime
+        return datetime.strptime(str(self.month), "%m").strftime("%B")        
+
+# Add to apps/hr/models.py (if not already there)
+class Salary(models.Model):
+    """
+    Employee salary configuration
+    """
+    employee = models.OneToOneField('Employee', on_delete=models.CASCADE, related_name='salary_info')
+    
+    # Basic Salary
+    basic_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Allowances
+    hra = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="House Rent Allowance")
+    medical_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    conveyance_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    special_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Deductions
+    professional_tax = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    income_tax = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # ESI Settings
+    has_esi = models.BooleanField(default=False, verbose_name="Has ESI")
+    esi_number = models.CharField(max_length=20, blank=True, null=True, verbose_name="ESI Number")
+    esi_employee_share_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0.75,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Employee ESI contribution percentage"
+    )
+    esi_employer_share_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=3.25,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Employer ESI contribution percentage"
+    )
+    
+    # PF Settings
+    has_pf = models.BooleanField(default=False, verbose_name="Has PF")
+    pf_number = models.CharField(max_length=20, blank=True, null=True, verbose_name="PF Number")
+    uan_number = models.CharField(max_length=20, blank=True, null=True, verbose_name="UAN Number")
+    pf_employee_share_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=12,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Employee PF contribution percentage"
+    )
+    pf_employer_share_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=13,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Employer PF contribution percentage"
+    )
+    pf_voluntary_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Voluntary PF contribution percentage"
+    )
+    
+    # Calculated fields (these will be calculated on save)
+    total_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    gross_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    net_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Calculated contributions
+    esi_employee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    esi_employer_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pf_employee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pf_employer_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pf_voluntary_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Additional info
+    effective_date = models.DateField(
+        null=False,           # Keep null=False
+        blank=False,
+        default=date.today    # Automatically set to today if not provided
+    )
+    notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name_plural = "Salaries"
+        ordering = ['-effective_date']
+    
+    def calculate_totals(self):
+        """Calculate all totals and contributions"""
+        # Calculate allowances
+        self.total_allowances = (
+            self.hra +
+            self.medical_allowance +
+            self.conveyance_allowance +
+            self.special_allowance +
+            self.other_allowances
+        )
+        
+        # Calculate gross salary
+        self.gross_salary = self.basic_salary + self.total_allowances
+        
+        # Calculate ESI (if applicable and salary <= 21000)
+        if self.has_esi and self.gross_salary <= 21000:
+            self.esi_employee_amount = (self.gross_salary * self.esi_employee_share_percentage) / 100
+            self.esi_employer_amount = (self.gross_salary * self.esi_employer_share_percentage) / 100
+        else:
+            self.esi_employee_amount = 0
+            self.esi_employer_amount = 0
+        
+        # Calculate PF (on basic salary, max 15000)
+        if self.has_pf:
+            pf_wage_limit = 15000
+            pf_applicable_salary = min(self.basic_salary, pf_wage_limit)
+            
+            self.pf_employee_amount = (pf_applicable_salary * self.pf_employee_share_percentage) / 100
+            self.pf_employer_amount = (pf_applicable_salary * self.pf_employer_share_percentage) / 100
+            
+            # Voluntary PF on remaining amount
+            if self.pf_voluntary_percentage > 0:
+                voluntary_amount = ((self.basic_salary - pf_applicable_salary) * self.pf_voluntary_percentage) / 100
+                self.pf_voluntary_amount = max(voluntary_amount, 0)
+        else:
+            self.pf_employee_amount = 0
+            self.pf_employer_amount = 0
+            self.pf_voluntary_amount = 0
+        
+        # Calculate total deductions
+        self.total_deductions = (
+            self.professional_tax +
+            self.income_tax +
+            self.other_deductions +
+            self.esi_employee_amount +
+            self.pf_employee_amount +
+            self.pf_voluntary_amount
+        )
+        
+        # Calculate net salary
+        self.net_salary = self.gross_salary - self.total_deductions
+    
+    def save(self, *args, **kwargs):
+        self.calculate_totals()
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.employee.full_name} - Salary"
     
 class Attendance(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
