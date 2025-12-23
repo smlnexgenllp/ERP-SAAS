@@ -204,7 +204,7 @@ export default function LeaveManagement() {
         <div className="p-6">
           <div className="border-b border-cyan-900 pb-3 mb-8 flex items-center gap-3">
             <Calendar className="w-6 h-6 text-cyan-400" />
-            <h1 className="text-pink-400 text-2xl font-bold">
+            <h1 className="text-blue-300 text-2xl font-bold">
               LEAVE & PERMISSION MANAGEMENT
             </h1>
           </div>
@@ -222,7 +222,7 @@ export default function LeaveManagement() {
             <>
               {/* LEAVE REQUESTS */}
               <div className="mb-12">
-                <h2 className="text-pink-400 text-xl font-bold mb-6 flex items-center gap-3">
+                <h2 className="text-blue-300 text-xl font-bold mb-6 flex items-center gap-3">
                   <Calendar className="w-7 h-7" /> Leave Requests
                 </h2>
                 <div className="flex gap-4 mb-6">
@@ -255,7 +255,7 @@ export default function LeaveManagement() {
                 )}
               </div>
               <div>
-                <h2 className="text-pink-400 text-xl font-bold mb-6 flex items-center gap-3">
+                <h2 className="text-blue-300 text-xl font-bold mb-6 flex items-center gap-3">
                   <Clock className="w-7 h-7" /> Permission Requests
                 </h2>
                 <div className="flex gap-4 mb-6">
@@ -263,8 +263,8 @@ export default function LeaveManagement() {
                     onClick={() => setPermissionTab("pending")}
                     className={`px-8 py-3 rounded-xl font-bold transition-all flex items-center gap-3 ${
                       permissionTab === "pending"
-                        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-600/50"
-                        : "bg-gray-800/60 border border-purple-800 text-gray-400 hover:bg-gray-800/80"
+                         ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-600/50"
+                        : "bg-gray-800/60 border border-cyan-800 text-gray-400 hover:bg-gray-800/80"
                     }`}
                   >
                     <Clock className="w-5 h-5" /> Pending Requests

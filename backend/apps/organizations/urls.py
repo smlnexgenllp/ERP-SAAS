@@ -16,7 +16,7 @@ path(
     name="training-completed-status"
 ),
     path("training-progress",views.TrainingProgressView.as_view(), name="training-progress"),
-    # Sub-organization creation
+    
     path('sub-organizations/create/', views.SubOrganizationCreationView.as_view(), name='create-sub-organization'),
     path("training-videos/upload/", TrainingVideoUploadView.as_view()),
     path("training-videos/", TrainingVideoListView.as_view()),

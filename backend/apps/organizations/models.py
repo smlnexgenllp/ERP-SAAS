@@ -30,8 +30,6 @@ class Organization(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    # For sub-organizations
     parent_organization = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -39,54 +37,41 @@ class Organization(models.Model):
         blank=True,
         related_name='sub_organizations'
     )
-
     def __str__(self):
         return f"{self.name} ({self.subdomain})"
-        
     @property
-    def is_main_organization(self): # <-- ADDED HELPER PROPERTY
-        """Helper property to check the organization type."""
+    def is_main_organization(self):
         return self.organization_type == 'main'
-
     class Meta:
         verbose_name = "Organization"
         verbose_name_plural = "Organizations"
-        
+
 class OrganizationUser(models.Model):
     ROLE_CHOICES = (
         ("Admin", "Admin"),
         ("HR Manager", "HR Manager"),
         ("Employee", "Employee"),
     )
-
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     role = models.CharField(max_length=50, choices=ROLE_CHOICES)
     is_active = models.BooleanField(default=True)
-
     def __str__(self):
         return f"{self.user.email} → {self.organization.name} ({self.role})"
-    
 from django.db import models
 from django.contrib.auth import get_user_model
 from .models import Organization
-
 User = get_user_model()
-
-
 class UserOrganizationAccess(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="org_access")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="user_access")
-    modules = models.JSONField(default=list) # e.g. ['employees', 'attendance']
+    modules = models.JSONField(default=list) 
     def __str__(self):
         return f"{self.user.username} → {self.organization.name}"
     
 from django.db import models
 from django.conf import settings
-
 User = settings.AUTH_USER_MODEL
-
-
 class TrainingVideo(models.Model):
     organization = models.ForeignKey(
         "organizations.Organization",
@@ -111,8 +96,15 @@ class TrainingVideo(models.Model):
     def __str__(self):
         return f"{self.title} ({self.organization.name})"
 # In apps/organizations/models.py (at the bottom)
-
 class TrainingVideoView(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='training_video_views',
+        help_text="The organization this view record belongs to",
+        blank=True,
+        null=True,
+    )
     user = models.ForeignKey(  
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -144,10 +136,10 @@ User = settings.AUTH_USER_MODEL
 class TrainingCompletion(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    completed_at = models.DateTimeField(auto_now_add=True)
-
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)  
     class Meta:
         unique_together = ('user', 'organization')
 
     def __str__(self):
-        return f"{self.user} - Training Completed"
+        return f"{self.user} - Training {'Completed' if self.completed else 'Pending'}"

@@ -31,7 +31,7 @@ const Register = () => {
     if (isAuthenticated) navigate("/dashboard");
   }, [isAuthenticated, navigate]);
 
-  // Subdomain check (demo)
+  // Subdomain check (demo - replace with real API later)
   useEffect(() => {
     const checkSubdomain = async () => {
       if (formData.subdomain.length < 3) {
@@ -41,7 +41,7 @@ const Register = () => {
       setCheckingSubdomain(true);
       try {
         await new Promise((res) => setTimeout(res, 500));
-        const isAvailable = /[a-zA-Z]/.test(formData.subdomain);
+        const isAvailable = /^[a-zA-Z0-9-]+$/.test(formData.subdomain);
         setSubdomainAvailable(isAvailable);
       } finally {
         setCheckingSubdomain(false);
@@ -64,6 +64,8 @@ const Register = () => {
       return setError("Subdomain is required") && false;
     if (formData.subdomain.length < 3)
       return setError("Subdomain must be at least 3 characters") && false;
+    if (!/^[\w-]+$/.test(formData.subdomain))
+      return setError("Subdomain can only contain letters, numbers, and hyphens") && false;
     if (!formData.email.trim())
       return setError("Organization email is required") && false;
     if (!formData.admin_first_name.trim())
@@ -77,53 +79,74 @@ const Register = () => {
     if (formData.admin_password !== formData.confirm_password)
       return setError("Passwords do not match") && false;
     if (subdomainAvailable === false)
-      return setError("Subdomain is not available") && false;
+      return setError("Subdomain is not valid or unavailable") && false;
     return true;
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  e.preventDefault();
+  setLoading(true);
+  setError("");
 
-    if (!validateForm()) {
-      setLoading(false);
-      return;
-    }
+  if (!validateForm()) {
+    setLoading(false);
+    return;
+  }
 
-    try {
-      const { confirm_password, ...apiData } = formData;
-      console.log("Sending data:", apiData);
-      const response = await fetch(
-        "http://localhost:8000/api/organizations/register/",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(apiData),
-        }
-      );
-      const data = await response.json();
-      if (data.success) {
-        navigate("/login", {
-          state: {
-            message: "Organization registered successfully! Please login.",
-          },
-        });
-      } else {
-        if (data.details) {
-          const msgs = Object.values(data.details).flat();
-          setError(msgs.join(", "));
-        } else {
-          setError(data.error || "Registration failed");
-        }
+  try {
+    // Send FLAT payload to match serializer expecting individual fields
+    const payload = {
+      name: formData.name.trim(),
+      subdomain: formData.subdomain.trim().toLowerCase(),
+      plan_tier: formData.plan_tier,
+      email: formData.email.trim(),                    // organization email
+      phone: formData.phone.trim(),
+      address: formData.address.trim(),
+      admin_first_name: formData.admin_first_name.trim(),
+      admin_last_name: formData.admin_last_name.trim(),
+      admin_email: formData.admin_email.trim(),
+      admin_password: formData.admin_password,
+    };
+
+    console.log("Sending data:", payload);
+
+    const response = await fetch(
+      "http://localhost:8000/api/organizations/register/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       }
-    } catch (err) {
-      console.error(err);
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+    );
+
+    const data = await response.json();
+
+    if (response.ok || data.success) {
+      navigate("/login", {
+        state: {
+          message: "Organization registered successfully! Please login with your admin credentials.",
+        },
+      });
+    } else {
+      // Show detailed validation errors
+      if (data) {
+        const errors = Object.keys(data)
+          .map((key) => `${key}: ${data[key].join(", ")}`)
+          .join(" | ");
+        setError(errors || "Registration failed");
+      } else {
+        setError("Registration failed. Please try again.");
+      }
     }
-  };
+  } catch (err) {
+    console.error("Registration error:", err);
+    setError("Network error. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getSubdomainStatus = () => {
     if (!formData.subdomain) return null;
@@ -366,11 +389,7 @@ const Register = () => {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cyan-300 hover:text-pink-400 transition-colors"
                   >
-                    {showConfirmPassword ? (
-                      <EyeOff size={16} />
-                    ) : (
-                      <Eye size={16} />
-                    )}
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>

@@ -27,39 +27,44 @@ const SubOrganizationDashboard = () => {
   const [showAlert, setShowAlert] = useState(false);
   const inputRef = useRef(null);
   useEffect(() => {
-    if (!user || !organization) {
-      navigate("/login");
-      return;
+  // Only redirect if the user is completely unauthenticated
+  if (!user) {
+    navigate("/login", { replace: true });
+    return;
+  }
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const modulesData = await moduleService.getAvailableModules(user?.role);
+      setModules(modulesData || []);
+
+      const activeCount = (modulesData || []).filter((m) => m.is_active).length;
+      setStats((prev) => ({
+        ...prev,
+        activeModules: activeCount,
+      }));
+    } catch (error) {
+      console.error("Error loading modules:", error);
+      setModules([]); // Prevent stuck loading
+    } finally {
+      setLoading(false);
     }
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const modulesData = await moduleService.getAvailableModules(user?.role);
-        setModules(modulesData);
+  };
 
-        const activeCount = modulesData.filter((m) => m.is_active).length;
-        setStats((prev) => ({
-          ...prev,
-          activeModules: activeCount,
-        }));
-      } catch (error) {
-        console.error("Error loading modules:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    const loadVideos = async () => {
-      try {
-        const response = await fetchTrainingVideos();
-        setTrainingVideos(response.data || []);
-      } catch (error) {
-        console.error("Error loading training videos:", error);
-      }
-    };
+  const loadVideos = async () => {
+    try {
+      const response = await fetchTrainingVideos();
+      setTrainingVideos(response.data || []);
+    } catch (error) {
+      console.error("Error loading training videos:", error);
+      setTrainingVideos([]);
+    }
+  };
 
-    loadData();
-    loadVideos();
-  }, [user, organization, navigate]);
+  loadData();
+  loadVideos();
+
+}, [user, navigate]);
 
   const handleVideoUploadSuccess = async () => {
     try {
@@ -173,7 +178,7 @@ const SubOrganizationDashboard = () => {
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-pink-400">
+                  <h1 className="text-3xl font-bold text-blue-300">
                     {organization?.name}
                   </h1>
                   <p className="text-cyan-300 mt-1">
@@ -192,21 +197,21 @@ const SubOrganizationDashboard = () => {
 
                 <button
                   onClick={() => setOpenUploadVideo(true)}
-                  className="bg-cyan-500 hover:bg-cyan-600 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
+                  className="bg-blue-300 hover:bg-cyan-600 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
                 >
                   Training Video
                 </button>
 
                 <button
                   onClick={() => setOpenCreateUser(true)}
-                  className="bg-pink-500 hover:bg-pink-600 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
+                  className="bg-blue-300 hover:bg-cyan-600 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
                 >
                   + Create User
                 </button>
 
                 <button
                   onClick={logout}
-                  className="bg-red-600 hover:bg-red-700 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
+                  className="bg-blue-300 hover:bg-cyan-600 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
                 >
                   Logout
                 </button>
@@ -234,7 +239,7 @@ const SubOrganizationDashboard = () => {
                 </div>
                 <div>
                   <p className="text-cyan-400 text-sm">{stat.label}</p>
-                  <p className="text-pink-400 font-bold text-2xl">{stat.value}</p>
+                  <p className="text-blue-300 font-bold text-2xl">{stat.value}</p>
                 </div>
               </div>
             ))}
@@ -243,14 +248,14 @@ const SubOrganizationDashboard = () => {
           {/* Modules */}
           <div className="bg-gray-900/40 border border-cyan-800 rounded-xl">
             <div className="px-6 py-4 border-b border-cyan-800">
-              <h2 className="text-2xl font-bold text-pink-400">Your Modules</h2>
+              <h2 className="text-2xl font-bold text-blue-300">Your Modules</h2>
             </div>
             <div className="p-6">
               {modules.length > 0 ? (
                 <ModuleGrid modules={modules} onModuleClick={handleModuleClick} darkTheme />
               ) : (
                 <div className="text-center py-12 text-cyan-300">
-                  <p className="text-pink-400 text-lg">No Modules Assigned</p>
+                  <p className="text-blue-300 text-lg">No Modules Assigned</p>
                   <p className="mt-2">Contact your administrator.</p>
                 </div>
               )}
@@ -259,7 +264,7 @@ const SubOrganizationDashboard = () => {
 
           {/* Organization Info */}
           <div className="bg-gray-900/40 border border-cyan-800 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-pink-400 mb-4">
+            <h3 className="text-lg font-semibold text-blue-300 mb-4">
               Sub-Organization Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">

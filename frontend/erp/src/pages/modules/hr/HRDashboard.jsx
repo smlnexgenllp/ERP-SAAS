@@ -88,7 +88,6 @@ export default function HRDashboardTailwind() {
       setTimeout(() => setShowAlert(false), 3000);
     };
     if (!cmd) return;
-    // Available HR commands
     if (["help", "?", "commands"].includes(cmd)) {
       showAlert(
         "HR Commands: employees, add employee, leaves, org-tree, payroll, recruit, clear, help"
@@ -112,17 +111,14 @@ export default function HRDashboardTailwind() {
       navigate("/hr/org-tree");
       return;
     }
-
     if (["payroll", "salary", "monthly payroll"].includes(cmd)) {
       showAlert(`Current monthly payroll: ₹${stats.totalPayroll.toLocaleString()}`);
       return;
     }
-
     if (["recruit", "recruitment", "hiring", "jobs"].includes(cmd)) {
       showAlert(`Active recruitments: ${stats.activeRecruitments} positions open`);
       return;
     }
-
     if (cmd === "clear") {
       showAlert("Terminal cleared.");
       return;
@@ -153,7 +149,7 @@ export default function HRDashboardTailwind() {
           {/* HEADER */}
           <header className="border-b border-cyan-800 pb-3 mb-6 flex items-center gap-3">
             <div className="w-3 h-3 rounded-full bg-cyan-400 shadow shadow-cyan-400/50"></div>
-            <h1 className="text-pink-400 text-lg font-bold">
+            <h1 className="text-blue-300 text-lg font-bold">
               ALU-CORE: HR DASHBOARD
             </h1>
             <span className="ml-auto text-gray-400 text-sm">
@@ -184,7 +180,7 @@ export default function HRDashboardTailwind() {
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-gray-900/30 border border-cyan-900 p-6 rounded-xl">
-              <h3 className="text-pink-400 text-xl font-bold mb-4">Quick Actions</h3>
+              <h3 className="text-blue-300 text-xl font-bold mb-4">Quick Actions</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {quickActions.map((a, i) => (
                   <button
@@ -204,7 +200,7 @@ export default function HRDashboardTailwind() {
               </div>
             </div>
             <div className="bg-gray-900/30 border border-cyan-900 p-6 rounded-xl">
-              <h3 className="text-pink-400 text-xl font-bold mb-4">Recent Activity</h3>
+              <h3 className="text-blue-300 text-xl font-bold mb-4">Recent Activity</h3>
               <div className="space-y-4">
                 {recentActivities.map((act) => (
                   <div key={act.id} className="flex items-start gap-3">
@@ -223,7 +219,7 @@ export default function HRDashboardTailwind() {
           <div className="mt-6 bg-gray-900/30 border border-cyan-900 rounded-xl shadow p-6 text-center">
             <Calendar className="w-12 h-12 text-cyan-400 mx-auto mb-2" />
             <p className="text-gray-400 mb-2">No upcoming events</p>
-            <button className="bg-gradient-to-r from-cyan-400 to-pink-400 text-gray-900 py-2 px-4 rounded font-bold hover:opacity-90 transition">
+            <button className="bg-gradient-to-r from-cyan-400 to-blue-300 text-gray-900 py-2 px-4 rounded font-bold hover:opacity-90 transition">
               Schedule an event
             </button>
           </div>
