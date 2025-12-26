@@ -15,6 +15,7 @@ import uuid
 from datetime import date  # <-- Add this line!
 
 
+
 phone_validator = RegexValidator(r"^\+?1?\d{9,15}$", "Enter a valid phone number.")
 class Department(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="departments")
@@ -517,4 +518,80 @@ class LatePunchRequest(models.Model):
     )
     approved_at = models.DateTimeField(null=True, blank=True)
 
+# apps/hr/models.py
+class Task(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='tasks')
+    project = models.ForeignKey('Project', on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')  # ← ADD THIS LINE
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    assigned_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name='assigned_tasks')
+    assigned_to = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name='received_tasks')
+    deadline = models.DateField(null=True, blank=True)
+    progress_percentage = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    is_completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        project_name = self.project.name if self.project else "No Project"
+        return f"[{project_name}] {self.title} → {self.assigned_to.full_name if self.assigned_to else 'Unassigned'}"
+
+class TaskUpdate(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='updates')
+    updated_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True)
+    change_description = models.TextField()  # Required: "Completed login page UI"
+    old_progress = models.PositiveIntegerField()
+    new_progress = models.PositiveIntegerField()
+    project = models.ForeignKey('Project', on_delete=models.SET_NULL, null=True, blank=True, related_name='project_updates')
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"Update by {self.updated_by} on {self.task.title}"
+
+
+class DailyChecklist(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    date = models.DateField()
+    for_employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='daily_checklists')
+    goals_description = models.TextField()  # Goals set by Manager/TL
+    set_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name='set_checklists')
+
+    rating = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    rated_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True, related_name='rated_checklists')
+    comments = models.TextField(blank=True)
+
+    class Meta:
+        unique_together = ('date', 'for_employee')
+        ordering = ['-date']
+        verbose_name = "Daily Checklist"
+        verbose_name_plural = "Daily Checklists"
+
+    def __str__(self):
+        return f"Checklist {self.date} - {self.for_employee.full_name}"
+
+class Project(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    created_by = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, related_name='created_projects')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['-start_date']

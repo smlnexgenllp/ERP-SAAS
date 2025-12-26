@@ -32,7 +32,7 @@ from .views.org_tree_views import (
     org_tree_view,              
     public_org_tree_view,     
 )
-
+from .views.task_views import TaskViewSet, DailyChecklistViewSet,performance_report, project_updates,ProjectViewSet
 # Router for standard CRUD APIs
 router = DefaultRouter()
 router.register('employees', EmployeeViewSet, basename='employees')
@@ -43,6 +43,9 @@ router.register(r'leave-requests', LeaveRequestViewSet, basename='leave-requests
 router.register(r'permission', PermissionRequestViewSet, basename='permission')
 router.register(r'managers', ManagerListView, basename='managers')
 router.register(r'reimbursements', EmployeeReimbursementViewSet, basename="reimbursements")
+router.register(r'tasks', TaskViewSet)
+router.register(r'daily-checklists', DailyChecklistViewSet)
+router.register(r'projects', ProjectViewSet)
 
 urlpatterns = [
     # 1. All ViewSet routes: /api/hr/departments/, /api/hr/employees/, etc.
@@ -74,6 +77,9 @@ urlpatterns = [
     path("attendance/monthly/", monthly_attendance_report, name="monthly-report"),
     path("attendance/", AttendanceListView.as_view(), name="attendance-list"),
     path("attendance/today/", today_attendance),
+
+    path("performance-report/", performance_report, name='performance-report'),
+    path("projects/<int:project_id>/updates/", project_updates, name='project-updates'),
 
 ]
 
