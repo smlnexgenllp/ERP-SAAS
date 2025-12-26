@@ -32,6 +32,22 @@ import InvoiceGeneration from "./components/modules/payroll/InvoiceGeneration";
 
 import HRAttendance from "./components/modules/hr/HRAttendance";
 
+
+// ----- FINANCE MODULE -----
+import FinanceDashboard from "./pages/modules/finance/FinanceDashboard";
+import SidebarLayout from "./pages/modules/finance/layouts/SidebarLayout";
+import CompanySetup from "./pages/modules/finance/CompanySetup";
+import FinancialYearSetup from "./pages/modules/finance/FinancialYearSetup";
+import ChartOfAccounts from "./pages/modules/finance/ChartOfAccounts";
+import OpeningBalances from "./pages/modules/finance/OpeningBalances";
+import MasterData from "./pages/modules/finance/MasterData";
+import TransactionEntry from "./pages/modules/finance/TransactionEntry";
+import ReportsDashboard from "./pages/modules/finance/ReportsDashboard";
+
+
+
+
+
 // Protected Routes
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -55,6 +71,19 @@ const HRProtectedRoute = ({ children }) => {
 
   return isAuthenticated && hasHRAccess ? children : <Navigate to="/dashboard" />;
 };
+
+
+const FinanceProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+  if (loading) return <div>Loading...</div>;
+
+  const hasFinanceAccess =
+    user?.modules?.includes("finance") ||
+    ["finance_manager", "admin", "main_org_admin", "sub_org_admin", "accountant"].includes(user?.role);
+
+  return isAuthenticated && hasFinanceAccess ? children : <Navigate to="/dashboard" replace />;
+};
+
 
 const PayrollProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, user } = useAuth();
@@ -120,6 +149,22 @@ function App() {
           <Route path="/payroll" element={<Navigate to="/hr/payroll" replace />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
+           <Route path="/finance/*" element={<Navigate to="/finance" replace />} />
+
+
+          
+          {/* ======== FINANCE MODULE (with Sidebar Layout) ======== */}
+          <Route element={<FinanceProtectedRoute><SidebarLayout /></FinanceProtectedRoute>}>
+            <Route path="/finance" element={<FinanceDashboard />} />
+            <Route path="/finance/company-setup" element={<CompanySetup />} />
+            <Route path="/finance/financial-year-setup" element={<FinancialYearSetup />} />
+            <Route path="/finance/chart-of-accounts" element={<ChartOfAccounts />} />
+            <Route path="/finance/opening-balances" element={<OpeningBalances />} />
+            <Route path="/finance/master-data" element={<MasterData />} />
+            <Route path="/finance/transaction-entry" element={<TransactionEntry />} />
+            <Route path="/finance/reports" element={<ReportsDashboard />} />
+          </Route>
+          
         </Routes>
       </Router>
     </AuthProvider>
