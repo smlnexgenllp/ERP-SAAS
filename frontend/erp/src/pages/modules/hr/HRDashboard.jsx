@@ -10,6 +10,7 @@ import {
   CalendarDays,
   CalendarCheck2,
   Clock,
+  ClipboardList,
 } from "lucide-react";
 export default function HRDashboardTailwind() {
   const { user, organization } = useAuth();
@@ -95,6 +96,12 @@ export default function HRDashboardTailwind() {
       description: "Employees hiring management",
       action: () => navigate("/hr/jobopenings"),
     },
+      icon: ClipboardList,
+      label: "Task Management",
+      description: "Manage tasks & assignments",
+      action: () => navigate("/hr/tasks"),
+    },
+
 
   ];
   // === COMMAND HANDLER ===

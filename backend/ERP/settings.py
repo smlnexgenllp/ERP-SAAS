@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
+    'simple_history',
     
     # Your custom apps
     'apps.accounts',
@@ -71,6 +72,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware',
 ]
 
 ROOT_URLCONF = 'ERP.urls'
@@ -198,4 +200,10 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 COMPANY_NAME = "SMLNEXGENLLP Pvt Ltd"
 COMPANY_EMAIL = "hr@yourcompany.com"
 DEFAULT_FROM_EMAIL = "hr@yourcompany.com"
+SESSION_COOKIE_HTTPONLY = False
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = False  # True in prod
 
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False

@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 
 const ModuleGrid = ({ modules, onModuleClick }) => {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // This is fine
 
   // Temporary: force all modules active
   const modulesWithForcedActive = modules.map((module) => ({

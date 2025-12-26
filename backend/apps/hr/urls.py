@@ -28,6 +28,8 @@ from .views.org_tree_views import (
     org_tree_view,              
     public_org_tree_view,     
 )
+from .views.task_views import TaskViewSet, DailyChecklistViewSet,performance_report, project_updates,ProjectViewSet
+# Router for standard CRUD APIs
 router = DefaultRouter()
 router.register('employees', EmployeeViewSet, basename='employees')
 router.register('employee-documents', EmployeeDocumentViewSet, basename='employee-documents')
@@ -39,6 +41,10 @@ router.register(r'managers', ManagerListView, basename='managers')
 router.register(r'reimbursements', EmployeeReimbursementViewSet, basename="reimbursements")
 router.register("job-openings", JobOpeningViewSet)
 router.register("referrals", ReferralViewSet)
+router.register(r'tasks', TaskViewSet)
+router.register(r'daily-checklists', DailyChecklistViewSet)
+router.register(r'projects', ProjectViewSet)
+
 urlpatterns = [
     path('', include(router.urls)),
     path('org-tree/', org_tree_view, name='org-tree'),                    # Requires login
@@ -62,6 +68,9 @@ urlpatterns = [
     path("referrals/<int:id>/send-offer/", send_offer_email),
     path("referrals/<int:id>/offer-letter/", generate_offer_letter_pdf),
     path('send-direct-offer/', send_direct_offer),
+
+    path("performance-report/", performance_report, name='performance-report'),
+    path("projects/<int:project_id>/updates/", project_updates, name='project-updates'),
 
 ]
 if settings.DEBUG:
