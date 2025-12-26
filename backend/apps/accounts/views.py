@@ -106,6 +106,7 @@ def logout_view(request):
 
 @api_view(['GET'])
 def current_user_view(request):
+    """Get current user information"""
     if not request.user.is_authenticated:
         return Response({
             'success': False,
@@ -139,7 +140,7 @@ def current_user_view(request):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def get_csrf_token(request):
-
+    """Get CSRF token for React"""
     return Response({
         'csrfToken': get_token(request)
     })

@@ -1,6 +1,4 @@
-// context/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from "react";
-import api from "../services/api"; // Your axios instance
 
 const AuthContext = createContext();
 
@@ -25,7 +23,7 @@ export const AuthProvider = ({ children }) => {
       // Step 1: Get CSRF token
       await getCsrfToken();
 
-      // Step 2: Check auth status
+      // Step 2: Now check auth
       await checkAuthStatus();
 
       setLoading(false);
@@ -34,13 +32,21 @@ export const AuthProvider = ({ children }) => {
     init();
   }, []);
 
-  // Get CSRF token using api
+  // Function to get CSRF token
   const getCsrfToken = async () => {
     try {
-      const response = await api.get("/auth/csrf-token/");
-      if (response.data?.csrfToken) {
-        setCsrfToken(response.data.csrfToken);
-        console.log("CSRF token obtained:", response.data.csrfToken);
+      const response = await fetch(
+        "http://localhost:8000/api/auth/csrf-token/",
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setCsrfToken(data.csrfToken);
+        console.log("CSRF token obtained:", data.csrfToken);
       } else {
         console.error("Failed to get CSRF token");
       }
@@ -49,7 +55,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Fallback: Get CSRF from cookie
+  // Function to get CSRF token from cookies (fallback)
   const getCsrfTokenFromCookie = () => {
     const name = "csrftoken";
     let cookieValue = null;
@@ -66,81 +72,100 @@ export const AuthProvider = ({ children }) => {
     return cookieValue;
   };
 
-  // Check auth status
   const checkAuthStatus = async () => {
     try {
+      // Get CSRF token from cookie as fallback
       const token = csrfToken || getCsrfTokenFromCookie();
-      const response = await api.get("/auth/current-user/", {
-        headers: {
-          ...(token && { "X-CSRFToken": token }),
-        },
-      });
+
+      const response = await fetch(
+        "http://localhost:8000/api/auth/current-user/",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { "X-CSRFToken": token }),
+          },
+          credentials: "include",
+        }
+      );
 
       console.log("Auth status check response:", response.status);
 
-      if (response.data.success) {
-        setUser(response.data.user);
-        setOrganization(response.data.organization);
-        setIsAuthenticated(true);
-        console.log("User authenticated:", response.data.user);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Auth status data:", data);
+        if (data.success) {
+          setUser(data.user);
+          setOrganization(data.organization);
+          setIsAuthenticated(true);
+        }
       }
     } catch (error) {
       console.error("Auth check failed:", error);
     }
   };
 
-  // Login using api
+  // In your login function in AuthContext.jsx
   const login = async (credentials) => {
     try {
       console.log("Attempting login with:", credentials);
 
-      const token = csrfToken || getCsrfTokenFromCookie();
+      // Get CSRF token from cookie as fallback
+      const token = getCsrfTokenFromCookie();
 
-      const response = await api.post("/auth/login/", credentials, {
+      const response = await fetch("http://localhost:8000/api/auth/login/", {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           ...(token && { "X-CSRFToken": token }),
         },
+        body: JSON.stringify(credentials),
+        credentials: "include",
       });
 
       console.log("Login response status:", response.status);
-      console.log("Login response data:", response.data);
 
-      if (response.data.success) {
-        setUser(response.data.user);
-        setOrganization(response.data.organization);
+      const data = await response.json();
+      console.log("Login response data:", data);
+
+      if (data.success) {
+        setUser(data.user);
+        setOrganization(data.organization);
         setIsAuthenticated(true);
 
-        // Force re-check to ensure sync
-        await checkAuthStatus();
-
+        // Return user role for redirection
         return {
           success: true,
-          user: response.data.user,
-          organization: response.data.organization,
+          user: data.user,
+          organization: data.organization,
         };
       } else {
         return {
           success: false,
-          error: response.data.error || "Login failed",
+          error: data.error || "Login failed",
         };
       }
     } catch (error) {
       console.error("Login error:", error);
       return {
         success: false,
-        error: error.response?.data?.error || "Network error. Please try again.",
+        error: "Network error. Please try again.",
       };
     }
   };
 
-  // Logout
   const logout = async () => {
     try {
-      const token = csrfToken || getCsrfTokenFromCookie();
-      await api.post("/auth/logout/", {}, {
+      // Get CSRF token from cookie as fallback
+      const token = getCsrfTokenFromCookie();
+
+
+      await fetch("http://localhost:8000/api/auth/logout/", {
+        method: "POST",
         headers: {
           ...(token && { "X-CSRFToken": token }),
         },
+        credentials: "include",
       });
     } catch (error) {
       console.error("Logout error:", error);
