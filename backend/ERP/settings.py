@@ -98,6 +98,12 @@ WSGI_APPLICATION = 'ERP.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -111,7 +117,6 @@ DATABASES = {
         },
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -180,18 +185,21 @@ CSRF_TRUSTED_ORIGINS = [
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
-
-# Session settings
-# 
-# settings.py
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
-# EMAIL CONFIG FOR MAILHOG (DEVELOPMENT ONLY)
-# settings.py (development only)
-# settings.py or local.py
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True  # Important for port 587
+# EMAIL_HOST_USER = 'demo@gmail.com'  
+# EMAIL_HOST_PASSWORD = '1234 1234 1234'  
+# DEFAULT_FROM_EMAIL = 'demo@gmail.com'
+
+COMPANY_NAME = "SMLNEXGENLLP Pvt Ltd"
+COMPANY_EMAIL = "hr@yourcompany.com"
+DEFAULT_FROM_EMAIL = "hr@yourcompany.com"
 SESSION_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = False  # True in prod

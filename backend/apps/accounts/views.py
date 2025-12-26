@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def login_view(request):
-    """User login view"""
     username = request.data.get('username')
     password = request.data.get('password')
 

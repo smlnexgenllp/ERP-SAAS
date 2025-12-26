@@ -1,11 +1,8 @@
 # apps/hr/urls.py
-
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from django.conf import settings
 from django.conf.urls.static import static
-
-# Import all views from employee_views
 from .views.employee_views import (
     DepartmentViewSet,
     DesignationViewSet,
@@ -18,16 +15,15 @@ from .views.employee_views import (
     EmployeeReimbursementViewSet,
     EmployeeViewSet,
     EmployeeDocumentViewSet,
-    # Import payroll views
     get_organization_employees,
     salary_list_create,
     get_employee_salary,
     get_current_organization,
     punch_in, punch_out,
+    JobOpeningViewSet, ReferralViewSet,
+    send_offer_email,generate_offer_letter_pdf,send_direct_offer,
     late_punch_requests, handle_late_request, monthly_attendance_report,AttendanceListView,today_attendance
 )
-
-# Org Tree Views
 from .views.org_tree_views import (
     org_tree_view,              
     public_org_tree_view,     
@@ -43,15 +39,14 @@ router.register(r'leave-requests', LeaveRequestViewSet, basename='leave-requests
 router.register(r'permission', PermissionRequestViewSet, basename='permission')
 router.register(r'managers', ManagerListView, basename='managers')
 router.register(r'reimbursements', EmployeeReimbursementViewSet, basename="reimbursements")
+router.register("job-openings", JobOpeningViewSet)
+router.register("referrals", ReferralViewSet)
 router.register(r'tasks', TaskViewSet)
 router.register(r'daily-checklists', DailyChecklistViewSet)
 router.register(r'projects', ProjectViewSet)
 
 urlpatterns = [
-    # 1. All ViewSet routes: /api/hr/departments/, /api/hr/employees/, etc.
     path('', include(router.urls)),
-
-    # 2. Organization Chart Endpoints
     path('org-tree/', org_tree_view, name='org-tree'),                    # Requires login
     path('public-org-tree/', public_org_tree_view, name='public-org-tree'),  # Public access
     path('employees/accept-invite/<uuid:token>/', accept_invite_view, name='accept-invite'),
@@ -63,13 +58,6 @@ urlpatterns = [
     path('payroll/employees/', get_organization_employees, name='organization-employees'),
     path('payroll/salary/', salary_list_create, name='salary-list-create'),
     path('payroll/salary/<int:employee_id>/', get_employee_salary, name='get-employee-salary'),
-    
-    # Remove these for now since you don't have the functions:
-    # path('payroll/salary/<int:employee_id>/', salary_detail, name='salary-detail'),
-    # path('payroll/invoice/generate/', generate_invoice, name='generate-invoice'),
-    # path('payroll/invoice/', invoice_list, name='invoice-list'),
-    # path('payroll/invoice/<int:invoice_id>/', invoice_detail, name='invoice-detail'),
-    # path('payroll/invoice/download/<int:invoice_id>/', download_invoice, name='download-invoice'),
     path("attendance/punch-in/", punch_in, name="employee-punch-in"),
     path("attendance/punch-out/", punch_out, name="employee-punch-out"),
     path("attendance/late-requests/", late_punch_requests, name="late-requests"),
@@ -77,11 +65,13 @@ urlpatterns = [
     path("attendance/monthly/", monthly_attendance_report, name="monthly-report"),
     path("attendance/", AttendanceListView.as_view(), name="attendance-list"),
     path("attendance/today/", today_attendance),
+    path("referrals/<int:id>/send-offer/", send_offer_email),
+    path("referrals/<int:id>/offer-letter/", generate_offer_letter_pdf),
+    path('send-direct-offer/', send_direct_offer),
 
     path("performance-report/", performance_report, name='performance-report'),
     path("projects/<int:project_id>/updates/", project_updates, name='project-updates'),
 
 ]
-
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

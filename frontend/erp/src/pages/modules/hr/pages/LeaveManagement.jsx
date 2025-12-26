@@ -16,20 +16,24 @@ export default function LeaveManagement() {
   const inputRef = useRef(null);
   const navigate=useNavigate()
   const fetchRequests = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const leaveRes = await api.get("/hr/leave-requests/");
-      setLeaveRequests(leaveRes.data || []);
-      const permRes = await api.get("/hr/permission/");
-      setPermissionRequests(permRes.data || []);
-    } catch (err) {
-      console.error("Error fetching requests:", err);
-      setError("Failed to load requests");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    setError("");
+    
+    const leaveRes = await api.get("/hr/leave-requests/");
+    setLeaveRequests(leaveRes.data.results || leaveRes.data || []);
+    console.log(leaveRes.data.results || leaveRes.data || []);
+    const permRes = await api.get("/hr/permission/");
+    setPermissionRequests(permRes.data.results || permRes.data || []);
+    console.log(permRes.data.results || permRes.data || []);
+  } catch (err) {
+    console.error("Error fetching requests:", err);
+    setError("Failed to load requests");
+  } finally {
+    setLoading(false);
+  }
+};
+
   useEffect(() => {
     fetchRequests();
   }, []);

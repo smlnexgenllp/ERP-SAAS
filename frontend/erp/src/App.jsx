@@ -30,6 +30,8 @@ import OrgTree from "./pages/modules/hr/pages/OrgTree";
 import LeaveManagement from "./pages/modules/hr/pages/LeaveManagement";
 import Reimbursement from "./pages/modules/hr/pages/Reimbursement";
 import HRAttendance from "./components/modules/hr/HRAttendance";
+import JobReferral from "./pages/modules/hr/pages/JobReferral";
+import JobOpeningUpdate from "./pages/modules/hr/pages/JobOpeningUpdate";
 import TaskDashboard from "./pages/dashboard/TaskDashboard";
 /* -------------------- ROUTE GUARDS -------------------- */
 
@@ -70,30 +72,11 @@ const PayrollProtectedRoute = ({ children }) => {
 const DashboardRouter = () => {
   const { user } = useAuth();
 
-  if (!user) return null;
+  if (user?.role === "super_admin") return <Dashboard />;
+  if (user?.role === "sub_org_admin" || user?.organization_type === "sub") return <SubOrganizationDashboard />;
+  if (user?.role === "employee") return <SubOrganizationDashboard />;
 
-  // MAIN ORG ADMIN (your actual case)
-  if (
-    user.role === "super_admin" ||
-    user.organization_type === "main"
-  ) {
-    return <Dashboard />;
-  }
-
-  // SUB ORG ADMIN
-  if (
-    user.role === "sub_org_admin" ||
-    user.organization_type === "sub"
-  ) {
-    return <SubOrganizationDashboard />;
-  }
-
-  // EMPLOYEE
-  if (user.role === "employee") {
-    return <UserDashboard />;
-  }
-
-  return <div>No dashboard assigned for role: {user.role}</div>;
+  return <Navigate to="/login" replace />;
 };
 
 
@@ -137,6 +120,10 @@ function App() {
           <Route path="/hr/leaves" element={<HRProtectedRoute><LeaveManagement /></HRProtectedRoute>} />
           <Route path="/hr/reimbursements" element={<HRProtectedRoute><Reimbursement /></HRProtectedRoute>} />
           <Route path="/hr/org-tree" element={<HRProtectedRoute><OrgTree /></HRProtectedRoute>} />
+          <Route path="/hr/jobreferrals" element={<HRProtectedRoute><JobReferral/></HRProtectedRoute>} />
+          <Route path="/hr/jobopenings" element={<HRProtectedRoute><JobOpeningUpdate/></HRProtectedRoute>} />
+          
+          {/* Payroll Module (New Unified Page with Tabs) */}
 
           {/* -------- PAYROLL -------- */}
           <Route path="/hr/payroll" element={<HRProtectedRoute><PayrollPage /></HRProtectedRoute>} />

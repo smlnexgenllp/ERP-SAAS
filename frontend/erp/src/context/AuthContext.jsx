@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
   const checkAuthStatus = async () => {
     try {
       // Get CSRF token from cookie as fallback
-      const token = csrfToken || getCsrfTokenFromCookie();
+      const token = getCsrfTokenFromCookie();
 
       const response = await fetch(
         "http://localhost:8000/api/auth/current-user/",
