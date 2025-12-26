@@ -30,7 +30,7 @@ import OrgTree from "./pages/modules/hr/pages/OrgTree";
 import LeaveManagement from "./pages/modules/hr/pages/LeaveManagement";
 import Reimbursement from "./pages/modules/hr/pages/Reimbursement";
 import HRAttendance from "./components/modules/hr/HRAttendance";
-
+import TaskDashboard from "./pages/dashboard/TaskDashboard";
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -48,7 +48,7 @@ const HRProtectedRoute = ({ children }) => {
 
   const hasHRAccess =
     user?.modules?.includes("hr") ||
-    ["hr_manager", "admin", "main_org_admin", "sub_org_admin", "accountant"].includes(user?.role);
+    ["hr_manager", "admin", "main_org_admin", "sub_org_admin", "accountant","user"].includes(user?.role);
 
   return isAuthenticated && hasHRAccess ? children : <Navigate to="/dashboard" replace />;
 };
@@ -143,6 +143,10 @@ function App() {
           <Route path="/payroll/dashboard" element={<PayrollProtectedRoute><PayrollDashboard /></PayrollProtectedRoute>} />
           <Route path="/payroll/salary-setup" element={<PayrollProtectedRoute><SalarySetupWithESIPF /></PayrollProtectedRoute>} />
           <Route path="/payroll/invoice-generation" element={<PayrollProtectedRoute><InvoiceGeneration /></PayrollProtectedRoute>} />
+          
+
+          <Route path="/hr/tasks" element={<HRProtectedRoute><TaskDashboard /></HRProtectedRoute>} />
+
 
           {/* -------- REDIRECTS -------- */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
