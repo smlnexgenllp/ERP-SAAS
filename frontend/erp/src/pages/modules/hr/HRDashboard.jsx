@@ -9,6 +9,7 @@ import {
   UserPlus,
   CalendarDays,
   Clock,
+  ClipboardList,
 } from "lucide-react";
 export default function HRDashboardTailwind() {
   const { user, organization } = useAuth();
@@ -82,6 +83,13 @@ export default function HRDashboardTailwind() {
       description: "Manage Salary",
       action: () => navigate("/hr/payroll"),
     },
+    {
+      icon: ClipboardList,
+      label: "Task Management",
+      description: "Manage tasks & assignments",
+      action: () => navigate("/hr/tasks"),
+    },
+
 
   ];
   // === COMMAND HANDLER ===
