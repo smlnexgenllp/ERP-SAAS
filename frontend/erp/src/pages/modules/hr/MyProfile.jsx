@@ -28,7 +28,7 @@ import {
   Clock as ClockIcon,
   PlayCircle,
 } from "lucide-react";
-
+import { useNavigate } from "react-router-dom";
 export default function MyProfile() {
   const [profile, setProfile] = useState(null);
   const [uploadedDocs, setUploadedDocs] = useState([]);
@@ -40,6 +40,7 @@ export default function MyProfile() {
     offer_letter: null,
     others: null,
   });
+  const navigate=useNavigate();
   const [managers, setManagers] = useState([]);
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [permissionHistory, setPermissionHistory] = useState([]);
@@ -619,6 +620,18 @@ const handlePunch = async () => {
                     </span>
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </button>
+
+                  <button
+                    onClick={()=>navigate('/hr/jobreferrals')}
+                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Clock className="w-6 h-6 text-cyan-400" /> 
+                      Job Referrals
+                    </span>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                  </button>
+
                   <button
                     onClick={() => setShowPermissionModal(true)}
                     className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
@@ -990,7 +1003,7 @@ const handlePunch = async () => {
                 <div className="text-center">
                   <p className="text-xl font-bold text-cyan-300">{monthName}</p>
                   <div className="grid grid-cols-7 gap-2 mt-6 text-sm">
-                    {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
+                    {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
                       <div key={day} className="text-gray-500 py-2">
                         {day}
                       </div>

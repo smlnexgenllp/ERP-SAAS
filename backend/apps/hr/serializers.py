@@ -281,33 +281,24 @@ class PermissionRequestUpdateSerializer(serializers.ModelSerializer):
 
 from .models import EmployeeReimbursement
 
+class SimpleUserSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "full_name", "email"]
+
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip() or obj.username
+
 class EmployeeReimbursementSerializer(serializers.ModelSerializer):
-    employee_name = serializers.CharField(source='employee.full_name', read_only=True)
-    manager_name = serializers.CharField(source='manager.full_name', read_only=True)
+    employee = SimpleUserSerializer(read_only=True)
+    manager = SimpleUserSerializer(read_only=True)
 
     class Meta:
         model = EmployeeReimbursement
-        fields = [
-            "id",
-            "employee",
-            "employee_name",
-            "manager",
-            "manager_name",
-            "amount",
-            "date",
-            "reason",
-            "status",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = [
-            "id",
-            "status",
-            "created_at",
-            "updated_at",
-            "employee_name",
-            "manager_name",
-        ]
+        fields = ["id", "employee", "manager", "amount", "date", "reason", "status"]
+
 
 class SalarySerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source='employee.full_name', read_only=True)
@@ -363,3 +354,21 @@ class AttendanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attendance
         fields = ["id", "employee_name", "date", "punch_in", "punch_out", "status", "is_late"]
+from rest_framework import serializers
+from .models import JobOpening, Referral
+
+
+class JobOpeningSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobOpening
+        fields = "__all__"
+        read_only_fields = ["organization", "created_at"]
+
+class ReferralSerializer(serializers.ModelSerializer):
+    job_title = serializers.CharField(source="job_opening.title", read_only=True)
+    referred_by_name = serializers.CharField(source="referred_by.username", read_only=True)
+
+    class Meta:
+        model = Referral
+        fields = "__all__"
+        read_only_fields = ["referral_id", "status", "referred_by"]

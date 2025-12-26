@@ -6,6 +6,7 @@ import {
   Receipt,
   TrendingUp,
   AlertTriangle,
+  CheckCircle,
   Clock,
   UserX,
 } from 'lucide-react';

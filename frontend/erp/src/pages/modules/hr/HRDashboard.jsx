@@ -8,6 +8,7 @@ import {
   DollarSign,
   UserPlus,
   CalendarDays,
+  CalendarCheck2,
   Clock,
 } from "lucide-react";
 export default function HRDashboardTailwind() {
@@ -81,6 +82,18 @@ export default function HRDashboardTailwind() {
       label: "Payroll Management",
       description: "Manage Salary",
       action: () => navigate("/hr/payroll"),
+    },
+    {
+      icon: CalendarCheck2,
+      label: "Attendance",
+      description: "Manage attendance",
+      action: () => navigate("/hr/attendance"),
+    },
+     {
+      icon: CalendarCheck2,
+      label: "Recruitment",
+      description: "Employees hiring management",
+      action: () => navigate("/hr/jobopenings"),
     },
 
   ];

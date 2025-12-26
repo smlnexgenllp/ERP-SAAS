@@ -516,5 +516,36 @@ class LatePunchRequest(models.Model):
         related_name="approved_late_requests"
     )
     approved_at = models.DateTimeField(null=True, blank=True)
+import uuid
+
+class JobOpening(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return self.title
+class Referral(models.Model):
+    STATUS_CHOICES = (
+        ("submitted", "Submitted"),
+        ("review", "Under Review"),
+        ("interview", "Interview Scheduled"),
+        ("selected", "Selected"),
+        ("rejected", "Rejected"),
+        ("joined", "Joined"),
+    )
+    referral_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    job_opening = models.ForeignKey(JobOpening, on_delete=models.CASCADE)
+    referred_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    candidate_name = models.CharField(max_length=255)
+    candidate_email = models.EmailField()
+    candidate_phone = models.CharField(max_length=20)
+    resume = models.FileField(upload_to="referrals/", blank=True, null=True)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="submitted")
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return f"{self.candidate_name} - {self.referral_id}"
 
 

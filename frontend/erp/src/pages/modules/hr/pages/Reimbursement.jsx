@@ -22,7 +22,6 @@ export default function Reimbursement() {
 
       console.log("Reimbursements API response 👉", res.data);
 
-      // Defensive check + pending-only filter
       const pending = Array.isArray(res.data)
         ? res.data.filter((r) => r.status === "pending")
         : [];
@@ -93,14 +92,16 @@ export default function Reimbursement() {
               {/* LEFT INFO */}
               <div>
                 <p className="text-cyan-300 font-semibold">
-                 Employee ID:  {req.employee || "Employee"}
+                  Employee: {req.employee?.full_name || "Employee"}
                 </p>
+                <p className="text-gray-400 text-sm mt-1">
+                  Manager: {req.manager?.full_name || "Manager"}
+                </p>
+
                 <p className="text-gray-400 text-sm mt-1">
                   ₹{req.amount} • {req.reason}
                 </p>
-                <p className="text-gray-500 text-xs mt-1">
-                  Date: {req.date}
-                </p>
+                <p className="text-gray-500 text-xs mt-1">Date: {req.date}</p>
               </div>
 
               {/* ACTIONS */}
