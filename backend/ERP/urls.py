@@ -9,6 +9,7 @@ urlpatterns = [
     path('api/auth/', include('apps.accounts.urls')),
     path("api/hr/", include("apps.hr.urls")),
     path("api/auth/", include("apps.authentication.urls")),
+    path('api/finance/', include('apps.finance.urls')),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
