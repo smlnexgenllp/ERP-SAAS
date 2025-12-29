@@ -358,48 +358,118 @@ class AttendanceSerializer(serializers.ModelSerializer):
 from rest_framework import serializers
 from apps.organizations.models import Organization, OrganizationBranding
 from apps.hr.models import JobOpening, Referral
-
 class OrganizationNestedSerializer(serializers.ModelSerializer):
-    # If you want branding fields, add them manually
     logo = serializers.ImageField(source='branding.logo', read_only=True, allow_null=True)
     hr_email = serializers.EmailField(source='branding.hr_email', read_only=True, allow_null=True)
     hr_contact_name = serializers.CharField(source='branding.hr_contact_name', read_only=True, allow_null=True)
     website = serializers.URLField(source='branding.website', read_only=True, allow_null=True)
-
     class Meta:
         model = Organization
         fields = ['id', 'name', 'logo', 'hr_email', 'hr_contact_name', 'website']
         read_only_fields = fields
-
+        
 class JobOpeningNestedSerializer(serializers.ModelSerializer):
     organization = OrganizationNestedSerializer(read_only=True)
-
     class Meta:
         model = JobOpening
         fields = ['id', 'title', 'description', 'organization']
-
-
 class JobOpeningSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobOpening
         fields = "__all__"
         read_only_fields = ["organization", "created_at"]
-
-
 class ReferralSerializer(serializers.ModelSerializer):
     job_opening = JobOpeningNestedSerializer(read_only=True)
-    
-    # Existing fields
     job_title = serializers.CharField(source="job_opening.title", read_only=True)
     referred_by_name = serializers.CharField(source="referred_by.get_full_name", read_only=True)
-    
-    # Additional useful referrer info
     referred_by_email = serializers.EmailField(source="referred_by.email", read_only=True)
-    
-    # If Employee model has phone, uncomment below
-    # referred_by_phone = serializers.CharField(source="referred_by.employee.phone", read_only=True)
-
     class Meta:
         model = Referral
         fields = "__all__"
         read_only_fields = ["referral_id", "status", "referred_by", "created_at"]
+class TaskUpdateSerializer(serializers.ModelSerializer):
+    updated_by_name = serializers.CharField(source='updated_by.full_name', read_only=True)
+
+    class Meta:
+        model = TaskUpdate
+        fields = ['id', 'change_description', 'old_progress', 'new_progress', 'updated_by_name', 'timestamp']
+
+
+# apps/hr/serializers.py
+class TaskSerializer(serializers.ModelSerializer):
+    assigned_by_name = serializers.CharField(source='assigned_by.full_name', read_only=True)
+    assigned_to_name = serializers.CharField(source='assigned_to.full_name', read_only=True)
+    project_name = serializers.CharField(source='project.name', read_only=True, allow_null=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            'id', 'title', 'description', 'assigned_by', 'assigned_by_name',
+            'assigned_to', 'assigned_to_name', 'deadline', 'progress_percentage',
+            'is_completed', 'created_at', 'updated_at',
+            'project', 'project_name', 'organization'
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'organization']
+
+
+class TaskProgressUpdateSerializer(serializers.Serializer):
+    progress_percentage = serializers.IntegerField(min_value=0, max_value=100, required=False)
+    change_description = serializers.CharField(max_length=1000, required=True)
+    is_completed = serializers.BooleanField(required=False)
+    
+class DailyChecklistSerializer(serializers.ModelSerializer):
+    for_employee_name = serializers.CharField(source='for_employee.full_name', read_only=True)
+    set_by_name = serializers.CharField(source='set_by.full_name', read_only=True)
+    rated_by_name = serializers.CharField(source='rated_by.full_name', read_only=True)
+
+    class Meta:
+        model = DailyChecklist
+        fields = [
+            'id', 'date', 'for_employee', 'for_employee_name',
+            'goals_description', 'set_by', 'set_by_name',
+            'rating', 'rated_by', 'rated_by_name', 'comments'
+        ]      
+
+# serializers.py
+class ProjectSerializer(serializers.ModelSerializer):
+    members = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Employee.objects.all(),
+        required=False
+    )
+
+    class Meta:
+        model = Project
+        fields = ['id', 'name', 'description', 'start_date', 'end_date', 'members', 'created_by', 'created_at']
+        read_only_fields = ['created_by', 'created_at']
+
+    def create(self, validated_data):
+        members = validated_data.pop('members', [])
+        project = super().create(validated_data)
+        if members:
+            project.members.set(members)
+        return project
+    
+from rest_framework import serializers
+from apps.hr.models import Invoice
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source='employee.full_name', read_only=True)
+    employee_code = serializers.CharField(source='employee.employee_code', read_only=True)
+    month_name = serializers.CharField(source='get_month_name', read_only=True)
+
+    class Meta:
+        model = Invoice
+        fields = [
+            'id', 'invoice_number', 'employee', 'employee_name', 'employee_code',
+            'month', 'year', 'month_name',
+            'basic_salary', 'hra', 'medical_allowance', 'conveyance_allowance',
+            'special_allowance', 'other_allowances',
+            'professional_tax', 'income_tax', 'other_deductions',
+            'esi_employee_amount', 'pf_employee_amount', 'pf_voluntary_amount',
+            'total_allowances', 'total_deductions',
+            'gross_salary', 'net_salary',
+            'status', 'generated_date', 'paid_date',
+            'notes'
+        ]
+        read_only_fields = ['invoice_number', 'generated_date']

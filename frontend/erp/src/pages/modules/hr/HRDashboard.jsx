@@ -96,6 +96,7 @@ export default function HRDashboardTailwind() {
       description: "Employees hiring management",
       action: () => navigate("/hr/jobopenings"),
     },
+    {
       icon: ClipboardList,
       label: "Task Management",
       description: "Manage tasks & assignments",
