@@ -1,9 +1,9 @@
 # In apps/organizations/models.py
 from django.db import models
-from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.db import models
+from django.contrib.auth import get_user_model
 User = get_user_model()
-
 class Organization(models.Model):
     ORGANIZATION_TYPES = (
         ('main', 'Main Organization'),
@@ -58,10 +58,7 @@ class OrganizationUser(models.Model):
     is_active = models.BooleanField(default=True)
     def __str__(self):
         return f"{self.user.email} → {self.organization.name} ({self.role})"
-from django.db import models
-from django.contrib.auth import get_user_model
-from .models import Organization
-User = get_user_model()
+
 class UserOrganizationAccess(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="org_access")
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="user_access")
