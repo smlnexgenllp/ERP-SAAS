@@ -157,7 +157,8 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       // Get CSRF token from cookie as fallback
-      const token = csrfToken || getCsrfTokenFromCookie();
+      const token = getCsrfTokenFromCookie();
+
 
       await fetch("http://localhost:8000/api/auth/logout/", {
         method: "POST",

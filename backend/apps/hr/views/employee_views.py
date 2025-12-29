@@ -104,10 +104,17 @@ class DesignationViewSet(viewsets.ModelViewSet):
             return Designation.objects.none()
 class EmployeeViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeSerializer
+
     def get_queryset(self):
         user = self.request.user
         if not hasattr(user, "organization") or not user.organization:
             return Employee.objects.none()
+        
+        # If user has no organization, return empty
+        if not hasattr(user, "organization") or not user.organization:
+            return Employee.objects.none()
+
+        # Return all employees in the user's organization
         return Employee.objects.select_related(
             'department', 'designation', 'user'
         ).filter(
@@ -869,6 +876,7 @@ def handle_late_request(request, pk):
 def monthly_attendance_report(request):
     user = request.user
     
+    # Check if user has an organization
     if not hasattr(user, 'organization') or not user.organization:
         return Response({"detail": "No organization found for this user."}, status=403)
 
@@ -1332,3 +1340,5 @@ def send_offer_email(referral):
     email.send(fail_silently=False)
 
     print(f"Offer email sent to {candidate_name} ({candidate_email}) for {job_title}")
+
+    return Response(data)

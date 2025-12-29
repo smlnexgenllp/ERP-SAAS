@@ -1,7 +1,7 @@
 # apps/hr/serializers.py
 
 from rest_framework import serializers
-from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice
+from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice,Task, TaskUpdate, DailyChecklist,Project
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from apps.organizations.models import Organization
