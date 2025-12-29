@@ -42,13 +42,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from apps.hr.models import ( LeaveRequest,PermissionRequest,EmployeeReimbursement,Employee,)
-from apps.hr.serializers import (
-    LeaveRequestSerializer,
-    LeaveRequestUpdateSerializer,
-    PermissionRequestSerializer,
-    PermissionRequestUpdateSerializer,
-    EmployeeReimbursementSerializer,
-)
+from apps.hr.serializers import ( LeaveRequestSerializer, LeaveRequestUpdateSerializer, PermissionRequestSerializer, PermissionRequestUpdateSerializer, EmployeeReimbursementSerializer,)
 from apps.accounts.models import User 
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
@@ -56,11 +50,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
 from apps.hr.models import LeaveRequest, PermissionRequest
-from apps.hr.serializers import (
-    LeaveRequestSerializer, LeaveRequestUpdateSerializer,
-    PermissionRequestSerializer, PermissionRequestUpdateSerializer,
-    SimpleUserSerializer
-)
+from apps.hr.serializers import ( LeaveRequestSerializer, LeaveRequestUpdateSerializer, PermissionRequestSerializer, PermissionRequestUpdateSerializer,  SimpleUserSerializer)
 from apps.hr.permissions import IsOwnerOrManager
 User = get_user_model()
 from rest_framework import mixins, viewsets
@@ -68,8 +58,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from apps.hr.models import Employee
 from apps.hr.serializers import SimpleUserSerializer
+from django.db.models import Count, Sum, Q, F  
 logger = logging.getLogger(__name__)
-
 class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
     permission_classes = [IsAuthenticated]
@@ -104,23 +94,17 @@ class DesignationViewSet(viewsets.ModelViewSet):
             return Designation.objects.none()
 class EmployeeViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeSerializer
-
     def get_queryset(self):
         user = self.request.user
         if not hasattr(user, "organization") or not user.organization:
             return Employee.objects.none()
-        
-        # If user has no organization, return empty
         if not hasattr(user, "organization") or not user.organization:
             return Employee.objects.none()
-
-        # Return all employees in the user's organization
         return Employee.objects.select_related(
             'department', 'designation', 'user'
         ).filter(
             organization=user.organization
         ).order_by("full_name")
-
     @action(detail=False, methods=['get'])
     def debug(self, request):
         return Response({
@@ -128,7 +112,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             "user": request.user.username if request.user.is_authenticated else "Anonymous",
             "organization": str(request.user.organization) if hasattr(request.user, 'organization') else "None"
         })
-
     @action(detail=False, methods=['get'], url_path='me', permission_classes=[IsAuthenticated])
     def me(self, request):
         try:
@@ -136,7 +119,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             return Response(self.get_serializer(employee).data)
         except Employee.DoesNotExist:
             return Response({"detail": "No employee profile found"}, status=404)
-
     @action(detail=False, methods=['post'])
     def create_with_invite(self, request):
         serializer = EmployeeCreateInvitationSerializer(
@@ -151,7 +133,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                 "employee": EmployeeSerializer(employee).data
             }, status=201)
         return Response({"success": False, "errors": serializer.errors}, status=400)
-        
 class EmployeeDocumentViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeDocumentSerializer
     def get_queryset(self):
@@ -182,7 +163,6 @@ def accept_invite_view(request, token):
             'phone': invite.phone,
             'role': invite.role,
         })
-    # Handle accept invite POST
     if request.method == 'POST':
         password = request.data.get('password')
 
@@ -191,7 +171,6 @@ def accept_invite_view(request, token):
                 {'password': ['This field is required.']},
                 status=400
             )
-
         with transaction.atomic():
             user = User.objects.create_user(
                 email=invite.email,
@@ -227,20 +206,15 @@ User = get_user_model()
 class ManagerListView(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = SimpleUserSerializer
-
     def get_queryset(self):
-        # Simply return all active users linked to an employee
         return User.objects.filter(employee__is_active=True).distinct()
-
 class LeaveRequestViewSet(viewsets.ModelViewSet):
     serializer_class = LeaveRequestSerializer
     permission_classes = [IsAuthenticated]
-
     def get_serializer_class(self):
         if self.action in ['update', 'partial_update', 'approve', 'reject']:
             return LeaveRequestUpdateSerializer
         return LeaveRequestSerializer
-
     def get_queryset(self):
         user = self.request.user
         organization = getattr(user, 'organization', None)
@@ -266,14 +240,11 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         return queryset.filter(
             employee=user
         ).order_by('-applied_at')
-
-
     def perform_create(self, serializer):
         serializer.save(
             employee=self.request.user,
             organization=self.request.user.organization
         )
-
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         obj = self.get_object()
@@ -283,7 +254,6 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         obj.manager = request.user
         obj.save()
         return Response(self.get_serializer(obj).data)
-
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         obj = self.get_object()
@@ -293,18 +263,13 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         obj.manager = request.user
         obj.save()
         return Response(self.get_serializer(obj).data)
-
-
-
 class PermissionRequestViewSet(viewsets.ModelViewSet):
     queryset = PermissionRequest.objects.all().select_related('employee', 'manager', 'organization')
     permission_classes = [AllowAny]
-
     def get_serializer_class(self):
         if self.action in ['update', 'partial_update', 'approve', 'reject']:
             return PermissionRequestUpdateSerializer
         return PermissionRequestSerializer
-
     def get_queryset(self):
         user = self.request.user
         organization = getattr(user, 'organization', None)
@@ -324,7 +289,6 @@ class PermissionRequestViewSet(viewsets.ModelViewSet):
             'organization'
         )
         user_role = getattr(user, 'role', None)
-
         if user_role in ['admin', 'hr', 'sub_org_admin']:
             return queryset.order_by('-applied_at')
         return queryset.filter(
@@ -344,10 +308,9 @@ class PermissionRequestViewSet(viewsets.ModelViewSet):
         obj.status = 'approved'
         obj.response_note = request.data.get('response_note', '')
         obj.responded_at = timezone.now()
-        obj.manager = request.user  # Optional: track who approved
+        obj.manager = request.user  
         obj.save()
         return Response(PermissionRequestSerializer(obj, context={'request': request}).data)
-
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         obj = self.get_object()
@@ -357,14 +320,10 @@ class PermissionRequestViewSet(viewsets.ModelViewSet):
         obj.manager = request.user
         obj.save()
         return Response(PermissionRequestSerializer(obj, context={'request': request}).data)
-
-
 class ManagerLeaveList(views.APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
         user = request.user
-
         if user.is_superuser or user.is_staff:
             leaves = LeaveRequest.objects.filter(status="pending").select_related("employee", "organization")
         else:
@@ -422,10 +381,7 @@ class EmployeeReimbursementViewSet(viewsets.ModelViewSet):
         ).filter(
             organization=organization
         )
-
-        # Step 2: Role-based access (same pattern as referrals)
         user_role = getattr(user, 'role', None)
-
         if user.is_superuser or user.is_staff or user_role in ['admin', 'hr', 'sub_org_admin']:
             return queryset.order_by('-date')
         try:
@@ -433,8 +389,6 @@ class EmployeeReimbursementViewSet(viewsets.ModelViewSet):
             return queryset.filter(employee=user).order_by('-date')
         except Employee.DoesNotExist:
             return EmployeeReimbursement.objects.none()
-
-        
     def perform_create(self, serializer):
         organization = None
         try:
@@ -449,7 +403,6 @@ class EmployeeReimbursementViewSet(viewsets.ModelViewSet):
         reimbursement.manager = request.user
         reimbursement.save(update_fields=["status", "manager"])
         return Response({"message": "Reimbursement approved"}, status=200)
-
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         reimbursement = self.get_object()
@@ -485,8 +438,8 @@ def get_organization_employees(request):
                 'full_name': emp.full_name,
                 'employee_code': emp.employee_code,
                 'email': emp.email,
-                'designation': designation_title,  # Just the title string
-                'department': department_name,      # Just the name string
+                'designation': designation_title,  
+                'department': department_name,      
                 'has_salary': hasattr(emp, 'salary_info'),
             }
             data.append(emp_data)
@@ -526,19 +479,13 @@ def salary_list_create(request):
                 'success': False,
                 'error': 'Employee ID is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Verify employee belongs to user's organization
         employee = get_object_or_404(
             Employee, 
             id=employee_id, 
             organization=organization,
             is_active=True
         )
-        
-        # Create or update salary
         salary, created = Salary.objects.get_or_create(employee=employee)
-        
-        # Update salary fields
         for field in [
             'basic_salary', 'hra', 'medical_allowance', 'conveyance_allowance',
             'special_allowance', 'other_allowances', 'professional_tax',
@@ -550,18 +497,13 @@ def salary_list_create(request):
         ]:
             if field in data:
                 setattr(salary, field, data[field])
-        
-        # Calculate and save
         salary.save()
-        
         serializer = SalarySerializer(salary)
-        
         return Response({
             'success': True,
             'message': 'Salary saved successfully' if created else 'Salary updated successfully',
             'data': serializer.data
         })
-        
     except Exception as e:
         logger.error(f"Error saving salary: {str(e)}")
         return Response({
@@ -578,8 +520,6 @@ def get_employee_salary(request, employee_id):
     """
     try:
         user = request.user
-        
-        # Check if user has organization
         if not user.organization:
             return Response({
                 'success': False,
@@ -587,8 +527,6 @@ def get_employee_salary(request, employee_id):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         organization = user.organization
-        
-        # Get employee from user's organization
         employee = get_object_or_404(
             Employee, 
             id=employee_id, 
@@ -758,6 +696,17 @@ def punch_out(request):
             status=400
         )
     attendance.punch_out = timezone.localtime()
+
+    if attendance.punch_in:
+        duration = attendance.punch_out - attendance.punch_in
+        hours = duration.total_seconds() / 3600
+        attendance.working_hours = round(hours, 2)
+
+        if hours > 8:
+            attendance.overtime_hours = round(hours - 8, 2)
+
+    attendance.save()
+    attendance.punch_out = timezone.localtime()
     attendance.save(update_fields=["punch_out"])
     employee.is_logged_in = False
     employee.save(update_fields=["is_logged_in"])
@@ -914,6 +863,194 @@ def monthly_attendance_report(request):
     ]
 
     return Response(data)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def payroll_attendance_summary(request):
+    org = request.user.organization
+    month = request.GET.get("month")
+    if not month:
+        return Response({"detail": "Month required"}, status=400)
+
+    year, month_num = map(int, month.split("-"))
+
+    data = Attendance.objects.filter(
+        organization=org,
+        date__year=year,
+        date__month=month_num
+    ).values('employee__id', 'employee__full_name').annotate(
+        present_days=Count('id', filter=Q(status="PRESENT")),
+        total_hours=Sum('working_hours'),
+        total_ot=Sum('overtime_hours')
+    ).order_by('employee__full_name')
+
+    result = [
+        {
+            "employee_id": item['employee__id'],
+            "employee_name": item['employee__full_name'],
+            "present_days": item['present_days'],
+            "total_hours": float(item['total_hours'] or 0),
+            "ot_hours": float(item['total_ot'] or 0),
+        }
+        for item in data
+    ]
+
+    return Response(result)
+
+from decimal import Decimal
+from django.db.models import Sum, Q
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def generate_payroll_invoice(request):
+    user = request.user
+    if not user.organization:
+        return Response({"success": False, "error": "No organization"}, status=400)
+
+    org = user.organization
+    month_str = request.data.get("month")  # "2025-12"
+    if not month_str or "-" not in month_str:
+        return Response({"success": False, "error": "Invalid month format. Use YYYY-MM"}, status=400)
+
+    try:
+        year, month_num = map(int, month_str.split("-"))
+    except:
+        return Response({"success": False, "error": "Invalid month"}, status=400)
+
+    # Standard working days in a month for proration
+    STANDARD_DAYS = Decimal('26')
+
+    employees = Employee.objects.filter(organization=org, is_active=True).select_related('salary_info')
+    generated = []
+
+    for emp in employees:
+        salary_config = getattr(emp, 'salary_info', None)
+        if not salary_config:
+            continue
+
+        # Get PRESENT attendances only
+        attendances = Attendance.objects.filter(
+            employee=emp,
+            organization=org,
+            date__year=year,
+            date__month=month_num,
+            status="PRESENT"
+        )
+
+        present_days = attendances.count()
+        total_ot_hours = attendances.aggregate(Sum('overtime_hours'))['overtime_hours__sum'] or Decimal('0')
+
+        if present_days == 0 and total_ot_hours == 0:
+            continue
+
+        # Proration factor
+        prorate_factor = Decimal(present_days) / STANDARD_DAYS
+
+        # Monthly gross & daily rates
+        monthly_gross = salary_config.gross_salary  # Decimal
+        daily_gross = monthly_gross / STANDARD_DAYS
+        earned_gross = daily_gross * present_days
+
+        # OT Calculation (common: 2x normal hourly rate)
+        hourly_rate = daily_gross / Decimal('8')
+        ot_amount = total_ot_hours * (hourly_rate * Decimal('2'))
+
+        payable_gross = earned_gross + ot_amount
+
+        # Prorated basic for PF calculation
+        prorated_basic = salary_config.basic_salary * prorate_factor
+
+        # ESI
+        esi_employee = Decimal('0')
+        if salary_config.has_esi and monthly_gross <= Decimal('21000'):
+            esi_employee = earned_gross * (salary_config.esi_employee_share_percentage / Decimal('100'))
+
+        # PF
+        pf_employee = Decimal('0')
+        pf_voluntary = Decimal('0')
+        if salary_config.has_pf:
+            pf_base = min(prorated_basic, Decimal('15000'))
+            pf_employee = pf_base * (salary_config.pf_employee_share_percentage / Decimal('100'))
+            if salary_config.pf_voluntary_percentage > 0:
+                extra_base = max(Decimal('0'), prorated_basic - Decimal('15000'))
+                pf_voluntary = extra_base * (salary_config.pf_voluntary_percentage / Decimal('100'))
+
+        # Fixed deductions (prorated)
+        prorated_prof_tax = salary_config.professional_tax * prorate_factor
+        prorated_income_tax = salary_config.income_tax * prorate_factor
+        prorated_other_deductions = salary_config.other_deductions * prorate_factor
+
+        total_deductions = (
+            prorated_prof_tax +
+            prorated_income_tax +
+            prorated_other_deductions +
+            esi_employee +
+            pf_employee +
+            pf_voluntary
+        )
+
+        net_payable = payable_gross - total_deductions
+
+        # Create invoice
+        invoice = Invoice.objects.create(
+            employee=emp,
+            month=month_num,
+            year=year,
+
+            # Components (prorated)
+            basic_salary=round(salary_config.basic_salary * prorate_factor, 2),
+            hra=round(salary_config.hra * prorate_factor, 2),
+            medical_allowance=round(salary_config.medical_allowance * prorate_factor, 2),
+            conveyance_allowance=round(salary_config.conveyance_allowance * prorate_factor, 2),
+            special_allowance=round(salary_config.special_allowance * prorate_factor, 2),
+            other_allowances=round(salary_config.other_allowances * prorate_factor, 2),
+
+            professional_tax=round(prorated_prof_tax, 2),
+            income_tax=round(prorated_income_tax, 2),
+            other_deductions=round(prorated_other_deductions, 2),
+
+            esi_employee_amount=round(esi_employee, 2),
+            pf_employee_amount=round(pf_employee, 2),
+            pf_voluntary_amount=round(pf_voluntary, 2),
+
+            total_allowances=round(payable_gross - (salary_config.basic_salary * prorate_factor), 2),
+            total_deductions=round(total_deductions, 2),
+            gross_salary=round(payable_gross, 2),
+            net_salary=round(net_payable, 2),
+
+            status="GENERATED"
+        )
+
+        generated.append({
+            "employee": emp.full_name,
+            "invoice_id": str(invoice.id),
+            "net_salary": float(invoice.net_salary),
+            "present_days": present_days,
+            "ot_hours": float(total_ot_hours)
+        })
+
+    return Response({
+        "success": True,
+        "message": f"Payroll generated successfully for {len(generated)} employees",
+        "generated": generated
+    })
+# views.py
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+class PayrollAttendanceSummary(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        month = request.query_params.get("month")
+
+        # TEMP dummy response (replace with real logic)
+        return Response({
+            "success": True,
+            "month": month,
+            "data": []
+        })
+
 class JobOpeningViewSet(viewsets.ModelViewSet):
     serializer_class = JobOpeningSerializer
     permission_classes = [AllowAny]
@@ -1157,7 +1294,64 @@ def send_direct_offer(request):
             status=500
         )
 
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from apps.hr.models import Invoice
+from apps.hr.serializers import InvoiceSerializer  # You'll need this serializer
 
+# Create this serializer if you don't have it yet (see below)
+class InvoiceListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if not user.organization:
+            return Response({"success": False, "error": "No organization"}, status=403)
+
+        org = user.organization
+        month = request.query_params.get("month")  # YYYY-MM
+
+        queryset = Invoice.objects.filter(
+            employee__organization=org,
+            status__in=["GENERATED", "PENDING", "PAID"]
+        ).select_related('employee').order_by('-year', '-month', 'employee__full_name')
+
+        if month:
+            try:
+                year, month_num = map(int, month.split("-"))
+                queryset = queryset.filter(year=year, month=month_num)
+            except:
+                return Response({"success": False, "error": "Invalid month format"}, status=400)
+
+        serializer = InvoiceSerializer(queryset, many=True)
+        return Response({
+            "success": True,
+            "invoices": serializer.data,
+            "count": queryset.count()
+        })
+
+
+class InvoiceDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        user = request.user
+        if not user.organization:
+            return Response({"error": "No organization"}, status=403)
+
+        try:
+            invoice = Invoice.objects.select_related('employee').get(
+                id=pk,
+                employee__organization=user.organization
+            )
+            serializer = InvoiceSerializer(invoice)
+            return Response({
+                "success": True,
+                "invoice": serializer.data
+            })
+        except Invoice.DoesNotExist:
+            return Response({"success": False, "error": "Invoice not found"}, status=404)
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader

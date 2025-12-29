@@ -419,16 +419,11 @@ class Salary(models.Model):
         else:
             self.esi_employee_amount = 0
             self.esi_employer_amount = 0
-        
-        # Calculate PF (on basic salary, max 15000)
         if self.has_pf:
             pf_wage_limit = 15000
             pf_applicable_salary = min(self.basic_salary, pf_wage_limit)
-            
             self.pf_employee_amount = (pf_applicable_salary * self.pf_employee_share_percentage) / 100
             self.pf_employer_amount = (pf_applicable_salary * self.pf_employer_share_percentage) / 100
-            
-            # Voluntary PF on remaining amount
             if self.pf_voluntary_percentage > 0:
                 voluntary_amount = ((self.basic_salary - pf_applicable_salary) * self.pf_voluntary_percentage) / 100
                 self.pf_voluntary_amount = max(voluntary_amount, 0)
@@ -436,8 +431,6 @@ class Salary(models.Model):
             self.pf_employee_amount = 0
             self.pf_employer_amount = 0
             self.pf_voluntary_amount = 0
-        
-        # Calculate total deductions
         self.total_deductions = (
             self.professional_tax +
             self.income_tax +
@@ -446,17 +439,12 @@ class Salary(models.Model):
             self.pf_employee_amount +
             self.pf_voluntary_amount
         )
-        
-        # Calculate net salary
         self.net_salary = self.gross_salary - self.total_deductions
-    
     def save(self, *args, **kwargs):
         self.calculate_totals()
         super().save(*args, **kwargs)
-    
     def __str__(self):
         return f"{self.employee.full_name} - Salary"
-    
 class Attendance(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     organization = models.ForeignKey(
@@ -467,7 +455,7 @@ class Attendance(models.Model):
     date = models.DateField()
     punch_in = models.DateTimeField(null=True, blank=True)
     punch_out = models.DateTimeField(null=True, blank=True)
-
+    
     status = models.CharField(
         max_length=20,
         choices=[
@@ -486,6 +474,12 @@ class Attendance(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="approved_attendance"
+    )
+    working_hours = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0
+    )
+    overtime_hours = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0
     )
 
     class Meta:
