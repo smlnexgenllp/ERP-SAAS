@@ -104,7 +104,6 @@ export default function HRDashboardTailwind() {
 
 
   ];
-  // === COMMAND HANDLER ===
   const handleCommand = (e) => {
     if (e.key !== "Enter") return;
     const cmd = command.trim().toLowerCase();

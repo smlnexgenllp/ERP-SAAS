@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../../../../services/api";
 import { UserPlus, FileText, Mail, Phone, Briefcase, Upload, ExternalLink } from "lucide-react";
+
 const STATUS_LABELS = {
   submitted: "Submitted",
   review: "Under Review",
@@ -9,6 +10,7 @@ const STATUS_LABELS = {
   rejected: "Rejected",
   joined: "Joined",
 };
+
 const STATUS_COLORS = {
   submitted: "bg-gray-600 text-gray-200",
   review: "bg-blue-600 text-white",
@@ -17,6 +19,7 @@ const STATUS_COLORS = {
   rejected: "bg-red-600 text-white",
   joined: "bg-cyan-500 text-gray-900 font-bold",
 };
+
 const StatusBadge = ({ status }) => {
   const label = STATUS_LABELS[status] || status;
   const color = STATUS_COLORS[status] || "bg-gray-600 text-gray-200";
@@ -41,22 +44,27 @@ const JobReferral = () => {
     description: "",
     resume: null,
   });
+
   const fetchReferrals = async () => {
     try {
       const res = await api.get("/hr/referrals/");
       setReferrals(res.data || []);
     } catch (err) {
       setError("Failed to load referrals");
+      console.error(err);
     }
   };
+
   const fetchJobOpenings = async () => {
     try {
       const res = await api.get("/hr/job-openings/");
       setJobOpenings(res.data || []);
     } catch (err) {
       setError("Failed to load job openings");
+      console.error(err);
     }
   };
+
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true);
@@ -65,10 +73,11 @@ const JobReferral = () => {
     };
     loadAll();
   }, []);
+
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (name === "resume") {
-      setFormData({ ...formData, resume: files[0] });
+      setFormData({ ...formData, resume: files[0] || null });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -76,14 +85,22 @@ const JobReferral = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.job_opening) {
+      alert("Please select a job opening");
+      return;
+    }
+
     try {
       const data = new FormData();
       data.append("candidate_name", formData.candidate_name);
       data.append("candidate_email", formData.candidate_email);
-      data.append("candidate_phone", formData.candidate_phone);
+      data.append("candidate_phone", formData.candidate_phone || "");
       data.append("job_opening", formData.job_opening);
-      data.append("description", formData.description);
-      if (formData.resume) data.append("resume", formData.resume);
+      data.append("description", formData.description || "");
+      if (formData.resume) {
+        data.append("resume", formData.resume);
+      }
 
       await api.post("/hr/referrals/", data, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -98,12 +115,14 @@ const JobReferral = () => {
         description: "",
         resume: null,
       });
-      document.querySelector('input[type="file"]').value = ""; // Clear file input
+      // Clear file input
+      const fileInput = document.querySelector('input[type="file"]');
+      if (fileInput) fileInput.value = "";
 
-      fetchReferrals();
+      await fetchReferrals(); // Refresh list
     } catch (err) {
-      console.error(err.response?.data);
-      alert("Failed to submit referral");
+      console.error("Submission error:", err.response?.data || err);
+      alert("Failed to submit referral. Check console for details.");
     }
   };
 
@@ -186,7 +205,7 @@ const JobReferral = () => {
                   <option value="" className="bg-gray-900">Select Job Opening</option>
                   {jobOpenings.map((job) => (
                     <option key={job.id} value={job.id} className="bg-gray-900">
-                      {job.title}
+                      {job.title} {job.organization?.name && `(${job.organization.name})`}
                     </option>
                   ))}
                 </select>
@@ -273,9 +292,16 @@ const JobReferral = () => {
                         <td className="py-4 px-3 text-gray-400">{ref.candidate_email}</td>
                         <td className="py-4 px-3 text-gray-400">{ref.candidate_phone || "—"}</td>
                         <td className="py-4 px-3">
-                          <span className="text-cyan-400">
-                            {ref.job_opening_title || ref.job_opening}
-                          </span>
+                          <div>
+                            <span className="text-cyan-400 font-medium">
+                              {ref.job_opening.title}
+                            </span>
+                            {ref.job_opening.organization?.name && (
+                              <p className="text-xs text-gray-500">
+                                {ref.job_opening.organization.name}
+                              </p>
+                            )}
+                          </div>
                         </td>
                         <td className="py-4 px-3 text-center">
                           <StatusBadge status={ref.status} />
