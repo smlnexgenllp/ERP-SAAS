@@ -13,8 +13,9 @@ from django.template.loader import render_to_string
 from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
 from datetime import date  # <-- Add this line!
-
-
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+User = get_user_model()
 
 phone_validator = RegexValidator(r"^\+?1?\d{9,15}$", "Enter a valid phone number.")
 class Department(models.Model):
@@ -51,7 +52,7 @@ ROLE_CHOICES = [
 
 class Employee(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="employees")
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,related_name='employee')
     full_name = models.CharField(max_length=200)
     employee_code = models.CharField(max_length=30, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
@@ -612,13 +613,32 @@ class DailyChecklist(models.Model):
     def __str__(self):
         return f"Checklist {self.date} - {self.for_employee.full_name}"
 
+# apps/hr/models.py
+
 class Project(models.Model):
     name = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, null=True)
     organization = models.ForeignKey('organizations.Organization', on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
-    created_by = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, related_name='created_projects')
+    
+    # Who created the project
+    created_by = models.ForeignKey(
+        'apps_hr.Employee',  # ← Correct: app_label is 'apps_hr'
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_projects'
+    )
+    
+    # Team members working on this project
+    members = models.ManyToManyField(
+        'apps_hr.Employee',  # ← Correct reference
+        related_name='project_assignments',
+        blank=True,
+        help_text="Employees assigned to this project — they will see the project chat"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -626,3 +646,152 @@ class Project(models.Model):
 
     class Meta:
         ordering = ['-start_date']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'name'],
+                name='unique_project_name_per_organization'
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        # Auto-add creator as member on creation
+        if is_new and self.created_by:
+            if not self.members.filter(pk=self.created_by.pk).exists():
+                self.members.add(self.created_by)
+from django.db import models
+from django.db.models import Q
+from django.conf import settings
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+class ChatGroup(models.Model):
+
+    GROUP_TYPE_ORG = 'organization'
+    GROUP_TYPE_PROJECT = 'project'
+    GROUP_TYPE_CUSTOM = 'custom'
+
+    GROUP_TYPES = [
+        (GROUP_TYPE_ORG, 'Organization'),
+        (GROUP_TYPE_PROJECT, 'Project'),
+        (GROUP_TYPE_CUSTOM, 'Custom'),
+    ]
+
+    name = models.CharField(max_length=255)
+    group_type = models.CharField(max_length=20, choices=GROUP_TYPES)
+
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE
+    )
+
+    project = models.ForeignKey(
+        'apps_hr.Project',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE
+    )
+
+    manual_members = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name='custom_chat_groups'
+    )
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_chat_groups'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('organization', 'project')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        if self.group_type == self.GROUP_TYPE_PROJECT and self.project:
+            return f"Project: {self.project.name}"
+        elif self.group_type == self.GROUP_TYPE_ORG:
+            return f"{self.organization.name} - General Chat"
+        return self.name
+
+    # ================= MEMBERS =================
+
+    def get_members(self):
+        if self.group_type == 'custom':
+            return self.manual_members.all()
+        elif self.group_type == 'project' and self.project:
+            return User.objects.filter(employee__in=self.project.members.all())
+        elif self.group_type == 'organization' and self.organization:
+            return User.objects.filter(employee__organization=self.organization)
+        return User.objects.none()
+
+    def get_member_ids(self):
+        return list(self.get_members().values_list('id', flat=True))
+
+    def user_is_member(self, user):
+        """Check if the given user is a member of this chat group"""
+        if self.group_type == 'custom':
+            return self.manual_members.filter(id=user.id).exists()
+        elif self.group_type == 'project' and self.project:
+            # Employee has OneToOne to User
+            return self.project.members.filter(user=user).exists()
+        elif self.group_type == 'organization' and self.organization:
+            return self.organization.employees.filter(user=user).exists()
+        return False
+
+
+class Message(models.Model):
+    group = models.ForeignKey(ChatGroup, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_chat_messages')
+    content = models.TextField(blank=True)
+    file = models.FileField(upload_to='hr/chat/files/%Y/%m/%d/', blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    is_private = models.BooleanField(default=False)
+    private_recipients = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='private_chat_messages_received'
+    )
+
+    class Meta:
+        ordering = ['timestamp']
+        indexes = [
+            models.Index(fields=['group', 'timestamp']),
+            models.Index(fields=['timestamp']),
+        ]
+        # No app_label needed
+
+    def __str__(self):
+        return f"{self.sender} → {self.group} ({'Private' if self.is_private else 'Group'})"
+
+    def can_view(self, user):
+        """Check if the given user is allowed to see this message"""
+        if not self.is_private:
+            return True
+        return user.id == self.sender_id or self.private_recipients.filter(id=user.id).exists()
+
+
+class UnreadMessage(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    message = models.ForeignKey(Message, on_delete=models.CASCADE)
+    group = models.ForeignKey(ChatGroup, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('user', 'message', 'group')
+        indexes = [
+            models.Index(fields=['user', 'group']),
+            models.Index(fields=['group', 'user']),
+        ]
+        # No app_label needed
+
+    def __str__(self):
+        return f"Unread: {self.message} for {self.user}"

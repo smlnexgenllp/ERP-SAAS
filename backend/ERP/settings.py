@@ -34,6 +34,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # Third party apps
+    'channels', 
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
@@ -169,6 +171,10 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
 }
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+]
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
@@ -176,7 +182,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ] 
 CORS_ALLOW_CREDENTIALS = True
-
+CORS_ALLOW_ALL_HEADERS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -200,10 +206,20 @@ DEFAULT_FROM_EMAIL = 'mohanapriya14102001@gmail.com'
 COMPANY_NAME = "SMLNEXGENLLP Pvt Ltd"
 COMPANY_EMAIL = "hr@yourcompany.com"
 DEFAULT_FROM_EMAIL = "hr@yourcompany.com"
-SESSION_COOKIE_HTTPONLY = False
-SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False  # True in prod
-
-CSRF_COOKIE_HTTPONLY = False
+SESSION_COOKIE_SAMESITE = 'Lax'  # or 'None' if frontend/backend different ports
+SESSION_COOKIE_SECURE = False   # True only in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True  # Keep True
+SESSION_COOKIE_PATH = '/'
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SECURE = False
+
+# ASGI
+ASGI_APPLICATION = "ERP.asgi.application"
+
+# Channel Layers (required for group_send, group_add)
+# Channel Layers - Use InMemory for development (no Redis needed)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}

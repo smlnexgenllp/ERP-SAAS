@@ -33,6 +33,7 @@ import HRAttendance from "./components/modules/hr/HRAttendance";
 import JobReferral from "./pages/modules/hr/pages/JobReferral";
 import JobOpeningUpdate from "./pages/modules/hr/pages/JobOpeningUpdate";
 import TaskDashboard from "./pages/dashboard/TaskDashboard";
+import ChatPage from "./pages/modules/hr/ChatPage";
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -133,6 +134,7 @@ function App() {
           
 
           <Route path="/hr/tasks" element={<HRProtectedRoute><TaskDashboard /></HRProtectedRoute>} />
+          <Route path="/hr/chat" element={<HRProtectedRoute><ChatPage /></HRProtectedRoute>} />
 
 
           {/* -------- REDIRECTS -------- */}
