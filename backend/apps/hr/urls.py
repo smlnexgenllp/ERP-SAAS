@@ -29,6 +29,7 @@ from .views.org_tree_views import (
     public_org_tree_view,     
 )
 from .views.task_views import TaskViewSet, DailyChecklistViewSet,performance_report, project_updates,ProjectViewSet
+from .views.chat_views import (ChatGroupViewSet, group_messages, upload_chat_file, create_custom_chat_group,get_project_chat_members,get_pinned_messages)
 # Router for standard CRUD APIs
 router = DefaultRouter()
 router.register('employees', EmployeeViewSet, basename='employees')
@@ -44,6 +45,7 @@ router.register("referrals", ReferralViewSet)
 router.register(r'tasks', TaskViewSet)
 router.register(r'daily-checklists', DailyChecklistViewSet)
 router.register(r'projects', ProjectViewSet)
+router.register(r'chat/groups', ChatGroupViewSet, basename='chat-groups')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -71,6 +73,15 @@ urlpatterns = [
 
     path("performance-report/", performance_report, name='performance-report'),
     path("projects/<int:project_id>/updates/", project_updates, name='project-updates'),
+
+     # Chat endpoints (separate from router for custom actions)
+    path('chat/groups/<int:group_id>/messages/', group_messages, name='chat-group-messages'),
+    path('chat/upload-file/', upload_chat_file, name='chat-file-upload'),
+    path('chat/groups/create/', create_custom_chat_group, name='create-custom-chat-group'),
+    path('chat/groups/create-project-chat/', ChatGroupViewSet.as_view({'post': 'create_project_chat'}), name='create-project-chat'),
+     # New endpoint to get project chat members
+    path('projects/<int:project_id>/chat-members/', get_project_chat_members, name='project-chat-members'),
+    path('chat/groups/<int:group_id>/pinned/', get_pinned_messages, name='chat-pinned-messages'),
 
 ]
 if settings.DEBUG:

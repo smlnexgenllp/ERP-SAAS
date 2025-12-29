@@ -1,13 +1,15 @@
 # apps/hr/serializers.py
 
 from rest_framework import serializers
-from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice,Task, TaskUpdate, DailyChecklist,Project
+from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice,Task, TaskUpdate, DailyChecklist,Project,ChatGroup, Message
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from apps.organizations.models import Organization
 from .models import EmployeeInvite
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
+from .utils import get_project_member_ids
+User = get_user_model()
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -118,11 +120,6 @@ class OrgTreeSerializer(serializers.ModelSerializer):
         return OrgTreeSerializer(children, many=True, context=self.context).data
     
 
-User = get_user_model()
-
-
-
-
 class EmployeeCreateInvitationSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(write_only=True, required=True)
     full_name = serializers.CharField(required=True)
@@ -202,7 +199,6 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import LeaveRequest, PermissionRequest
 
-User = get_user_model()
 
 class SimpleUserSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
@@ -417,7 +413,119 @@ class DailyChecklistSerializer(serializers.ModelSerializer):
             'rating', 'rated_by', 'rated_by_name', 'comments'
         ]      
 
+# serializers.py
 class ProjectSerializer(serializers.ModelSerializer):
+    members = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Employee.objects.all(),
+        required=False
+    )
+
     class Meta:
         model = Project
-        fields = ['id', 'name', 'description', 'start_date', 'end_date']
+        fields = ['id', 'name', 'description', 'start_date', 'end_date', 'members', 'created_by', 'created_at']
+        read_only_fields = ['created_by', 'created_at']
+
+    def create(self, validated_data):
+        members = validated_data.pop('members', [])
+        project = super().create(validated_data)
+        if members:
+            project.members.set(members)
+        return project
+
+class UserChatSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source='employee.full_name', read_only=True)
+    photo = serializers.ImageField(source='employee.photo', read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'full_name', 'photo']
+
+
+class ChatGroupSerializer(serializers.ModelSerializer):
+    unread_count = serializers.IntegerField(read_only=True, default=0)
+    project_name = serializers.CharField(source='project.name', read_only=True)
+    member_count = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+    members = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatGroup
+        fields = [
+            'id', 'name', 'group_type', 'organization', 'project',
+            'project_name', 'unread_count',
+            'member_count', 'last_message',
+            'members', 'created_at'
+        ]
+
+    def get_member_count(self, obj):
+        return obj.get_members().count()
+
+    def get_members(self, obj):
+        members_qs = obj.get_members()
+
+        return [
+            {
+                'id': user.id,
+                'email': user.email or '',
+                'full_name': (
+                    user.employee.full_name
+                    if hasattr(user, 'employee') and user.employee
+                    else user.email
+                ),
+                'employee_id': user.employee.id if hasattr(user, 'employee') and user.employee else None,
+                'department': (
+                    user.employee.department.name
+                    if hasattr(user, 'employee') and user.employee and user.employee.department
+                    else None
+                ),
+                'photo': (
+                    user.employee.photo.url
+                    if hasattr(user, 'employee') and user.employee and user.employee.photo
+                    else None
+                ),
+            }
+            for user in members_qs
+        ]
+
+    def get_last_message(self, obj):
+        last_msg = obj.messages.last()
+        if not last_msg:
+            return None
+
+        return {
+            'content': last_msg.content[:50] + '...' if len(last_msg.content) > 50 else last_msg.content,
+            'sender': last_msg.sender.email,
+            'timestamp': last_msg.timestamp
+        }
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Message
+        fields = [
+            'id', 'group', 'sender', 'content', 'file', 'file_url',
+            'timestamp', 'is_private'
+        ]
+        read_only_fields = ['sender', 'timestamp']
+    
+    def get_sender(self, obj):
+        user = obj.sender
+        employee = getattr(user, 'employee', None)  # Safe access
+        
+        return {
+            'id': user.id,
+            'email': user.email,
+            'full_name': employee.full_name if employee else user.email,
+            'photo': employee.photo.url if employee and employee.photo else None,
+        }
+    
+    def get_file_url(self, obj):
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+        return None
