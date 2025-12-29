@@ -40,9 +40,11 @@ const JobOpeningUpdate = () => {
   const [description, setDescription] = useState("");
   const [showReferrerDetails, setShowReferrerDetails] = useState(null);
 
+  // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Direct Offer Modal
   const [showDirectOfferModal, setShowDirectOfferModal] = useState(false);
   const [directCandidate, setDirectCandidate] = useState({
     name: "",
@@ -51,55 +53,107 @@ const JobOpeningUpdate = () => {
     notes: "",
   });
 
+  // Custom Send Offer Modal
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [currentReferral, setCurrentReferral] = useState(null);
+  const [offerData, setOfferData] = useState({
+    company_name: "",
+    logo_file: null,
+    logo_preview: "",
+    from_email: "",
+    subject: "",
+    body: "",
+  });
+
   useEffect(() => {
     loadJobs();
   }, []);
 
   const loadJobs = async () => {
-    const res = await api.get("/hr/job-openings/");
-    setJobs(res.data);
+    try {
+      const res = await api.get("/hr/job-openings/");
+      setJobs(res.data || []);
+    } catch (err) {
+      console.error("Failed to load jobs:", err);
+    }
   };
 
   const loadReferrals = async (jobId) => {
-    const res = await api.get(`/hr/referrals/?job_opening=${jobId}`);
-    setReferrals(res.data);
+    if (!jobId) return;
+    try {
+      const res = await api.get(`/hr/referrals/?job_opening=${jobId}`);
+      setReferrals(res.data || []);
+      console.log(res.data)
+    } catch (err) {
+      console.error("Failed to load referrals:", err);
+      setReferrals([]);
+    }
   };
 
   const saveJob = async () => {
-    if (selectedJob) {
-      await api.put(`/hr/job-openings/${selectedJob.id}/`, { title, description });
-    } else {
-      await api.post("/hr/job-openings/", { title, description });
+    if (!title.trim() || !description.trim()) return;
+
+    try {
+      if (selectedJob) {
+        await api.put(`/hr/job-openings/${selectedJob.id}/`, { title, description });
+      } else {
+        await api.post("/hr/job-openings/", { title, description });
+      }
+      resetForm();
+      await loadJobs();
+    } catch (err) {
+      alert("Failed to save job opening");
     }
-    resetForm();
-    loadJobs();
   };
 
   const deleteJob = async (id) => {
-    if (window.confirm("Delete this job opening?")) {
+    if (!window.confirm("Delete this job opening? All referrals will be lost.")) return;
+    try {
       await api.delete(`/hr/job-openings/${id}/`);
-      loadJobs();
+      await loadJobs();
       if (selectedJob?.id === id) resetForm();
+    } catch (err) {
+      alert("Failed to delete job");
     }
   };
 
   const updateStatus = async (id, status) => {
-    await api.patch(`/hr/referrals/${id}/update-status/`, { status });
-    loadReferrals(selectedJob.id);
+    try {
+      await api.patch(`/hr/referrals/${id}/update-status/`, { status });
+      await loadReferrals(selectedJob.id);
+    } catch (err) {
+      alert("Failed to update status");
+    }
   };
 
-  const sendOffer = async (id) => {
-    await api.post(`/hr/referrals/${id}/send-offer/`);
-    alert("Offer letter sent successfully!");
-    loadReferrals(selectedJob.id);
-  };
+  const openOfferModal = (referral) => {
+  const job = referral.job_opening;
+  const branding = job.organization?.branding || {};
+
+  setCurrentReferral(referral);
+  setOfferData({
+    company_name: branding.name || job.organization?.name || "Your Company",
+    logo_preview: branding.logo || "",
+    from_email: branding.hr_email || "hr@company.com",
+    subject: `Job Offer – ${job.title} at ${branding.name || job.organization?.name || "Your Company"}`,
+    body: `Dear ${referral.candidate_name},
+
+Congratulations! We are delighted to extend a formal job offer for the position of **${job.title}** at **${branding.name || "our company"}**.
+
+Please find the official offer letter attached.
+
+Best regards,
+HR Team
+${branding.name || "Our Company"}`,
+  });
+  setShowOfferModal(true);
+};
 
   const sendDirectOffer = async () => {
-    if (!directCandidate.name || !directCandidate.email) {
+    if (!directCandidate.name.trim() || !directCandidate.email.trim()) {
       alert("Name and Email are required!");
       return;
     }
-
     try {
       await api.post("/hr/send-direct-offer/", {
         job_opening_id: selectedJob.id,
@@ -108,13 +162,11 @@ const JobOpeningUpdate = () => {
         candidate_phone: directCandidate.phone || null,
         notes: directCandidate.notes || "",
       });
-
       alert(`Offer sent successfully to ${directCandidate.name}!`);
       setShowDirectOfferModal(false);
       setDirectCandidate({ name: "", email: "", phone: "", notes: "" });
     } catch (err) {
-      alert("Failed to send offer.");
-      console.error(err);
+      alert("Failed to send direct offer.");
     }
   };
 
@@ -144,9 +196,7 @@ const JobOpeningUpdate = () => {
         r.candidate_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.referred_by_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.referred_by_email?.toLowerCase().includes(searchQuery.toLowerCase());
-
       const matchesStatus = statusFilter === "all" || r.status === statusFilter;
-
       return matchesSearch && matchesStatus;
     });
   }, [referrals, searchQuery, statusFilter]);
@@ -163,9 +213,9 @@ const JobOpeningUpdate = () => {
         </div>
       </header>
 
-      {/* Top Section: Form (Left) + Job List (Right) */}
+      {/* Top: Form Left + Job List Right */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Left: Create/Edit Form */}
+        {/* Left: Job Form */}
         <div className="bg-gray-900/50 backdrop-blur-sm border border-cyan-800/40 rounded-xl shadow-xl p-6">
           <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -189,8 +239,8 @@ const JobOpeningUpdate = () => {
             <div className="flex gap-3">
               <button
                 onClick={saveJob}
-                disabled={!title || !description}
-                className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-cyan-600/40 transition disabled:opacity-50"
+                disabled={!title.trim() || !description.trim()}
+                className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-cyan-600/40 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {selectedJob ? "Update" : "Create"}
               </button>
@@ -206,14 +256,14 @@ const JobOpeningUpdate = () => {
           </div>
         </div>
 
-        {/* Right: Active Job Openings */}
+        {/* Right: Job List */}
         <div className="bg-gray-900/50 backdrop-blur-sm border border-cyan-800/40 rounded-xl shadow-xl p-6">
           <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
             <UserPlus className="w-5 h-5" />
             Active Openings ({jobs.length})
           </h3>
           {jobs.length === 0 ? (
-            <p className="text-center text-gray-500 py-10">No job openings yet.</p>
+            <p className="text-center text-gray-500 py-10">No job openings yet. Create one to start receiving referrals.</p>
           ) : (
             <div className="space-y-3 max-h-80 overflow-y-auto">
               {jobs.map((job) => (
@@ -227,8 +277,13 @@ const JobOpeningUpdate = () => {
                   }`}
                 >
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-medium text-cyan-200">{job.title}</h4>
+                      {job.organization?.name && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {job.organization.name}
+                        </p>
+                      )}
                       <p className="text-sm text-gray-400 mt-1 line-clamp-2">{job.description}</p>
                     </div>
                     <button
@@ -236,7 +291,7 @@ const JobOpeningUpdate = () => {
                         e.stopPropagation();
                         deleteJob(job.id);
                       }}
-                      className="text-red-400 hover:text-red-300 transition"
+                      className="text-red-400 hover:text-red-300 transition ml-4"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -252,10 +307,14 @@ const JobOpeningUpdate = () => {
       <div className="space-y-5">
         {selectedJob ? (
           <>
-            {/* Header + Direct Offer Button */}
+            {/* Header + Direct Offer */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-900/50 backdrop-blur-sm border border-cyan-800/40 rounded-xl p-5 shadow-xl">
               <h2 className="text-xl font-semibold text-cyan-300">
-                Referrals: <span className="text-cyan-100">{selectedJob.title}</span>
+                Referrals for:{' '}
+                <span className="text-cyan-100">
+                  {selectedJob.title}
+                  {selectedJob.organization?.name && ` - ${selectedJob.organization.name}`}
+                </span>
               </h2>
               <button
                 onClick={() => setShowDirectOfferModal(true)}
@@ -324,6 +383,7 @@ const JobOpeningUpdate = () => {
                       <tr>
                         <th className="text-left py-3 px-5 font-medium text-cyan-200">Candidate</th>
                         <th className="text-left py-3 px-5 font-medium text-cyan-200">Referred By</th>
+                        <th className="text-left py-3 px-5 font-medium text-cyan-200">Job</th>
                         <th className="text-center py-3 px-5 font-medium text-cyan-200">Resume</th>
                         <th className="text-center py-3 px-5 font-medium text-cyan-200">Status</th>
                         <th className="text-center py-3 px-5 font-medium text-cyan-200">Actions</th>
@@ -362,6 +422,18 @@ const JobOpeningUpdate = () => {
                               </div>
                             )}
                           </td>
+                          <td className="py-4 px-5">
+                            <div>
+                              <p className="font-medium text-cyan-300">
+                                {r.job_opening.title}
+                              </p>
+                              {r.job_opening.organization?.name && (
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {r.job_opening.organization.name}
+                                </p>
+                              )}
+                            </div>
+                          </td>
                           <td className="py-4 px-5 text-center">
                             {r.resume ? (
                               <a
@@ -398,7 +470,7 @@ const JobOpeningUpdate = () => {
                           <td className="py-4 px-5 text-center">
                             {r.status === "selected" ? (
                               <button
-                                onClick={() => sendOffer(r.id)}
+                                onClick={() => openOfferModal(r)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-700/60 hover:bg-green-600 text-white text-xs font-medium rounded transition"
                               >
                                 <Send className="w-3.5 h-3.5" />
@@ -429,7 +501,149 @@ const JobOpeningUpdate = () => {
         )}
       </div>
 
-      {/* Direct Offer Modal - Clean & Professional */}
+      {/* Custom Send Offer Modal */}
+      {showOfferModal && currentReferral && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-gray-900/95 border border-cyan-700 rounded-xl shadow-2xl p-8 w-full max-w-4xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-cyan-300 flex items-center gap-3">
+                <Send className="w-6 h-6" />
+                Customize & Send Job Offer
+              </h2>
+              <button onClick={() => setShowOfferModal(false)}>
+                <X className="w-6 h-6 text-gray-400 hover:text-cyan-300" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left: Branding */}
+              <div className="space-y-5">
+                <h3 className="text-lg font-medium text-cyan-200">Branding (for this offer)</h3>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Company Logo</label>
+                  <div className="flex items-center gap-4">
+                    {offerData.logo_preview ? (
+                      <img src={offerData.logo_preview} alt="Logo" className="h-20 rounded border border-cyan-800 object-contain bg-white" />
+                    ) : (
+                      <div className="h-20 w-32 bg-gray-800 rounded border-2 border-dashed border-cyan-800 flex items-center justify-center">
+                        <FileText className="w-8 h-8 text-gray-600" />
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          setOfferData({
+                            ...offerData,
+                            logo_file: file,
+                            logo_preview: URL.createObjectURL(file),
+                          });
+                        }
+                      }}
+                      className="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-cyan-800 file:text-cyan-200 hover:file:bg-cyan-700"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Upload a new logo just for this offer (optional)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Company Name</label>
+                  <input
+                    type="text"
+                    value={offerData.company_name}
+                    onChange={(e) => setOfferData({ ...offerData, company_name: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">From Email</label>
+                  <input
+                    type="email"
+                    value={offerData.from_email}
+                    onChange={(e) => setOfferData({ ...offerData, from_email: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
+                  />
+                </div>
+              </div>
+
+              {/* Right: Email Content */}
+              <div className="space-y-5">
+                <h3 className="text-lg font-medium text-cyan-200">Email Content</h3>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">To</label>
+                  <input
+                    type="text"
+                    value={currentReferral.candidate_email}
+                    disabled
+                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
+                  <input
+                    type="text"
+                    value={offerData.subject}
+                    onChange={(e) => setOfferData({ ...offerData, subject: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Message Body</label>
+                  <textarea
+                    rows="12"
+                    value={offerData.body}
+                    onChange={(e) => setOfferData({ ...offerData, body: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 resize-none font-mono text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-4 justify-end">
+              <button
+                onClick={async () => {
+                  const formData = new FormData();
+                  formData.append("subject", offerData.subject);
+                  formData.append("body", offerData.body);
+                  formData.append("company_name", offerData.company_name);
+                  formData.append("from_email", offerData.from_email);
+                  if (offerData.logo_file) {
+                    formData.append("custom_logo", offerData.logo_file);
+                  }
+
+                  try {
+                    await api.post(`/hr/referrals/${currentReferral.id}/send-offer/`, formData);
+                    alert("Offer sent successfully with custom branding!");
+                    setShowOfferModal(false);
+                    await loadReferrals(selectedJob.id);
+                  } catch (err) {
+                    alert("Failed to send offer.");
+                    console.error(err);
+                  }
+                }}
+                className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-lg shadow-md hover:shadow-green-600/50 transition"
+              >
+                Send Offer with PDF
+              </button>
+              <button
+                onClick={() => setShowOfferModal(false)}
+                className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800/50 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Offer Modal */}
       {showDirectOfferModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900/95 border border-cyan-700 rounded-xl shadow-2xl p-8 w-full max-w-lg">
@@ -438,48 +652,46 @@ const JobOpeningUpdate = () => {
                 <Send className="w-6 h-6" />
                 Send Direct Offer
               </h2>
-              <button
-                onClick={() => setShowDirectOfferModal(false)}
-                className="text-gray-400 hover:text-cyan-300"
-              >
-                <X className="w-6 h-6" />
+              <button onClick={() => setShowDirectOfferModal(false)}>
+                <X className="w-6 h-6 text-gray-400 hover:text-cyan-300" />
               </button>
             </div>
-
             <p className="text-sm text-gray-400 mb-5">
-              Position: <span className="text-cyan-300 font-medium">{selectedJob.title}</span>
+              Position:{' '}
+              <span className="text-cyan-300 font-medium">
+                {selectedJob.title}
+                {selectedJob.organization?.name && ` - ${selectedJob.organization.name}`}
+              </span>
             </p>
-
             <div className="space-y-4">
               <input
                 type="text"
                 placeholder="Candidate Name *"
                 value={directCandidate.name}
                 onChange={(e) => setDirectCandidate({ ...directCandidate, name: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 transition"
+                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
               />
               <input
                 type="email"
                 placeholder="Email *"
                 value={directCandidate.email}
                 onChange={(e) => setDirectCandidate({ ...directCandidate, email: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 transition"
+                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
               />
               <input
                 type="text"
                 placeholder="Phone (Optional)"
                 value={directCandidate.phone}
                 onChange={(e) => setDirectCandidate({ ...directCandidate, phone: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 transition"
+                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
               />
               <textarea
                 rows="4"
                 placeholder="Notes (Optional)"
                 value={directCandidate.notes}
                 onChange={(e) => setDirectCandidate({ ...directCandidate, notes: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 transition resize-none"
+                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 resize-none"
               />
-
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={sendDirectOffer}

@@ -350,8 +350,29 @@ class AttendanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attendance
         fields = ["id", "employee_name", "date", "punch_in", "punch_out", "status", "is_late"]
+
 from rest_framework import serializers
-from .models import JobOpening, Referral
+from apps.organizations.models import Organization, OrganizationBranding
+from apps.hr.models import JobOpening, Referral
+
+class OrganizationNestedSerializer(serializers.ModelSerializer):
+    # If you want branding fields, add them manually
+    logo = serializers.ImageField(source='branding.logo', read_only=True, allow_null=True)
+    hr_email = serializers.EmailField(source='branding.hr_email', read_only=True, allow_null=True)
+    hr_contact_name = serializers.CharField(source='branding.hr_contact_name', read_only=True, allow_null=True)
+    website = serializers.URLField(source='branding.website', read_only=True, allow_null=True)
+
+    class Meta:
+        model = Organization
+        fields = ['id', 'name', 'logo', 'hr_email', 'hr_contact_name', 'website']
+        read_only_fields = fields
+
+class JobOpeningNestedSerializer(serializers.ModelSerializer):
+    organization = OrganizationNestedSerializer(read_only=True)
+
+    class Meta:
+        model = JobOpening
+        fields = ['id', 'title', 'description', 'organization']
 
 
 class JobOpeningSerializer(serializers.ModelSerializer):
@@ -360,9 +381,19 @@ class JobOpeningSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["organization", "created_at"]
 
+
 class ReferralSerializer(serializers.ModelSerializer):
+    job_opening = JobOpeningNestedSerializer(read_only=True)
+    
+    # Existing fields
     job_title = serializers.CharField(source="job_opening.title", read_only=True)
-    referred_by_name = serializers.CharField(source="referred_by.username", read_only=True)
+    referred_by_name = serializers.CharField(source="referred_by.get_full_name", read_only=True)
+    
+    # Additional useful referrer info
+    referred_by_email = serializers.EmailField(source="referred_by.email", read_only=True)
+    
+    # If Employee model has phone, uncomment below
+    # referred_by_phone = serializers.CharField(source="referred_by.employee.phone", read_only=True)
 
     class Meta:
         model = Referral
@@ -391,7 +422,8 @@ class TaskSerializer(serializers.ModelSerializer):
             'is_completed', 'created_at', 'updated_at',
             'project', 'project_name', 'organization'
         ]
-        read_only_fields = ['created_at', 'updated_at', 'organization']
+        read_only_fields = ["referral_id", "status", "referred_by", "created_at"]
+
 
 
 class TaskProgressUpdateSerializer(serializers.Serializer):
