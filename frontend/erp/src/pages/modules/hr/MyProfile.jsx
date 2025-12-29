@@ -29,6 +29,7 @@ import {
   PlayCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
 export default function MyProfile() {
   const [profile, setProfile] = useState(null);
   const [uploadedDocs, setUploadedDocs] = useState([]);
@@ -40,14 +41,17 @@ export default function MyProfile() {
     offer_letter: null,
     others: null,
   });
-  const navigate=useNavigate();
+  const navigate = useNavigate();
   const [managers, setManagers] = useState([]);
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [permissionHistory, setPermissionHistory] = useState([]);
   const [leaveBalance] = useState({ sick: 7, casual: 2, earned: 4 });
   const [loading, setLoading] = useState(true);
+
+  // Separate tab states – no more conflicts
   const [activeTab, setActiveTab] = useState("documents");
-  const [reimbursementTab, setReimbursementTab] = useState("pending");
+  const [statusSubTab, setStatusSubTab] = useState("leaves"); // leaves | permissions
+  const [reimbursementTab, setReimbursementTab] = useState("pending"); // pending | completed
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -64,9 +68,8 @@ export default function MyProfile() {
   const [alertMessage, setAlertMessage] = useState("");
   const [showAlert, setShowAlert] = useState(false);
   const [attendance, setAttendance] = useState(null);
-const [punchLoading, setPunchLoading] = useState(false);
-const [punchMsg, setPunchMsg] = useState("");
-
+  const [punchLoading, setPunchLoading] = useState(false);
+  const [punchMsg, setPunchMsg] = useState("");
 
   const [leave, setLeave] = useState({
     type: "",
@@ -131,44 +134,40 @@ const [punchMsg, setPunchMsg] = useState("");
       console.log(err);
     }
   };
-  
-const loadTodayAttendance = async () => {
-  try {
-    const res = await api.get("/hr/attendance/today/");
-    setAttendance(res.data); 
-  } catch (err) {
-    console.error("Attendance load failed", err);
-  }
-};
-const punchButtonText = () => {
-  if (!attendance || !attendance.punch_in) return "Punch In";
-  if (!attendance.punch_out) return "Punch Out";
-  return "Attendance Completed";
-};
 
-const handlePunch = async () => {
-  setPunchLoading(true);
-  setPunchMsg("");
-
-  try {
-    let res;
-
-    if (!attendance || !attendance.punch_in) {
-      res = await api.post("/hr/attendance/punch-in/");
-    } else if (!attendance.punch_out) {
-      res = await api.post("/hr/attendance/punch-out/");
+  const loadTodayAttendance = async () => {
+    try {
+      const res = await api.get("/hr/attendance/today/");
+      setAttendance(res.data);
+    } catch (err) {
+      console.error("Attendance load failed", err);
     }
+  };
 
-    setPunchMsg(res.data.message);
-    await loadTodayAttendance();
+  const punchButtonText = () => {
+    if (!attendance || !attendance.punch_in) return "Punch In";
+    if (!attendance.punch_out) return "Punch Out";
+    return "Attendance Completed";
+  };
 
-  } catch (err) {
-    setPunchMsg(err.response?.data?.message || "Punch failed");
-  } finally {
-    setPunchLoading(false);
-  }
-};
-
+  const handlePunch = async () => {
+    setPunchLoading(true);
+    setPunchMsg("");
+    try {
+      let res;
+      if (!attendance || !attendance.punch_in) {
+        res = await api.post("/hr/attendance/punch-in/");
+      } else if (!attendance.punch_out) {
+        res = await api.post("/hr/attendance/punch-out/");
+      }
+      setPunchMsg(res.data.message);
+      await loadTodayAttendance();
+    } catch (err) {
+      setPunchMsg(err.response?.data?.message || "Punch failed");
+    } finally {
+      setPunchLoading(false);
+    }
+  };
 
   const loadLeaveHistory = async () => {
     try {
@@ -217,11 +216,8 @@ const handlePunch = async () => {
   const fetchTrainingStatus = async () => {
     try {
       const res = await fetchTrainingCompletions();
-      // API returns a list — get the first item (user's own record)
       const userCompletion =
-        res.data.find((item) => item.employee_id === profile?.id) ||
-        res.data[0];
-
+        res.data.find((item) => item.employee_id === profile?.id) || res.data[0];
       if (userCompletion) {
         setTrainingCompleted(userCompletion.completed);
         setTrainingCompletedAt(userCompletion.completed_at);
@@ -241,6 +237,7 @@ const handlePunch = async () => {
     try {
       const res = await fetchReimbursements();
       setReimbursements(res.data || []);
+      console.log(res.data)
     } catch (err) {
       console.error("Failed to fetch reimbursements", err);
       setReimbursements([]);
@@ -279,9 +276,7 @@ const handlePunch = async () => {
       setAllCompleted(true);
       setWatchedVideos(new Set(trainingVideos.map((v) => v.id)));
       alert(
-        `🎉 Training completed!\nEmployee: ${
-          res.data.employee
-        }\nDate: ${new Date(res.data.completed_at).toLocaleString()}`
+        `Training completed!\nEmployee: ${res.data.employee}\nDate: ${new Date(res.data.completed_at).toLocaleString()}`
       );
       setShowVideosModal(false);
       await fetchTrainingStatus();
@@ -304,8 +299,7 @@ const handlePunch = async () => {
 
   const saveDocuments = async () => {
     const filesToUpload = Object.entries(newDocs).filter(([_, f]) => f);
-    if (filesToUpload.length === 0)
-      return alert("Please select at least one file");
+    if (filesToUpload.length === 0) return alert("Please select at least one file");
     for (const [type, file] of filesToUpload) {
       const formData = new FormData();
       formData.append("file", file);
@@ -326,9 +320,7 @@ const handlePunch = async () => {
       offer_letter: null,
       others: null,
     });
-    document
-      .querySelectorAll('input[type="file"]')
-      .forEach((i) => (i.value = ""));
+    document.querySelectorAll('input[type="file"]').forEach((i) => (i.value = ""));
     loadDocuments();
   };
 
@@ -353,8 +345,7 @@ const handlePunch = async () => {
   };
 
   const deleteDoc = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this document?"))
-      return;
+    if (!window.confirm("Are you sure you want to delete this document?")) return;
     try {
       await deleteDocument(id);
       setUploadedDocs((prev) => prev.filter((d) => d.id !== id));
@@ -401,6 +392,7 @@ const handlePunch = async () => {
       alert("Failed to submit permission request");
     }
   };
+
   const handleCommand = (e) => {
     if (e.key !== "Enter") return;
     const cmd = command.trim().toLowerCase();
@@ -422,7 +414,7 @@ const handlePunch = async () => {
     }
 
     if (cmd === "hrdashboard") {
-      window.location.href = "/hr/dashboard"; // or use navigate if you have useNavigate
+      window.location.href = "/hr/dashboard";
       return;
     }
 
@@ -488,8 +480,8 @@ const handlePunch = async () => {
     return (
       <span className="px-3 py-1 bg-yellow-900/50 border border-yellow-600 text-yellow-300 rounded-full text-xs font-bold flex items-center gap-1">
         <ClockIcon className="w-4 h-4" /> PENDING
-      </span>
-    );
+        </span>
+      );
   };
 
   const formatTitle = (title) => {
@@ -501,19 +493,15 @@ const handlePunch = async () => {
       offer_letter: "Offer Letter",
       others: "Other Documents",
     };
-    return (
-      map[title] ||
-      title.charAt(0).toUpperCase() + title.slice(1).replace("_", " ")
-    );
+    return map[title] || title.charAt(0).toUpperCase() + title.slice(1).replace("_", " ");
   };
 
   const filteredReimbursements = reimbursements.filter((r) => {
+    const status = (r.status || "").toLowerCase();
     if (reimbursementTab === "pending") {
-      return !r.status || r.status.toLowerCase() === "pending";
+      return status === "" || status === "pending";
     }
-    return (
-      r.status && ["approved", "rejected"].includes(r.status.toLowerCase())
-    );
+    return status === "approved" || status === "rejected";
   });
 
   const handleCommandBarClick = () => {
@@ -535,25 +523,15 @@ const handlePunch = async () => {
     day: "numeric",
   });
 
-  const currentYear = 2025;
-  const currentMonth = 11; // December (0-based)
-  const currentDay = 19;
-  const monthName = new Date(currentYear, currentMonth).toLocaleDateString(
-    "en-US",
-    {
-      month: "long",
-      year: "numeric",
-    }
-  );
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  // Calendar for December 2025 (current date: December 26, 2025)
+  const monthName = "December 2025";
+  const daysInMonth = 31;
+  const firstDayOfMonth = 1; // December 1, 2025 is a Monday (0=Sun, 1=Mon)
 
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono flex flex-col relative">
-      {/* Main Scrollable Content */}
       <div className="flex-1 overflow-y-auto pb-20">
         <div className="p-6">
-          {/* HEADER */}
           <header className="border-b border-cyan-800 pb-3 mb-6 flex items-center gap-3">
             <div className="w-3 h-3 rounded-full bg-cyan-400 shadow shadow-cyan-400/50"></div>
             <h1 className="text-blue-300 text-lg font-bold">
@@ -564,29 +542,25 @@ const handlePunch = async () => {
             </span>
           </header>
 
-          {/* Greeting  */}
-<div className="mb-6 flex items-center justify-between">
-  <h2 className="text-2xl font-bold text-cyan-300">
-    Hello, {profile.full_name.split(" ")[0]}!
-  </h2>
-  <p className="text-gray-400 text-lg">
-    {today}
-  </p>
- <button
-  onClick={handlePunch}
-  disabled={punchLoading || attendance?.punch_out}
-  className="px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-black font-bold disabled:opacity-50"
->
-  {punchLoading ? "Processing..." : punchButtonText()}
-</button>
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-cyan-300">
+              Hello, {profile.full_name.split(" ")[0]}!
+            </h2>
+            <div className="text-right">
+              <p className="text-gray-400 text-lg">{today}</p>
+              <button
+                onClick={handlePunch}
+                disabled={punchLoading || attendance?.punch_out}
+                className="mt-3 px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-black font-bold disabled:opacity-50"
+              >
+                {punchLoading ? "Processing..." : punchButtonText()}
+              </button>
+              {punchMsg && (
+                <p className="mt-2 text-sm text-green-400">{punchMsg}</p>
+              )}
+            </div>
+          </div>
 
-{punchMsg && (
-  <p className="mt-2 text-sm text-green-400">{punchMsg}</p>
-)}
-
-</div>
-
-          {/* Training Completed Banner */}
           {trainingCompleted && (
             <div className="bg-gray-900/30 border border-green-800 p-4 rounded-xl mb-6 flex items-center gap-3">
               <CheckCircle className="w-6 h-6 text-green-400" />
@@ -601,11 +575,9 @@ const handlePunch = async () => {
             </div>
           )}
 
-          {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Left Sidebar */}
             <div className="space-y-6">
-              {/* Quick Actions */}
               <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
                 <h3 className="text-blue-300 text-xl font-bold mb-4">
                   Quick Actions
@@ -622,12 +594,11 @@ const handlePunch = async () => {
                   </button>
 
                   <button
-                    onClick={()=>navigate('/hr/jobreferrals')}
+                    onClick={() => navigate("/hr/jobreferrals")}
                     className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
                   >
                     <span className="flex items-center gap-3">
-                      <Clock className="w-6 h-6 text-cyan-400" /> 
-                      Job Referrals
+                      <Users className="w-6 h-6 text-cyan-400" /> Job Referrals
                     </span>
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </button>
@@ -637,21 +608,21 @@ const handlePunch = async () => {
                     className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
                   >
                     <span className="flex items-center gap-3">
-                      <Clock className="w-6 h-6 text-cyan-400" /> Request
-                      Permission
+                      <Clock className="w-6 h-6 text-cyan-400" /> Request Permission
                     </span>
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </button>
+
                   <button
                     onClick={openVideosModal}
                     className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
                   >
                     <span className="flex items-center gap-3">
-                      <PlayCircle className="w-6 h-6 text-cyan-400" /> Training
-                      Videos
+                      <PlayCircle className="w-6 h-6 text-cyan-400" /> Training Videos
                     </span>
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </button>
+
                   <button
                     onClick={() => setShowReimbursementModal(true)}
                     className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
@@ -664,7 +635,6 @@ const handlePunch = async () => {
                 </div>
               </div>
 
-              {/* Team Leaves */}
               <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
                 <h3 className="text-blue-300 font-bold mb-3 flex items-center gap-2">
                   <Users className="w-5 h-5" /> Team Planned Leaves
@@ -675,7 +645,6 @@ const handlePunch = async () => {
 
             {/* Center Column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Leave Balance */}
               <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
                 <h3 className="text-blue-300 text-xl font-bold mb-6">
                   Leave Balance
@@ -702,31 +671,28 @@ const handlePunch = async () => {
                 </div>
               </div>
 
-              {/* Tabs Section */}
               <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
                 <h3 className="text-blue-300 text-xl font-bold mb-6">
                   My Requests & Documents
                 </h3>
                 <div className="flex border-b border-cyan-800 mb-6 text-sm">
-                  {["documents", "upload", "status", "reimbursement"].map(
-                    (tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => {
-                          setActiveTab(tab);
-                          if (tab === "reimbursement")
-                            setReimbursementTab("pending");
-                        }}
-                        className={`px-6 py-3 ${
-                          activeTab === tab
-                            ? "text-cyan-300 border-b-2 border-cyan-400"
-                            : "text-gray-500 hover:text-gray-400"
-                        } transition`}
-                      >
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                      </button>
-                    )
-                  )}
+                  {["documents", "upload", "status", "reimbursement"].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => {
+                        setActiveTab(tab);
+                        if (tab === "status") setStatusSubTab("leaves");
+                        if (tab === "reimbursement") setReimbursementTab("pending");
+                      }}
+                      className={`px-6 py-3 ${
+                        activeTab === tab
+                          ? "text-cyan-300 border-b-2 border-cyan-400"
+                          : "text-gray-500 hover:text-gray-400"
+                      } transition`}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Documents Tab */}
@@ -751,9 +717,7 @@ const handlePunch = async () => {
                               <p className="text-xs text-gray-500">
                                 Uploaded{" "}
                                 {doc.uploaded_at
-                                  ? new Date(
-                                      doc.uploaded_at
-                                    ).toLocaleDateString()
+                                  ? new Date(doc.uploaded_at).toLocaleDateString()
                                   : "Recently"}
                               </p>
                             </div>
@@ -831,14 +795,11 @@ const handlePunch = async () => {
                     <h4 className="font-semibold text-gray-300 mb-6">
                       Leave & Permission Requests
                     </h4>
-
-                    {/* Sub-tabs: Leaves | Permissions */}
                     <div className="flex border-b border-cyan-800 mb-6 text-sm">
                       <button
-                        onClick={() => setReimbursementTab("leaves")} // Reuse reimbursementTab state for simplicity, or create a new one if preferred
+                        onClick={() => setStatusSubTab("leaves")}
                         className={`px-6 py-3 ${
-                          reimbursementTab === "leaves" ||
-                          reimbursementTab === "pending"
+                          statusSubTab === "leaves"
                             ? "text-cyan-300 border-b-2 border-cyan-400"
                             : "text-gray-500 hover:text-gray-400"
                         } transition`}
@@ -846,10 +807,9 @@ const handlePunch = async () => {
                         Leaves
                       </button>
                       <button
-                        onClick={() => setReimbursementTab("permissions")}
+                        onClick={() => setStatusSubTab("permissions")}
                         className={`px-6 py-3 ${
-                          reimbursementTab === "permissions" ||
-                          reimbursementTab === "completed"
+                          statusSubTab === "permissions"
                             ? "text-cyan-300 border-b-2 border-cyan-400"
                             : "text-gray-500 hover:text-gray-400"
                         } transition`}
@@ -858,9 +818,7 @@ const handlePunch = async () => {
                       </button>
                     </div>
 
-                    {/* Leaves Tab Content */}
-                    {(reimbursementTab === "leaves" ||
-                      reimbursementTab === "pending") && (
+                    {statusSubTab === "leaves" && (
                       <>
                         {leaveHistory.length === 0 ? (
                           <p className="text-gray-500 italic text-center py-12">
@@ -878,10 +836,7 @@ const handlePunch = async () => {
                                     {l.leave_type} Leave
                                   </p>
                                   <p className="text-xs text-gray-500">
-                                    {new Date(
-                                      l.start_date
-                                    ).toLocaleDateString()}{" "}
-                                    →{" "}
+                                    {new Date(l.start_date).toLocaleDateString()} →{" "}
                                     {new Date(l.end_date).toLocaleDateString()}
                                   </p>
                                   {l.reason && (
@@ -898,9 +853,7 @@ const handlePunch = async () => {
                       </>
                     )}
 
-                    {/* Permissions Tab Content */}
-                    {(reimbursementTab === "permissions" ||
-                      reimbursementTab === "completed") && (
+                    {statusSubTab === "permissions" && (
                       <>
                         {permissionHistory.length === 0 ? (
                           <p className="text-gray-500 italic text-center py-12">
@@ -961,10 +914,9 @@ const handlePunch = async () => {
                         Completed
                       </button>
                     </div>
+
                     {reimbursementsLoading ? (
-                      <p className="text-center py-8 text-gray-500">
-                        Loading...
-                      </p>
+                      <p className="text-center py-8 text-gray-500">Loading...</p>
                     ) : filteredReimbursements.length === 0 ? (
                       <p className="text-gray-500 italic text-center py-12">
                         {reimbursementTab === "pending"
@@ -1018,7 +970,7 @@ const handlePunch = async () => {
                         <div
                           key={day}
                           className={`py-3 rounded-lg ${
-                            day === currentDay
+                            day === 26
                               ? "bg-cyan-600 text-gray-900 font-bold"
                               : "hover:bg-gray-800/40"
                           } transition`}
@@ -1035,7 +987,7 @@ const handlePunch = async () => {
         </div>
       </div>
 
-      {/* Fixed Command Bar */}
+      {/* Command Bar */}
       <div
         className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t-2 border-cyan-500 px-6 py-4 flex items-center cursor-text shadow-2xl"
         onClick={handleCommandBarClick}
@@ -1052,6 +1004,7 @@ const handlePunch = async () => {
           spellCheck={false}
         />
       </div>
+
       {showAlert && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800/90 border border-cyan-500 text-cyan-200 px-6 py-3 rounded-lg shadow-xl text-sm font-mono z-50">
           {alertMessage}

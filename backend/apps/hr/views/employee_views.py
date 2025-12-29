@@ -226,7 +226,7 @@ class ManagerListView(mixins.ListModelMixin, viewsets.GenericViewSet):
         return User.objects.filter(employee__is_active=True).distinct()
 
 class LeaveRequestViewSet(viewsets.ModelViewSet):
-    queryset = LeaveRequest.objects.all().select_related('employee', 'manager', 'organization')
+    serializer_class = LeaveRequestSerializer
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
@@ -234,50 +234,50 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
             return LeaveRequestUpdateSerializer
         return LeaveRequestSerializer
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
-
-    def get(self, request):
-        user = request.user
-        if not hasattr(user, 'organization') or not user.organization:
-            return Response(
-                {"detail": "No organization found for this user."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        user_organization = user.organization
+    def get_queryset(self):
+        user = self.request.user
+        organization = getattr(user, 'organization', None)
+        if not organization:
+            try:
+                employee = Employee.objects.get(user=user)
+                organization = employee.organization
+            except Employee.DoesNotExist:
+                return LeaveRequest.objects.none()
+        if not organization:
+            return LeaveRequest.objects.none()
         queryset = LeaveRequest.objects.filter(
-            organization=user_organization
-        ).select_related('employee', 'manager')
-        if user.role not in ['admin', 'hr', 'sub_org_admin']:
-            queryset = queryset.filter(employee=user)  # Direct FK to User model
-        queryset = queryset.order_by('-applied_at')
-        serializer = LeaveRequestSerializer(
-            queryset,
-            many=True,
-            context={'request': request}
+            organization=organization
+        ).select_related(
+            'employee',
+            'manager',
+            'organization'
         )
-        return Response(serializer.data)
+        user_role = getattr(user, 'role', None)
+
+        if user_role in ['admin', 'hr', 'sub_org_admin']:
+            return queryset.order_by('-applied_at')
+        return queryset.filter(
+            employee=user
+        ).order_by('-applied_at')
+
 
     def perform_create(self, serializer):
-        try:
-            organization = self.request.user.employee.organization
-        except AttributeError:
-            organization = None
-        serializer.save(employee=self.request.user, organization=organization)
+        serializer.save(
+            employee=self.request.user,
+            organization=self.request.user.organization
+        )
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         obj = self.get_object()
         obj.status = 'approved'
         obj.response_note = request.data.get('response_note', '')
         obj.responded_at = timezone.now()
-        obj.manager = request.user  # Optional: track who approved
+        obj.manager = request.user
         obj.save()
-        return Response(LeaveRequestSerializer(obj, context={'request': request}).data)
+        return Response(self.get_serializer(obj).data)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         obj = self.get_object()
         obj.status = 'rejected'
@@ -285,7 +285,8 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         obj.responded_at = timezone.now()
         obj.manager = request.user
         obj.save()
-        return Response(LeaveRequestSerializer(obj, context={'request': request}).data)
+        return Response(self.get_serializer(obj).data)
+
 
 
 class PermissionRequestViewSet(viewsets.ModelViewSet):
@@ -297,32 +298,31 @@ class PermissionRequestViewSet(viewsets.ModelViewSet):
             return PermissionRequestUpdateSerializer
         return PermissionRequestSerializer
 
-    def get(self, request):
-        user = request.user
-
-        # Check organization
-        if not hasattr(user, 'organization') or not user.organization:
-            return Response({"detail": "No organization found."}, status=403)
-
-        organization = user.organization
-
-        # All permission requests in the organization
-        queryset = PermissionRequest.objects.filter(
-            organization=organization
-        ).select_related('employee', 'manager')
-
-        # Non-admin roles see only their own permission requests
-        if user.role not in ['admin', 'hr', 'sub_org_admin']:
+    def get_queryset(self):
+        user = self.request.user
+        organization = getattr(user, 'organization', None)
+        if not organization:
             try:
                 employee = Employee.objects.get(user=user)
-                queryset = queryset.filter(employee=employee)
+                organization = employee.organization
             except Employee.DoesNotExist:
-                return Response({"detail": "No employee profile found."}, status=404)
+                return PermissionRequest.objects.none()
+        if not organization:
+            return PermissionRequest.objects.none()
+        queryset = PermissionRequest.objects.filter(
+            organization=organization
+        ).select_related(
+            'employee',
+            'manager',
+            'organization'
+        )
+        user_role = getattr(user, 'role', None)
 
-        queryset = queryset.order_by('-applied_at')
-
-        serializer = PermissionRequestSerializer(queryset, many=True, context={'request': request})
-        return Response(serializer.data)
+        if user_role in ['admin', 'hr', 'sub_org_admin']:
+            return queryset.order_by('-applied_at')
+        return queryset.filter(
+            employee=user
+        ).order_by('-applied_at')
 
     def perform_create(self, serializer):
         try:
@@ -397,14 +397,37 @@ class EmployeeReimbursementViewSet(viewsets.ModelViewSet):
     queryset = EmployeeReimbursement.objects.none()
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser or user.is_staff:
-            return EmployeeReimbursement.objects.select_related('employee', 'manager', 'organization').all()
-        if not hasattr(user, 'organization') or not user.organization:
+
+        # Step 1: Resolve organization (same as referrals)
+        organization = getattr(user, 'organization', None)
+        if not organization:
+            try:
+                employee = Employee.objects.get(user=user)
+                organization = employee.organization
+            except Employee.DoesNotExist:
+                return EmployeeReimbursement.objects.none()
+
+        if not organization:
             return EmployeeReimbursement.objects.none()
-        organization = user.organization
-        return EmployeeReimbursement.objects.select_related('employee', 'manager', 'organization').filter(
+
+        queryset = EmployeeReimbursement.objects.select_related(
+            'employee', 'manager', 'organization'
+        ).filter(
             organization=organization
-        ).order_by('-date')
+        )
+
+        # Step 2: Role-based access (same pattern as referrals)
+        user_role = getattr(user, 'role', None)
+
+        if user.is_superuser or user.is_staff or user_role in ['admin', 'hr', 'sub_org_admin']:
+            return queryset.order_by('-date')
+        try:
+            employee = Employee.objects.get(user=user)
+            return queryset.filter(employee=user).order_by('-date')
+        except Employee.DoesNotExist:
+            return EmployeeReimbursement.objects.none()
+
+        
     def perform_create(self, serializer):
         organization = None
         try:
@@ -889,41 +912,83 @@ class JobOpeningViewSet(viewsets.ModelViewSet):
     queryset=JobOpening.objects.all()
     def get_queryset(self):
         user = self.request.user
-        return JobOpening.objects.all()
 
+        # 1️⃣ Resolve organization (user → employee fallback)
+        organization = getattr(user, 'organization', None)
+
+        if not organization:
+            try:
+                employee = Employee.objects.get(user=user)
+                organization = employee.organization
+            except Employee.DoesNotExist:
+                return JobOpening.objects.none()
+
+        if not organization:
+            return JobOpening.objects.none()
+
+        # 2️⃣ Organization isolation
+        queryset = JobOpening.objects.filter(
+            organization=organization
+        )
+
+        # 3️⃣ Role-based access
+        user_role = getattr(user, 'role', None)
+
+        if user_role in ['admin', 'hr', 'sub_org_admin']:
+            return queryset.order_by('-created_at')
+        return queryset.filter(
+            status='open'
+        ).order_by('-created_at')
+
+ 
     def perform_create(self, serializer):
         serializer.save(organization=self.request.user.organization)
 
     def perform_update(self, serializer):
         serializer.save(organization=self.request.user.organization)
 
+# hr/views.py
+
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticated
+from django.core.mail import EmailMessage
+from django.conf import settings
+from apps.hr.models import Referral, JobOpening, Employee
+from apps.hr.serializers import ReferralSerializer
+ 
+
 class ReferralViewSet(viewsets.ModelViewSet):
     serializer_class = ReferralSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = Referral.objects.all()
 
-    def get(self, request):
-        user = request.user
-
-    # Ensure user has an organization
-        if not hasattr(user, 'organization') or not user.organization:
-            return Response({"detail": "No organization found."}, status=403)
-
-        organization = user.organization
-        queryset = Referral.objects.filter(
-            job_opening__organization=organization
-        ).select_related('referred_by', 'job_opening', 'candidate')
-        if user.role not in ['admin', 'hr', 'sub_org_admin']:
+    def get_queryset(self):
+        user = self.request.user
+        organization = getattr(user, 'organization', None)
+        if not organization:
             try:
                 employee = Employee.objects.get(user=user)
-                queryset = queryset.filter(referred_by=employee)
+                organization = employee.organization
             except Employee.DoesNotExist:
-                return Response({"detail": "No employee profile found."}, status=404)
-        queryset = queryset.order_by('-created_at')  # or '-referred_at' if you have that field
-        serializer = ReferralSerializer(queryset, many=True, context={'request': request})
+                return Referral.objects.none()
+        if not organization:
+            return Referral.objects.none()
+        queryset = Referral.objects.filter(
+            job_opening__organization=organization
+        ).select_related('referred_by', 'job_opening', 'job_opening__organization')
+        user_role = getattr(user, 'role', None)
+        if user_role in ['admin', 'hr', 'sub_org_admin']:
+            return queryset.order_by('-created_at')
+        return queryset.filter(referred_by=user).order_by('-created_at')
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     def perform_create(self, serializer):
-        serializer.save(referred_by=self.request.user)
+            serializer.save(referred_by=self.request.user)
     @action(detail=True, methods=["patch"], url_path="update-status")
     def update_status(self, request, pk=None):
         referral = self.get_object()
@@ -939,87 +1004,295 @@ class ReferralViewSet(viewsets.ModelViewSet):
             {"message": "Status updated successfully"},
             status=status.HTTP_200_OK
         )
+
     @action(detail=True, methods=["post"], url_path="send-offer")
     def send_offer(self, request, pk=None):
         referral = self.get_object()
+
         if referral.status != "selected":
             return Response(
-                {"detail": "Offer can be sent only for selected candidates"},
+                {"detail": "Offer can only be sent to selected candidates."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # Extract custom data from frontend modal
+        subject = request.data.get('subject', f"Job Offer – {referral.job_opening.title}")
+        body = request.data.get('body') or f"""
+Dear {referral.candidate_name},
+
+Congratulations! We are delighted to offer you the position of {referral.job_opening.title}.
+
+Please find your offer letter attached.
+
+Best regards,
+HR Team
+{referral.job_opening.organization.name}
+        """.strip()
+
+        custom_company_name = request.data.get('company_name')
+        custom_from_email = request.data.get('from_email')
+        custom_logo_file = request.FILES.get('custom_logo')
+
         try:
-            send_offer_email(referral)
-            referral.save(update_fields=["status"])  # remove if not changing status
+            pdf_buffer = generate_offer_letter_pdf(
+                referral=referral,
+                custom_company_name=custom_company_name,
+                custom_logo_file=custom_logo_file,
+            )
+
+            org = referral.job_opening.organization
+            from_email = custom_from_email or getattr(org, 'hr_email', None) or settings.DEFAULT_FROM_EMAIL
+
+            email = EmailMessage(
+                subject=subject,
+                body=body,
+                from_email=from_email,
+                to=[referral.candidate_email],
+            )
+
+            filename = f"Offer_Letter_{referral.candidate_name.replace(' ', '_')}_{referral.job_opening.title.replace(' ', '_')}.pdf"
+            email.attach(filename, pdf_buffer.getvalue(), 'application/pdf')
+            email.send(fail_silently=False)
+
             return Response(
-                {"message": "Offer letter emailed successfully!"},
+                {"message": "Offer sent successfully with custom branding!"},
                 status=status.HTTP_200_OK,
             )
+
         except Exception as e:
-            print(f"Failed to send offer email: {e}")
+            print(f"Offer send failed: {e}")
             return Response(
-                {"detail": "Failed to send email. Please try again later."},
+                {"detail": "Failed to send offer email."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def send_direct_offer(request):
+    user = request.user
+
+    # 🔒 Role check
+    if getattr(user, 'role', None) not in ['admin', 'hr', 'sub_org_admin']:
+        return Response(
+            {"detail": "You do not have permission to send offers"},
+            status=403
+        )
+
     job_id = request.data.get('job_opening_id')
     name = request.data.get('candidate_name')
     email = request.data.get('candidate_email')
-    phone = request.data.get('candidate_phone')
-    notes = request.data.get('notes', '')
+
     if not all([job_id, name, email]):
-        return Response({"detail": "Missing required fields"}, status=400)
+        return Response(
+            {"detail": "Missing required fields"},
+            status=400
+        )
+
+    # Resolve organization
+    organization = getattr(user, 'organization', None)
+    if not organization:
+        try:
+            organization = Employee.objects.get(user=user).organization
+        except Employee.DoesNotExist:
+            return Response(
+                {"detail": "Organization not found"},
+                status=403
+            )
+
     try:
-        job = JobOpening.objects.get(id=job_id)
+        job = JobOpening.objects.get(
+            id=job_id,
+            organization=organization
+        )
     except JobOpening.DoesNotExist:
-        return Response({"detail": "Job opening not found"}, status=404)
+        return Response(
+            {"detail": "Job opening not found or access denied"},
+            status=403
+        )
+
+    # Fake referral object
     class FakeReferral:
-        candidate_name = name
-        candidate_email = email
-        job_opening = job
-    send_offer_email(FakeReferral())
-    return Response({"message": "Direct offer sent successfully!"}, status=200)
+        def __init__(self):
+            self.candidate_name = name
+            self.candidate_email = email
+            self.job_opening = job
 
-def generate_offer_letter_pdf(referral):
-    buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=A4)
+    fake_referral = FakeReferral()
+
+    try:
+        pdf_buffer = generate_offer_letter_pdf(referral=fake_referral)
+
+        from_email = (
+            getattr(job.organization, 'hr_email', None)
+            or settings.DEFAULT_FROM_EMAIL
+        )
+
+        email_msg = EmailMessage(
+            subject=f"Job Offer – {job.title}",
+            body=f"Dear {name},\n\nPlease find your offer letter attached.\n\nBest regards,\nHR Team",
+            from_email=from_email,
+            to=[email],
+        )
+
+        filename = f"Offer_Letter_{name.replace(' ', '_')}_{job.title.replace(' ', '_')}.pdf"
+        email_msg.attach(filename, pdf_buffer.getvalue(), 'application/pdf')
+        email_msg.send(fail_silently=False)
+
+        return Response(
+            {"message": "Direct offer sent successfully!"},
+            status=200
+        )
+
+    except Exception as e:
+        print("Direct offer failed:", e)
+        return Response(
+            {"detail": "Failed to send direct offer"},
+            status=500
+        )
+
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from io import BytesIO
+from django.utils import timezone
+import os
+
+def generate_offer_letter_pdf(referral, custom_company_name=None, custom_logo_file=None):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=2.5 * cm,
+        rightMargin=2.5 * cm,
+        topMargin=3 * cm,
+        bottomMargin=3 * cm
+    )
     width, height = A4
-    p.setFont("Helvetica-Bold", 20)
-    p.drawCentredString(width / 2, height - 2 * cm, "OFFER LETTER")
-    p.setFont("Helvetica", 12)
-    y = height - 5 * cm
-    p.drawString(2 * cm, y, f"Date: {timezone.now().strftime('%B %d, %Y')}")
-    y -= 1.5 * cm
-    p.drawString(2 * cm, y, f"Dear {referral.candidate_name},")
-    y -= 2 * cm
-    p.drawString(2 * cm, y, "We are pleased to extend an offer for the position of")
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(2 * cm, y - 0.8 * cm, referral.job_opening.title)
-    p.setFont("Helvetica", 12)
-    y -= 3 * cm
+    story = []
 
-    p.drawString(2 * cm, y, "at our organization.")
-    y -= 1.5 * cm
+    styles = getSampleStyleSheet()
 
-    p.drawString(2 * cm, y, "Please find the detailed terms in the attached document.")
-    y -= 2 * cm
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Heading1'],
+        fontSize=28,
+        alignment=TA_CENTER,
+        spaceAfter=40,
+    )
+    bold_large = ParagraphStyle(
+        'BoldLarge',
+        parent=styles['Normal'],
+        fontSize=18,
+        fontName='Helvetica-Bold',
+        spaceAfter=20,
+        alignment=TA_LEFT
+    )
+    normal = styles['Normal']
+    normal.fontSize = 12
+    normal.leading = 18
+    normal.alignment = TA_LEFT
 
-    p.drawString(2 * cm, y, "We look forward to welcoming you to the team.")
-    y -= 2 * cm
+    org = referral.job_opening.organization
+    company_name = custom_company_name or org.name
 
-    p.drawString(2 * cm, y, "Best regards,")
-    y -= 1 * cm
-    p.drawString(2 * cm, y, settings.COMPANY_NAME if hasattr(settings, 'COMPANY_NAME') else "HR Team")
-    y -= 0.8 * cm
-    p.drawString(2 * cm, y, settings.COMPANY_EMAIL if hasattr(settings, 'COMPANY_EMAIL') else "hr@company.com")
+    # Get branding safely — fallback to defaults if not exists
+    branding = getattr(org, 'branding', None)
 
-    p.showPage()
-    p.save()
+    hr_contact_name = branding.hr_contact_name if branding else "HR Team"
+    hr_email = branding.hr_email if branding else ""
+    website = branding.website if branding else ""
+
+    # Load logo
+    logo_img = None
+    logo_width = 6 * cm
+
+    # 1. Custom uploaded logo (highest priority)
+    if custom_logo_file:
+        try:
+            custom_logo_file.seek(0)
+            img_data = BytesIO(custom_logo_file.read())
+            logo_img = ImageReader(img_data)
+            print("Custom logo loaded successfully")
+        except Exception as e:
+            print(f"Custom logo load failed: {e}")
+
+    # 2. Branding logo (from OrganizationBranding)
+    if not logo_img and branding and branding.logo:
+        try:
+            logo_path = branding.logo.path
+            if os.path.exists(logo_path):
+                logo_img = ImageReader(logo_path)
+                print(f"Branding logo loaded: {logo_path}")
+            else:
+                print(f"Branding logo path does not exist: {logo_path}")
+        except Exception as e:
+            print(f"Branding logo load failed: {e}")
+
+    # Canvas callback to draw logo top-right
+    def draw_logo(canvas, doc):
+        if logo_img:
+            try:
+                canvas.saveState()
+                canvas.drawImage(
+                    logo_img,
+                    width - logo_width - 2 * cm,
+                    height - 5 * cm,
+                    width=logo_width,
+                    preserveAspectRatio=True,
+                    mask='auto'
+                )
+                canvas.restoreState()
+            except Exception as e:
+                print(f"Error drawing logo: {e}")
+
+    # Content
+    story.append(Paragraph("OFFER LETTER", title_style))
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph(f"Date: {timezone.now().strftime('%B %d, %Y')}", normal))
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(f"Dear {getattr(referral, 'candidate_name', 'Candidate')},", normal))
+    story.append(Spacer(1, 30))
+
+    content = [
+        "We are delighted to extend a formal offer of employment for the position of:",
+        getattr(referral.job_opening, 'title', 'the position').upper(),
+        f"at {company_name}.",
+        "Your skills, experience, and enthusiasm make you an excellent fit for our team.",
+        "This offer is contingent upon satisfactory completion of background and reference checks.",
+        "Please review the attached detailed terms and conditions carefully.",
+        "We are excited about the opportunity to work with you and look forward to your acceptance.",
+        "Welcome to the team!",
+    ]
+
+    for line in content:
+        if line.isupper() and 'position' in line.lower():
+            story.append(Paragraph(line, bold_large))
+        else:
+            story.append(Paragraph(line, normal))
+        story.append(Spacer(1, 12))
+
+    story.append(Spacer(1, 60))
+    story.append(Paragraph("Sincerely,", normal))
+    story.append(Spacer(1, 30))
+    story.append(Paragraph(hr_contact_name,
+                          ParagraphStyle('SigName', fontSize=14, fontName='Helvetica-Bold')))
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(company_name, normal))
+
+    if hr_email:
+        story.append(Paragraph(hr_email, normal))
+    if website:
+        story.append(Paragraph(website, normal))
+
+    # Build PDF
+    doc.build(story, onFirstPage=draw_logo, onLaterPages=draw_logo)
 
     buffer.seek(0)
     return buffer
-
 def send_offer_email(referral):
     candidate_email = referral.candidate_email
     candidate_name = referral.candidate_name

@@ -18,6 +18,7 @@ class Organization(models.Model):
     phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     
+    
     is_active = models.BooleanField(default=True)
     
     created_by = models.ForeignKey(
@@ -143,3 +144,32 @@ class TrainingCompletion(models.Model):
 
     def __str__(self):
         return f"{self.user} - Training {'Completed' if self.completed else 'Pending'}"
+# apps/organizations/models.py (add at the bottom)
+
+from django.db import models
+ # if in same file, or import accordingly
+
+class OrganizationBranding(models.Model):
+    """
+    Separate branding settings for offer letters and emails
+    """
+    organization = models.OneToOneField(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='branding'
+    )
+    logo = models.ImageField(upload_to='org_logos/', null=True, blank=True)
+    hr_email = models.EmailField(blank=True, help_text="Default FROM email for offer letters")
+    hr_contact_name = models.CharField(max_length=100, blank=True, default="HR Team")
+    website = models.URLField(blank=True)
+    tagline = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Branding for {self.organization.name}"
+
+    class Meta:
+        verbose_name = "Organization Branding"
+        verbose_name_plural = "Organization Branding"
