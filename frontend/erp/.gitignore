@@ -31,3 +31,19 @@ backend/db.sqlite3
 __pycache__/
 *.pyc
 .env
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual Environment
+venv/
+backend/venv/
+.env
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

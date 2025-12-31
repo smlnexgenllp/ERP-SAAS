@@ -139,8 +139,13 @@ function ChatWindow({ group, onBack }) {
             break;
 
           case 'presence':
-            setOnlineUsers(data.online_users || []);
-            break;
+  if (data.action === 'join') {
+    setOnlineUsers(prev => [...new Set([...prev, data.user_id])]);
+  } else if (data.action === 'leave') {
+    setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
+  }
+  break;
+
 
           case 'user_joined':
             setOnlineUsers(prev => [...prev, data.user_id]);
