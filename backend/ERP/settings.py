@@ -114,7 +114,6 @@ DATABASES = {
         'PASSWORD': 'npg_CuQ0EAL7ntDO',
         'HOST': 'ep-red-bush-adlmw5qg-pooler.c-2.us-east-1.aws.neon.tech',
         'PORT': '5432',
-        "CONN_MAX_AGE": 60,
         'OPTIONS': {
             'sslmode': 'require',
         },
@@ -200,9 +199,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True  # Important for port 587
-EMAIL_HOST_USER = 'demo@gmail.com'  
-EMAIL_HOST_PASSWORD = '************'  
-DEFAULT_FROM_EMAIL = 'demo@gmail.com'
+EMAIL_HOST_USER = 'mohanapriya14102001@gmail.com'  
+EMAIL_HOST_PASSWORD = 'xxtt sepy ffzw bows'  
+DEFAULT_FROM_EMAIL = 'mohanapriya14102001@gmail.com'
 
 COMPANY_NAME = "SMLNEXGENLLP Pvt Ltd"
 COMPANY_EMAIL = "hr@yourcompany.com"

@@ -4,7 +4,6 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from apps.hr.models import ChatGroup, Message, UnreadMessage
 from django.contrib.auth import get_user_model
-from django.db import close_old_connections
 
 User = get_user_model()
 
@@ -12,8 +11,6 @@ User = get_user_model()
 class ChatConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
-        close_old_connections()
-
         self.user = self.scope["user"]
 
         # Extract group_id early
@@ -41,11 +38,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
         # Mark messages as read and broadcast presence
-        await self.mark_as_read()
+        asyncio.create_task(self.mark_as_read())
         await self.broadcast_presence(action="join")
 
     async def disconnect(self, close_code):
-        close_old_connections()
         if hasattr(self, "room_group_name"):
             await self.broadcast_presence(action="leave")
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
@@ -73,24 +69,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
                 )
 
-        elif msg_type == "typing":
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    "type": "typing.event",
-                    "user_id": self.user.id,
-                    "is_typing": data.get("is_typing", False)
-                }
-            )
-    async def typing_event(self, event):
-        if event["user_id"] == self.user.id:
-            return
-
-        await self.send(text_data=json.dumps({
-            "type": "typing",
-            "user_id": event["user_id"],
-            "is_typing": event["is_typing"]
-        }))
+        elif msg_type == "presence":
+            # Client sends presence on connect (optional)
+            await self.broadcast_presence(action=data.get("action", "join"))
 
     async def chat_message(self, event):
         message = event["message"]

@@ -1058,36 +1058,32 @@ class JobOpeningViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        # Resolve organization (fast + safe)
+        # 1️⃣ Resolve organization (user → employee fallback)
         organization = getattr(user, 'organization', None)
 
-        if organization is None:
-            organization = (
-                Employee.objects
-                .filter(user=user)
-                .values_list('organization', flat=True)
-                .first()
-            )
+        if not organization:
+            try:
+                employee = Employee.objects.get(user=user)
+                organization = employee.organization
+            except Employee.DoesNotExist:
+                return JobOpening.objects.none()
 
-        if organization is None:
+        if not organization:
             return JobOpening.objects.none()
 
-        # Base queryset (indexed FK)
+        # 2️⃣ Organization isolation
         queryset = JobOpening.objects.filter(
-            organization_id=organization
+            organization=organization
         )
 
-        # Role-based access
+        # 3️⃣ Role-based access
         user_role = getattr(user, 'role', None)
 
-        if user_role in ('admin', 'hr', 'sub_org_admin'):
+        if user_role in ['admin', 'hr', 'sub_org_admin']:
             return queryset.order_by('-created_at')
-
-        # Non-admin users → only active jobs
         return queryset.filter(
-            is_active=True
+            status='open'
         ).order_by('-created_at')
-
 
  
     def perform_create(self, serializer):
