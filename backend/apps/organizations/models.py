@@ -93,7 +93,6 @@ class TrainingVideo(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.organization.name})"
-# In apps/organizations/models.py (at the bottom)
 class TrainingVideoView(models.Model):
     organization = models.ForeignKey(
         Organization,

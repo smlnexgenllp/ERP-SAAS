@@ -4,6 +4,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from apps.hr.models import ChatGroup, Message, UnreadMessage
 from django.contrib.auth import get_user_model
+from django.db import close_old_connections
 
 User = get_user_model()
 
@@ -11,6 +12,7 @@ User = get_user_model()
 class ChatConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        close_old_connections() 
         self.user = self.scope["user"]
 
         # Extract group_id early
@@ -38,13 +40,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
         # Mark messages as read and broadcast presence
-        asyncio.create_task(self.mark_as_read())
+        await self.mark_as_read()
         await self.broadcast_presence(action="join")
 
     async def disconnect(self, close_code):
-        if hasattr(self, "room_group_name"):
-            await self.broadcast_presence(action="leave")
-            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        close_old_connections()
+        try:
+            if hasattr(self, "room_group_name"):
+                await self.broadcast_presence(action="leave")
+                await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        except Exception as e:
+            print(f"[Chat] Error during disconnect: {e}")
+
 
     async def receive(self, text_data):
         try:

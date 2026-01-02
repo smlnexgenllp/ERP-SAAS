@@ -114,6 +114,7 @@ DATABASES = {
         'PASSWORD': 'npg_CuQ0EAL7ntDO',
         'HOST': 'ep-red-bush-adlmw5qg-pooler.c-2.us-east-1.aws.neon.tech',
         'PORT': '5432',
+        "CONN_MAX_AGE": 60,
         'OPTIONS': {
             'sslmode': 'require',
         },
