@@ -39,7 +39,7 @@ export const fetchPermissionHistory = async () => {
 
 
 // =================== MANAGERS ===================
-export const fetchManagers = () =>api.get("/hr/managers/");
+export const fetchManagers = () =>api.get("/hr/leave-requests/possible-managers/");
 export const getAllLeaves = () => api.get("/hr/leave-requests/");
 
 // APPROVE leave

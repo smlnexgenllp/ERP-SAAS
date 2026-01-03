@@ -9,6 +9,10 @@ __pycache__/
 venv/
 backend/venv/
 
+# Media (optional)
+backend/media/
+
+# OS files
 # Django
 db.sqlite3
 media/
