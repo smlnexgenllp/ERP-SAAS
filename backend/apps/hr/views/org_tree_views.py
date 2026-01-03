@@ -12,30 +12,30 @@ from apps.organizations.models import Organization
 def org_tree_view(request):
     user = request.user
 
-    # METHOD THAT ALWAYS WORKS (even for admins with no Employee profile)
-    try:
-        # Try from linked Employee first
-        org = user.employee.organization
-    except:
-        # FALLBACK: Get organization from your auth payload (you already have it!)
-        # Your logs show: organization: {id: 1, name: 'SMLNEXGENLLP'}
-        org_id = user.organization_id if hasattr(user, 'organization_id') else None
-        
-        if org_id:
-            org = Organization.objects.get(id=org_id)
-        else:
-            # Last resort
-            org = Organization.objects.first()
+    # Robust organization resolution
+    organization = None
 
-    if not org:
-        return Response({"tree": []}, status=400)
+    # Method 1: User has linked Employee
+    if hasattr(user, 'employee'):
+        organization = user.employee.organization
 
-    # Get ALL root employees (no boss) in this organization
+    # Method 2: Fallback to organization field on User model (common in multi-org setups)
+    if not organization and hasattr(user, 'organization'):
+        organization = user.organization
+
+    # Method 3: Last resort - first org (for demo/superadmin)
+    if not organization:
+        organization = Organization.objects.first()
+
+    if not organization:
+        return Response({"tree": []})
+
+    # Get only root employees (no reporting_to)
     roots = Employee.objects.filter(
-        organization=org,
-        reporting_to=None,      # This is the key!
+        organization=organization,
+        reporting_to=None,
         is_active=True
-    ).select_related('designation', 'department')
+    ).select_related('designation', 'department', 'user').order_by('full_name')
 
     serializer = OrgTreeSerializer(roots, many=True, context={'request': request})
     return Response({"tree": serializer.data})
@@ -44,21 +44,22 @@ def org_tree_view(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def public_org_tree_view(request):
-    org = Organization.objects.first()
-    if not org:
+    organization = Organization.objects.first()
+    if not organization:
         return Response({"tree": []})
 
     roots = Employee.objects.filter(
-        organization=org,
+        organization=organization,
         reporting_to=None,
         is_active=True
-    ).select_related('designation', 'department')
+    ).select_related('designation', 'department', 'user')
 
-    # Create dummy request for photo URLs
-    from django.http import HttpRequest
-    dummy = HttpRequest()
-    dummy.META['SERVER_NAME'] = 'localhost'
-    dummy.META['SERVER_PORT'] = '8000'
+    # Build dummy request for full photo URLs
+    from django.test import RequestFactory
+    factory = RequestFactory()
+    dummy_request = factory.get('/')
+    dummy_request.META['SERVER_NAME'] = '127.0.0.1'
+    dummy_request.META['SERVER_PORT'] = '8000'
 
-    serializer = OrgTreeSerializer(roots, many=True, context={'request': dummy})
+    serializer = OrgTreeSerializer(roots, many=True, context={'request': dummy_request})
     return Response({"tree": serializer.data})

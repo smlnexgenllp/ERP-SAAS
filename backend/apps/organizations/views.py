@@ -232,7 +232,7 @@ class MainOrganizationViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'], url_path='sub-organizations/(?P<sub_org_id>[^/.]+)/module-access')
     @transaction.atomic
     def update_module_access(self, request, sub_org_id=None):
-        try:
+        try: 
             user = request.user
             if not user.organization or not user.organization.is_main_organization:
                  return Response({'success': False, 'error': 'Not a Main Organization Admin'}, status=status.HTTP_403_FORBIDDEN)
@@ -619,8 +619,21 @@ def get_user_organization(user):
         return org_user.organization
     except OrganizationUser.DoesNotExist:
         pass
-
+    try:
+        return user.employee.organization
+    except (AttributeError, Employee.DoesNotExist):
+        pass
+    try:
+        return Organization.objects.filter(created_by=user).first()
+    except:
+        pass
+    try:
+        from apps.organizations.models import OrganizationUser
+        return OrganizationUser.objects.get(user=user).organization
+    except:
+        pass
     return None
+    
 
 
 class TrainingVideoUploadView(CreateAPIView):
