@@ -21,11 +21,14 @@ export default function LeaveManagement() {
   // Fixed: pending when status is "pending" OR null/undefined/missing
   const isPending = (req) => !req.status || req.status === "pending";
 
-  const isProcessed = (req) => req.status === "approved" || req.status === "rejected";
+  const isProcessed = (req) =>
+    req.status === "approved" || req.status === "rejected";
 
   const getStatusIcon = (status) => {
-    if (status === "approved") return <CheckCircle className="w-5 h-5 text-green-400" />;
-    if (status === "rejected") return <XCircle className="w-5 h-5 text-red-400" />;
+    if (status === "approved")
+      return <CheckCircle className="w-5 h-5 text-green-400" />;
+    if (status === "rejected")
+      return <XCircle className="w-5 h-5 text-red-400" />;
     return <Clock className="w-5 h-5 text-yellow-400" />; // pending or null
   };
 
@@ -42,7 +45,7 @@ export default function LeaveManagement() {
 
       const [leaveRes, permRes] = await Promise.all([
         api.get("/hr/leave-requests/"),
-        api.get("/hr/permission/")
+        api.get("/hr/permission/"),
       ]);
 
       const leaves = leaveRes.data.results || leaveRes.data || [];
@@ -81,12 +84,16 @@ export default function LeaveManagement() {
         const newStatus = action === "approve" ? "approved" : "rejected";
 
         if (type === "leave-requests") {
-          setLeaveRequests(prev =>
-            prev.map(req => (req.id === id ? { ...req, status: newStatus } : req))
+          setLeaveRequests((prev) =>
+            prev.map((req) =>
+              req.id === id ? { ...req, status: newStatus } : req
+            )
           );
         } else {
-          setPermissionRequests(prev =>
-            prev.map(req => (req.id === id ? { ...req, status: newStatus } : req))
+          setPermissionRequests((prev) =>
+            prev.map((req) =>
+              req.id === id ? { ...req, status: newStatus } : req
+            )
           );
         }
       }
@@ -159,14 +166,18 @@ export default function LeaveManagement() {
                   {isPending(req) ? (
                     <div className="flex justify-center gap-3">
                       <button
-                        onClick={() => updateRequestStatus(req.id, type, "approve")}
+                        onClick={() =>
+                          updateRequestStatus(req.id, type, "approve")
+                        }
                         disabled={updatingId === req.id}
                         className="px-4 py-2 bg-green-900/50 border border-green-700 rounded-lg text-green-400 hover:bg-green-900/70 transition font-medium disabled:opacity-50"
                       >
                         {updatingId === req.id ? "..." : "Approve"}
                       </button>
                       <button
-                        onClick={() => updateRequestStatus(req.id, type, "reject")}
+                        onClick={() =>
+                          updateRequestStatus(req.id, type, "reject")
+                        }
                         disabled={updatingId === req.id}
                         className="px-4 py-2 bg-red-900/50 border border-red-700 rounded-lg text-red-400 hover:bg-red-900/70 transition font-medium disabled:opacity-50"
                       >
@@ -200,7 +211,9 @@ export default function LeaveManagement() {
     if (!cmd) return;
 
     if (["help", "?", "commands"].includes(cmd)) {
-      showAlert("Commands: pending leaves, pending permissions, processed, refresh, back, help");
+      showAlert(
+        "Commands: pending leaves, pending permissions, processed, refresh, back, help"
+      );
       return;
     }
     if (["pending leaves", "leaves pending", "leave pending"].includes(cmd)) {
@@ -208,7 +221,13 @@ export default function LeaveManagement() {
       showAlert("Switched to Pending Leave Requests");
       return;
     }
-    if (["pending permissions", "permission pending", "permissions pending"].includes(cmd)) {
+    if (
+      [
+        "pending permissions",
+        "permission pending",
+        "permissions pending",
+      ].includes(cmd)
+    ) {
       setPermissionTab("pending");
       showAlert("Switched to Pending Permission Requests");
       return;
