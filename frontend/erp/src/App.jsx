@@ -34,6 +34,8 @@ import JobReferral from "./pages/modules/hr/pages/JobReferral";
 import JobOpeningUpdate from "./pages/modules/hr/pages/JobOpeningUpdate";
 import TaskDashboard from "./pages/dashboard/TaskDashboard";
 import ChatPage from "./pages/modules/hr/ChatPage";
+import DepartmentDesignationManagement from "./pages/modules/hr/pages/DepartmentDesignationManagement";
+import SubOrgUserDashboard from "./pages/dashboard/SubOrgUserDashboard";
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -71,12 +73,28 @@ const PayrollProtectedRoute = ({ children }) => {
 /* -------------------- DASHBOARD ROUTER -------------------- */
 
 const DashboardRouter = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
-  if (user?.role === "super_admin") return <Dashboard />;
-  if (user?.role === "sub_org_admin" || user?.organization_type === "sub") return <SubOrganizationDashboard />;
-  if (user?.role === "employee") return <SubOrganizationDashboard />;
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
 
+  // 1. Super Admin → Main Dashboard
+  if (user?.role === "super_admin") {
+    return <Dashboard />;
+  }
+
+  // 2. Sub Org Admin → SubOrganizationDashboard (full HR tools)
+  if (user?.role === "sub_org_admin") {
+    return <SubOrganizationDashboard />;
+  }
+
+  // 3. Regular Employee (role: "employee" or "user") → Simple Employee View
+  if (user?.role === "employee" || user?.role === "user") {
+    return <SubOrgUserDashboard/>;  // This should be a simple employee portal
+  }
+
+  // Fallback: if role is unknown or missing
   return <Navigate to="/login" replace />;
 };
 
@@ -123,7 +141,7 @@ function App() {
           <Route path="/hr/org-tree" element={<HRProtectedRoute><OrgTree /></HRProtectedRoute>} />
           <Route path="/hr/jobreferrals" element={<HRProtectedRoute><JobReferral/></HRProtectedRoute>} />
           <Route path="/hr/jobopenings" element={<HRProtectedRoute><JobOpeningUpdate/></HRProtectedRoute>} />
-          
+          <Route path="/hr/departments" element={<HRProtectedRoute><DepartmentDesignationManagement/></HRProtectedRoute>} />
           {/* Payroll Module (New Unified Page with Tabs) */}
 
           {/* -------- PAYROLL -------- */}

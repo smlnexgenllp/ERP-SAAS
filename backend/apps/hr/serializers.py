@@ -75,43 +75,39 @@ class EmployeeDocumentSerializer(serializers.ModelSerializer):
             return obj.file.url
         return None
 # apps/hr/serializers.py
+# apps/hr/serializers.py
+
+from rest_framework import serializers
+from apps.hr.models import Employee
+
 class OrgTreeSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='full_name')
     title = serializers.CharField(source='designation.title', allow_null=True, default=None)
     department = serializers.CharField(source='department.name', allow_null=True, default=None)
-    employee_code = serializers.CharField(allow_null=True, default=None)
-    photo = serializers.SerializerMethodField()
+    photo = serializers.ImageField(allow_null=True, required=False)
+    employee_code = serializers.CharField(allow_null=True, required=False)
+    email = serializers.EmailField(source='user.email', allow_null=True, read_only=True)
+    phone = serializers.CharField(allow_null=True)
+    role = serializers.CharField()
+    date_of_joining = serializers.DateField(allow_null=True)
+    date_of_birth = serializers.DateField(allow_null=True)
     is_active = serializers.BooleanField()
-    
-    # Try these common field names instead:
-    email = serializers.EmailField(allow_null=True, default=None)
-    phone = serializers.CharField(allow_null=True, default=None)
-    mobile = serializers.CharField(allow_null=True, default=None)
-    
-    # Or try with source if they have different names:
-    # email = serializers.EmailField(source='email_address', allow_null=True, default=None)
-    # phone = serializers.CharField(source='primary_phone', allow_null=True, default=None)
-    # mobile = serializers.CharField(source='cell_phone', allow_null=True, default=None)
-    
-    # For debugging, add a method to see what fields exist
-    debug_fields = serializers.SerializerMethodField()
-    
+    is_probation = serializers.BooleanField()
+    ctc = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
+    notes = serializers.CharField(allow_blank=True, default="")
+    is_logged_in = serializers.BooleanField()
+
+    # Recursive field for children
     children = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee
         fields = [
-            'id', 'name', 'title', 'department', 'employee_code', 
-            'photo', 'is_active', 'email', 'phone', 'mobile', 
-            'debug_fields', 'children'
+            'id', 'name', 'title', 'department', 'photo', 'employee_code',
+            'email', 'phone', 'role', 'date_of_joining', 'date_of_birth',
+            'is_active', 'is_probation', 'ctc', 'notes', 'is_logged_in',
+            'children'
         ]
-
-    def get_photo(self, obj):
-        if obj.photo and hasattr(obj.photo, 'url'):
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.photo.url)
-        return None
 
     def get_debug_fields(self, obj):
         """Debug helper to see what fields exist on the object"""
@@ -126,9 +122,14 @@ class OrgTreeSerializer(serializers.ModelSerializer):
         return ", ".join(fields) if fields else "No contact fields found"
 
     def get_children(self, obj):
-        children = obj.subordinates.filter(is_active=True).order_by('full_name')
-        return OrgTreeSerializer(children, many=True, context=self.context).data    
+        # Get direct reports
+        reports = Employee.objects.filter(
+            reporting_to=obj,
+            is_active=True
+        ).select_related('designation', 'department')
 
+        # Recursively serialize them
+        return OrgTreeSerializer(reports, many=True, context=self.context).data
 class EmployeeCreateInvitationSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(write_only=True, required=True)
     full_name = serializers.CharField(required=True)

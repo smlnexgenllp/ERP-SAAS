@@ -25,23 +25,34 @@ class Module(models.Model):
     def __str__(self):
         return self.name
 
+# apps/subscriptions/models.py (or wherever ModulePage lives)
+from django.utils.text import slugify
+
 class ModulePage(models.Model):
     page_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='pages')
     name = models.CharField(max_length=100)
-    code = models.CharField(max_length=50)
+    code = models.CharField(max_length=50, blank=True)
     path = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     icon = models.CharField(max_length=50, blank=True)
     order = models.IntegerField(default=0)
     required_permission = models.CharField(max_length=50)
     is_active = models.BooleanField(default=True)
-    
+
     class Meta:
         unique_together = ['module', 'code']
-    
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            module_code = self.module.code.upper()
+            page_code = slugify(self.name).replace("-", "_").upper()
+            self.code = f"{module_code}_{page_code}_PAGE"
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.module.name} - {self.name}"
+
 
 class Subscription(models.Model):
     organization = models.OneToOneField('organizations.Organization', on_delete=models.CASCADE)

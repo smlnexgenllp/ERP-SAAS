@@ -210,7 +210,7 @@ class ManagerListView(mixins.ListModelMixin, viewsets.GenericViewSet):
         return User.objects.filter(employee__is_active=True).distinct()
 class LeaveRequestViewSet(viewsets.ModelViewSet):
     serializer_class = LeaveRequestSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     def get_serializer_class(self):
         if self.action in ['update', 'partial_update', 'approve', 'reject']:
             return LeaveRequestUpdateSerializer
@@ -234,17 +234,18 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
             'organization'
         )
         user_role = getattr(user, 'role', None)
-
         if user_role in ['admin', 'hr', 'sub_org_admin']:
             return queryset.order_by('-applied_at')
         return queryset.filter(
             employee=user
         ).order_by('-applied_at')
     def perform_create(self, serializer):
-        serializer.save(
-            employee=self.request.user,
-            organization=self.request.user.organization
-        )
+        try:
+            organization = self.request.user.employee.organization
+        except AttributeError:
+            organization = None
+        serializer.save(employee=self.request.user, organization=organization)
+
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         obj = self.get_object()
@@ -263,6 +264,56 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         obj.manager = request.user
         obj.save()
         return Response(self.get_serializer(obj).data)
+    @action(detail=False, methods=['get'], url_path='possible-managers')
+    def possible_managers(self, request):
+        user = request.user
+
+        try:
+            current_employee = Employee.objects.get(user=user)
+        except Employee.DoesNotExist:
+            return Response({"detail": "Employee profile not found."}, status=404)
+
+        organization = current_employee.organization
+        managers_list = []
+
+        # 1. Add direct reporting manager FIRST (if exists and valid)
+        if current_employee.reporting_to:
+            direct_manager = current_employee.reporting_to
+            if direct_manager.user and direct_manager.full_name.strip():
+                code = direct_manager.employee_code or "No Code"
+                managers_list.append({
+                    "id": direct_manager.user.id,
+                    "full_name": direct_manager.full_name,
+                    "email": direct_manager.email or direct_manager.user.email,
+                    "employee_code": code,
+                    "display_label": f"{direct_manager.full_name} ({code})",
+                    "is_direct_manager": True
+                })
+
+        # 2. Add all HR/Admin/sub_org_admin with valid profiles
+        hr_admins = Employee.objects.filter(
+            organization=organization,
+            role__in=['admin', 'hr', 'sub_org_admin'],
+            user__isnull=False,
+            full_name__isnull=False,
+            full_name__gt=''
+        ).select_related('user').order_by('full_name')
+
+        for emp in hr_admins:
+            # Avoid duplicates (in case direct manager is also HR/Admin)
+            if any(m['id'] == emp.user.id for m in managers_list):
+                continue
+            code = emp.employee_code or "No Code"
+            managers_list.append({
+                "id": emp.user.id,
+                "full_name": emp.full_name,
+                "email": emp.email or emp.user.email,
+                "employee_code": code,
+                "display_label": f"{emp.full_name} ({code})",
+                "is_direct_manager": False
+            })
+
+        return Response(managers_list)
 class PermissionRequestViewSet(viewsets.ModelViewSet):
     queryset = PermissionRequest.objects.all().select_related('employee', 'manager', 'organization')
     permission_classes = [AllowAny]
@@ -1054,13 +1105,13 @@ class PayrollAttendanceSummary(APIView):
 class JobOpeningViewSet(viewsets.ModelViewSet):
     serializer_class = JobOpeningSerializer
     permission_classes = [AllowAny]
-    queryset=JobOpening.objects.all()
+    queryset = JobOpening.objects.all()
+
     def get_queryset(self):
         user = self.request.user
 
-        # 1️⃣ Resolve organization (user → employee fallback)
+        # Resolve organization
         organization = getattr(user, 'organization', None)
-
         if not organization:
             try:
                 employee = Employee.objects.get(user=user)
@@ -1071,18 +1122,21 @@ class JobOpeningViewSet(viewsets.ModelViewSet):
         if not organization:
             return JobOpening.objects.none()
 
-        # 2️⃣ Organization isolation
+        # Organization isolation
         queryset = JobOpening.objects.filter(
             organization=organization
         )
 
-        # 3️⃣ Role-based access
+        # Role-based access
         user_role = getattr(user, 'role', None)
 
         if user_role in ['admin', 'hr', 'sub_org_admin']:
+            # HR/Admins see ALL job openings (active + inactive)
             return queryset.order_by('-created_at')
+        
+        # Regular employees see only OPEN (active) jobs
         return queryset.filter(
-            status='open'
+            is_active=True
         ).order_by('-created_at')
 
  
