@@ -74,25 +74,6 @@ class EmployeeDocumentSerializer(serializers.ModelSerializer):
         if obj.file:
             return obj.file.url
         return None
-class OrgTreeSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source='full_name')
-    title = serializers.CharField(source='designation.title', allow_null=True, default=None)
-    department = serializers.CharField(source='department.name', allow_null=True, default=None)
-    employee_code = serializers.CharField(allow_null=True, default=None)
-    photo = serializers.SerializerMethodField()
-    is_active = serializers.BooleanField()
-
-    children = serializers.SerializerMethodField()
-
-# class LeaveRequestSerializer(serializers.ModelSerializer):
-# class Meta:
-# model = LeaveRequest
-# fields = '__all__'
-# read_only_fields = ['requested_at', 'reviewed_at']
-
-# apps/hr/serializers.py
-
-
 # apps/hr/serializers.py
 class OrgTreeSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='full_name')
@@ -101,12 +82,29 @@ class OrgTreeSerializer(serializers.ModelSerializer):
     employee_code = serializers.CharField(allow_null=True, default=None)
     photo = serializers.SerializerMethodField()
     is_active = serializers.BooleanField()
-
+    
+    # Try these common field names instead:
+    email = serializers.EmailField(allow_null=True, default=None)
+    phone = serializers.CharField(allow_null=True, default=None)
+    mobile = serializers.CharField(allow_null=True, default=None)
+    
+    # Or try with source if they have different names:
+    # email = serializers.EmailField(source='email_address', allow_null=True, default=None)
+    # phone = serializers.CharField(source='primary_phone', allow_null=True, default=None)
+    # mobile = serializers.CharField(source='cell_phone', allow_null=True, default=None)
+    
+    # For debugging, add a method to see what fields exist
+    debug_fields = serializers.SerializerMethodField()
+    
     children = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee
-        fields = ['id', 'name', 'title', 'department', 'employee_code', 'photo', 'is_active', 'children']
+        fields = [
+            'id', 'name', 'title', 'department', 'employee_code', 
+            'photo', 'is_active', 'email', 'phone', 'mobile', 
+            'debug_fields', 'children'
+        ]
 
     def get_photo(self, obj):
         if obj.photo and hasattr(obj.photo, 'url'):
@@ -115,10 +113,21 @@ class OrgTreeSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.photo.url)
         return None
 
+    def get_debug_fields(self, obj):
+        """Debug helper to see what fields exist on the object"""
+        fields = []
+        for attr in ['email', 'work_email', 'official_email', 
+                     'phone', 'work_phone', 'office_phone',
+                     'mobile', 'mobile_number', 'cell_phone',
+                     'location', 'work_location']:
+            if hasattr(obj, attr):
+                value = getattr(obj, attr)
+                fields.append(f"{attr}: {value}")
+        return ", ".join(fields) if fields else "No contact fields found"
+
     def get_children(self, obj):
         children = obj.subordinates.filter(is_active=True).order_by('full_name')
-        return OrgTreeSerializer(children, many=True, context=self.context).data
-    
+        return OrgTreeSerializer(children, many=True, context=self.context).data    
 
 class EmployeeCreateInvitationSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(write_only=True, required=True)
@@ -384,52 +393,84 @@ class ReferralSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["referral_id", "status", "referred_by"]
 
+
+# apps/hr/serializers.py
+
 class TaskUpdateSerializer(serializers.ModelSerializer):
-    updated_by_name = serializers.CharField(source='updated_by.full_name', read_only=True)
+    """
+    Serializer for TaskUpdate (audit log entries)
+    Shows who updated, when, and what changed
+    """
+    updated_by_name = serializers.CharField(
+        source='updated_by.full_name',
+        read_only=True,
+        allow_null=True  # In case employee was deleted (SET_NULL)
+    )
 
     class Meta:
         model = TaskUpdate
-        fields = ['id', 'change_description', 'old_progress', 'new_progress', 'updated_by_name', 'timestamp']
+        fields = [
+            'id',
+            'change_description',
+            'old_progress',
+            'new_progress',
+            'timestamp',
+            'updated_by_name',
+        ]
+        read_only_fields = fields  # Everything is read-only
 
 
-# apps/hr/serializers.py
 class TaskSerializer(serializers.ModelSerializer):
-    assigned_by_name = serializers.CharField(source='assigned_by.full_name', read_only=True)
-    assigned_to_name = serializers.CharField(source='assigned_to.full_name', read_only=True)
-    project_name = serializers.CharField(source='project.name', read_only=True, allow_null=True)
+    """
+    Main Task serializer used in list/detail views and TaskCard
+    """
+    assigned_by_name = serializers.CharField(
+        source='assigned_by.full_name',
+        read_only=True,
+        allow_null=True
+    )
+    assigned_to_name = serializers.CharField(
+        source='assigned_to.full_name',
+        read_only=True,
+        allow_null=True
+    )
+    project_name = serializers.CharField(
+        source='project.name',
+        read_only=True,
+        allow_null=True
+    )
+
+    # This includes all audit log updates (newest first due to model ordering)
+    updates = TaskUpdateSerializer(many=True, read_only=True)
 
     class Meta:
         model = Task
         fields = [
-            'id', 'title', 'description', 'assigned_by', 'assigned_by_name',
-            'assigned_to', 'assigned_to_name', 'deadline', 'progress_percentage',
-            'is_completed', 'created_at', 'updated_at',
-            'project', 'project_name', 'organization'
+            'id',
+            'title',
+            'description',
+            'assigned_by',
+            'assigned_by_name',
+            'assigned_to',
+            'assigned_to_name',
+            'deadline',
+            'progress_percentage',
+            'is_completed',
+            'created_at',
+            'updated_at',
+            'project',
+            'project_name',
+            'organization',
+            'updates',  # Critical: now included!
         ]
-        read_only_fields = ["referral_id", "status", "referred_by", "created_at"]
-class TaskUpdateSerializer(serializers.ModelSerializer):
-    updated_by_name = serializers.CharField(source='updated_by.full_name', read_only=True)
-
-    class Meta:
-        model = TaskUpdate
-        fields = ['id', 'change_description', 'old_progress', 'new_progress', 'updated_by_name', 'timestamp']
-
-
-# apps/hr/serializers.py
-class TaskSerializer(serializers.ModelSerializer):
-    assigned_by_name = serializers.CharField(source='assigned_by.full_name', read_only=True)
-    assigned_to_name = serializers.CharField(source='assigned_to.full_name', read_only=True)
-    project_name = serializers.CharField(source='project.name', read_only=True, allow_null=True)
-
-    class Meta:
-        model = Task
-        fields = [
-            'id', 'title', 'description', 'assigned_by', 'assigned_by_name',
-            'assigned_to', 'assigned_to_name', 'deadline', 'progress_percentage',
-            'is_completed', 'created_at', 'updated_at',
-            'project', 'project_name', 'organization'
+        read_only_fields = [
+            'created_at',
+            'updated_at',
+            'updates',
+            'assigned_by_name',
+            'assigned_to_name',
+            'project_name',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'organization']
 
 
 
@@ -442,16 +483,33 @@ class TaskProgressUpdateSerializer(serializers.Serializer):
 
 class DailyChecklistSerializer(serializers.ModelSerializer):
     for_employee_name = serializers.CharField(source='for_employee.full_name', read_only=True)
-    set_by_name = serializers.CharField(source='set_by.full_name', read_only=True)
-    rated_by_name = serializers.CharField(source='rated_by.full_name', read_only=True)
+    set_by_name = serializers.CharField(source='set_by.full_name', read_only=True, allow_null=True)
+    
+    today_task_updates = serializers.SerializerMethodField()
+
+    def get_today_task_updates(self, obj):
+        from apps.hr.models import TaskUpdate
+        from django.utils import timezone
+        
+        today = timezone.now().date()
+        updates = TaskUpdate.objects.filter(
+            task__assigned_to=obj.for_employee,
+            timestamp__date=today
+        ).select_related('task').order_by('-timestamp')[:10]
+
+        return [
+            {
+                "task_title": u.task.title,
+                "change_description": u.change_description,
+                "progress": f"{u.old_progress}% → {u.new_progress}%",
+                "timestamp": u.timestamp.strftime("%H:%M")
+            }
+            for u in updates
+        ]
 
     class Meta:
         model = DailyChecklist
-        fields = [
-            'id', 'date', 'for_employee', 'for_employee_name',
-            'goals_description', 'set_by', 'set_by_name',
-            'rating', 'rated_by', 'rated_by_name', 'comments'
-        ]      
+        fields = ['id', 'date', 'goals_description', 'set_by_name', 'for_employee_name', 'today_task_updates', 'rating']
 
 # serializers.py
 class ProjectSerializer(serializers.ModelSerializer):
