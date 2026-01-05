@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.env
 
 # Virtual environment
 venv/
@@ -12,5 +13,11 @@ backend/venv/
 backend/media/
 
 # OS files
+# Django
+db.sqlite3
+media/
+*.log
+
+# OS
 .DS_Store
 Thumbs.db
