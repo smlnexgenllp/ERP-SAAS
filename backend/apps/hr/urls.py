@@ -48,7 +48,7 @@ router.register(r'reimbursements', EmployeeReimbursementViewSet, basename="reimb
 router.register("job-openings", JobOpeningViewSet)
 router.register("referrals", ReferralViewSet)
 router.register(r'tasks', TaskViewSet)
-router.register(r'daily-checklists', DailyChecklistViewSet)
+router.register(r'daily-checklists', DailyChecklistViewSet, basename='daily-checklist')
 router.register(r'projects', ProjectViewSet)
 router.register(r'chat/groups', ChatGroupViewSet, basename='chat-groups')
 
@@ -92,6 +92,7 @@ urlpatterns = [
      # New endpoint to get project chat members
     path('projects/<int:project_id>/chat-members/', get_project_chat_members, name='project-chat-members'),
     path('chat/groups/<int:group_id>/pinned/', get_pinned_messages, name='chat-pinned-messages'),
+    path('daily-checklists/<int:pk>/rate/', DailyChecklistViewSet.as_view({'patch': 'rate'}), name='dailychecklist-rate'),
 
 ]
 if settings.DEBUG:

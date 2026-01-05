@@ -1,98 +1,93 @@
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from apps.hr.models import Employee ,Project,ChatGroup
-from apps.organizations.models import Organization
-from django.db.models.signals import m2m_changed
+# apps/hr/signals.py
 
+from django.db.models.signals import post_save, m2m_changed
+from django.dispatch import receiver
+from apps.hr.models import Employee, Project, ChatGroup
+from apps.organizations.models import Organization
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+# ================= EMPLOYEE CODE =================
 @receiver(post_save, sender=Employee)
 def set_employee_code(sender, instance, created, **kwargs):
     if not created:
         return
 
     org = instance.organization
-
-    # Safety check
     if not org:
         return
 
-    org_code = (org.code or org.name or "ORG").upper()
-
-    instance.employee_code = f"{org_code}-{str(instance.id)[:6]}"
+    org_code = (org.code or org.name or "ORG").upper()[:10]  # Safety limit
+    instance.employee_code = f"{org_code}-{str(instance.id).zfill(6)}"
     instance.save(update_fields=["employee_code"])
 
-# hr/signals.py
+
+# ================= ORGANIZATION CHAT GROUP =================
 @receiver(post_save, sender=Organization)
 def create_organization_chat_group(sender, instance, created, **kwargs):
-    if created:
-        from apps.hr.models import ChatGroup
+    if not created:
+        return
 
-        ChatGroup.objects.get_or_create(
-            group_type=ChatGroup.GROUP_TYPE_ORG,
-            organization=instance,
-            defaults={'name': f"{instance.name} - General Chat"}
-        )
+    ChatGroup.objects.get_or_create(
+        group_type=ChatGroup.GROUP_TYPE_ORG,
+        organization=instance,
+        defaults={'name': f"{instance.name} - General Chat"}
+    )
 
 
+# ================= PROJECT CHAT GROUP (SAFE & SYNCED) =================
 @receiver(post_save, sender=Project)
-def create_project_chat_group(sender, instance, created, **kwargs):
+def manage_project_chat_group(sender, instance, created, **kwargs):
     """
-    Automatically create a chat group when a new project is created.
+    Ensures every Project has exactly one chat group.
+    - Creates it when project is first created
+    - Updates group name if project name changes
+    - Uses get_or_create → never violates unique constraint
     """
-    if created:
-        # Create the project chat group
-        ChatGroup.objects.create(
-            name=f"Project: {instance.name}",
-            group_type=ChatGroup.GROUP_TYPE_PROJECT,
-            organization=instance.organization,
-            project=instance
-        )
+    if not instance.organization:
+        return
 
-@receiver(post_save, sender=Project)
-def ensure_project_chat_group(sender, instance, created, **kwargs):
-    """
-    Permanently ensures every project has a chat group.
-    Runs on every project save — creates if missing, updates name if changed.
-    """
-    # Always try to get or create the chat group
-    chat_group, created = ChatGroup.objects.get_or_create(
-        group_type='project',
+    chat_group, group_created = ChatGroup.objects.get_or_create(
         organization=instance.organization,
         project=instance,
-        defaults={'name': f"Project: {instance.name}"}
+        group_type=ChatGroup.GROUP_TYPE_PROJECT,
+        defaults={
+            'name': f"Project: {instance.name}",
+        }
     )
-    
-    # If exists but name changed, update it
-    if not created and chat_group.name != f"Project: {instance.name}":
-        chat_group.name = f"Project: {instance.name}"
-        chat_group.save(update_fields=['name'])
-    
-    # Optional: log for debugging
-    # print(f"[Chat Auto] {'Created' if created else 'Ensured'} chat for project: {instance.name}")  
+
+    # Sync name if project was renamed
+    if not group_created:
+        expected_name = f"Project: {instance.name}"
+        if chat_group.name != expected_name:
+            chat_group.name = expected_name
+            chat_group.save(update_fields=['name'])
 
 
+# ================= PROJECT MEMBERS → CHAT MEMBERS SYNC =================
 @receiver(m2m_changed, sender=Project.members.through)
-def update_project_chat_members(sender, instance, action, pk_set, **kwargs):
+def update_project_chat_members(sender, instance, action, reverse, pk_set, **kwargs):
     """
-    When employees are added/removed from a project,
-    update the corresponding chat group members.
+    Syncs project members to the project chat group's manual_members.
+    Runs on add/remove/clear of members.
     """
-    if action in ["post_add", "post_remove"]:
-        # Find the project's chat group
-        chat_group = ChatGroup.objects.filter(
-            project=instance,
-            group_type=ChatGroup.GROUP_TYPE_PROJECT
-        ).first()
-        
-        if chat_group:
-            # Get all project members' users
-            employee_ids = instance.members.values_list('id', flat=True)
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            
-            user_ids = User.objects.filter(
-                employee__id__in=employee_ids
-            ).values_list('id', flat=True)
-            
-            # Update chat group manual members
-            chat_group.manual_members.set(user_ids)
-            print(f"Updated chat group {chat_group.id} members to {len(user_ids)} users")          
+    if action not in ["post_add", "post_remove", "post_clear"]:
+        return
+
+    # Find the project chat group
+    chat_group = ChatGroup.objects.filter(
+        project=instance,
+        group_type=ChatGroup.GROUP_TYPE_PROJECT
+    ).first()
+
+    if not chat_group:
+        return
+
+    # Get current member users
+    member_users = User.objects.filter(employee__in=instance.members.all())
+    member_user_ids = list(member_users.values_list('id', flat=True))
+
+    # Update chat group members
+    chat_group.manual_members.set(member_user_ids)
