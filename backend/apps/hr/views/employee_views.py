@@ -266,7 +266,6 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(obj).data)
     @action(detail=False, methods=['get'], url_path='possible-managers')
     def possible_managers(self, request):
-      
         user = request.user
 
         try:

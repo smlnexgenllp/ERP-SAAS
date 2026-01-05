@@ -44,10 +44,7 @@ function TreeNode({ node, onSelect }) {
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-cyan-700/40"></div>
             <div className="flex justify-center gap-20 pt-4 flex-wrap">
               {node.children.map((child) => (
-                <div
-                  key={child.id}
-                  className="flex flex-col items-center min-w-max"
-                >
+                <div key={child.id} className="flex flex-col items-center min-w-max">
                   <div className="w-px bg-cyan-700/40 h-12"></div>
                   <TreeNode node={child} onSelect={onSelect} />
                 </div>
@@ -108,9 +105,7 @@ export default function OrgTree() {
     fullTreeData.forEach(traverse);
     return {
       departments: Array.from(depts).sort(),
-      managers: mgrs.sort((a, b) =>
-        a.id === "All" ? -1 : b.id === "All" ? 1 : a.name.localeCompare(b.name)
-      ),
+      managers: mgrs.sort((a, b) => (a.id === "All" ? -1 : b.id === "All" ? 1 : a.name.localeCompare(b.name))),
     };
   }, [fullTreeData]);
 
@@ -119,34 +114,19 @@ export default function OrgTree() {
     const lowerSearch = searchName.toLowerCase().trim();
 
     const filterNode = (node) => {
-      const nodeMatchesSearch =
-        !lowerSearch || node.name?.toLowerCase().includes(lowerSearch);
-      const nodeMatchesDept =
-        selectedDepartment === "All" || node.department === selectedDepartment;
-      const nodeMatchesManager =
-        selectedManager === "All" ||
-        String(node.id) === String(selectedManager);
+      const nodeMatchesSearch = !lowerSearch || node.name?.toLowerCase().includes(lowerSearch);
+      const nodeMatchesDept = selectedDepartment === "All" || node.department === selectedDepartment;
+      const nodeMatchesManager = selectedManager === "All" || String(node.id) === String(selectedManager);
 
-      const filteredChildren = node.children
-        ? node.children.map(filterNode).filter(Boolean)
-        : [];
+      const filteredChildren = node.children ? node.children.map(filterNode).filter(Boolean) : [];
       const hasMatchingChild = filteredChildren.length > 0;
 
-      const shouldInclude =
-        nodeMatchesSearch ||
-        nodeMatchesDept ||
-        nodeMatchesManager ||
-        hasMatchingChild;
+      const shouldInclude = nodeMatchesSearch || nodeMatchesDept || nodeMatchesManager || hasMatchingChild;
 
       if (shouldInclude) {
         return {
           ...node,
-          children:
-            filteredChildren.length > 0
-              ? filteredChildren
-              : hasMatchingChild
-              ? node.children
-              : [],
+          children: filteredChildren.length > 0 ? filteredChildren : (hasMatchingChild ? node.children : []),
         };
       }
       return null;
@@ -155,39 +135,20 @@ export default function OrgTree() {
     let filtered = fullTreeData.map(filterNode).filter(Boolean);
 
     // If no filters active, show full tree
-    if (
-      !lowerSearch &&
-      selectedDepartment === "All" &&
-      selectedManager === "All"
-    ) {
+    if (!lowerSearch && selectedDepartment === "All" && selectedManager === "All") {
       filtered = fullTreeData;
     }
 
     setFilteredTreeData(filtered);
   }, [searchName, selectedDepartment, selectedManager, fullTreeData]);
 
-  const formatDate = (dateStr) =>
-    !dateStr
-      ? "—"
-      : new Date(dateStr).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-  const formatCurrency = (amount) =>
-    !amount
-      ? "—"
-      : new Intl.NumberFormat("en-IN", {
-          style: "currency",
-          currency: "INR",
-        }).format(amount);
+  const formatDate = (dateStr) => (!dateStr ? "—" : new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }));
+  const formatCurrency = (amount) => (!amount ? "—" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount));
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-950">
-        <div className="text-2xl text-cyan-400">
-          Loading Organization Tree...
-        </div>
+        <div className="text-2xl text-cyan-400">Loading Organization Tree...</div>
       </div>
     );
   }
@@ -203,9 +164,7 @@ export default function OrgTree() {
 
         <div className="flex justify-center gap-6 mb-12 flex-wrap">
           <div className="w-72">
-            <label className="block text-cyan-300 font-medium mb-2">
-              Search by Name
-            </label>
+            <label className="block text-cyan-300 font-medium mb-2">Search by Name</label>
             <input
               type="text"
               value={searchName}
@@ -216,9 +175,7 @@ export default function OrgTree() {
           </div>
 
           <div className="w-64">
-            <label className="block text-cyan-300 font-medium mb-2">
-              Department
-            </label>
+            <label className="block text-cyan-300 font-medium mb-2">Department</label>
             <select
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
@@ -233,9 +190,7 @@ export default function OrgTree() {
           </div>
 
           <div className="w-64">
-            <label className="block text-cyan-300 font-medium mb-2">
-              Manager
-            </label>
+            <label className="block text-cyan-300 font-medium mb-2">Manager</label>
             <select
               value={selectedManager}
               onChange={(e) => setSelectedManager(e.target.value)}
@@ -254,16 +209,10 @@ export default function OrgTree() {
           <div className="flex justify-center min-w-max">
             <div className="inline-flex gap-22">
               {filteredTreeData.length === 0 ? (
-                <div className="text-2xl text-gray-400 mt-20">
-                  No employees found matching filters.
-                </div>
+                <div className="text-2xl text-gray-400 mt-20">No employees found matching filters.</div>
               ) : (
                 filteredTreeData.map((root) => (
-                  <TreeNode
-                    key={root.id}
-                    node={root}
-                    onSelect={setSelectedEmployee}
-                  />
+                  <TreeNode key={root.id} node={root} onSelect={setSelectedEmployee} />
                 ))
               )}
             </div>
@@ -288,101 +237,45 @@ export default function OrgTree() {
 
               <div className="flex items-center gap-6 mb-8">
                 {selectedEmployee.photo ? (
-                  <img
-                    src={selectedEmployee.photo}
-                    alt={selectedEmployee.name}
-                    className="w-24 h-24 rounded-full border-4 border-cyan-500 object-cover"
-                  />
+                  <img src={selectedEmployee.photo} alt={selectedEmployee.name} className="w-24 h-24 rounded-full border-4 border-cyan-500 object-cover" />
                 ) : (
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-500 to-pink-500 flex items-center justify-center text-white text-5xl font-bold">
                     {selectedEmployee.name[0]}
                   </div>
                 )}
                 <div>
-                  <h2 className="text-3xl font-bold text-cyan-300">
-                    {selectedEmployee.name}
-                  </h2>
-                  <p className="text-xl text-pink-400">
-                    {selectedEmployee.title || "No designation"}
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    {selectedEmployee.employee_code || "No code"}
-                  </p>
+                  <h2 className="text-3xl font-bold text-cyan-300">{selectedEmployee.name}</h2>
+                  <p className="text-xl text-pink-400">{selectedEmployee.title || "No designation"}</p>
+                  <p className="text-sm text-gray-400 mt-1">{selectedEmployee.employee_code || "No code"}</p>
                 </div>
               </div>
 
               <div className="space-y-6 text-lg">
                 <div>
-                  <h3 className="text-cyan-300 font-semibold mb-3">
-                    Employment Details
-                  </h3>
+                  <h3 className="text-cyan-300 font-semibold mb-3">Employment Details</h3>
                   <div className="grid grid-cols-1 gap-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Department</span>
-                      <span>{selectedEmployee.department || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Role</span>
-                      <span>{selectedEmployee.role || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Joining Date</span>
-                      <span>
-                        {formatDate(selectedEmployee.date_of_joining)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Probation</span>
-                      <span>
-                        {selectedEmployee.is_probation ? "Yes" : "No"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">CTC</span>
-                      <span>{formatCurrency(selectedEmployee.ctc)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Status</span>
-                      <span
-                        className={
-                          selectedEmployee.is_active
-                            ? "text-green-400"
-                            : "text-red-400"
-                        }
-                      >
-                        {selectedEmployee.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </div>
+                    <div className="flex justify-between"><span className="text-gray-400">Department</span><span>{selectedEmployee.department || "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">Role</span><span>{selectedEmployee.role || "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">Joining Date</span><span>{formatDate(selectedEmployee.date_of_joining)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">Probation</span><span>{selectedEmployee.is_probation ? "Yes" : "No"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">CTC</span><span>{formatCurrency(selectedEmployee.ctc)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">Status</span><span className={selectedEmployee.is_active ? "text-green-400" : "text-red-400"}>{selectedEmployee.is_active ? "Active" : "Inactive"}</span></div>
                   </div>
                 </div>
 
                 <div>
                   <h3 className="text-cyan-300 font-semibold mb-3">Contact</h3>
                   <div className="grid grid-cols-1 gap-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Email</span>
-                      <span>{selectedEmployee.email || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Phone</span>
-                      <span>{selectedEmployee.phone || "—"}</span>
-                    </div>
+                    <div className="flex justify-between"><span className="text-gray-400">Email</span><span>{selectedEmployee.email || "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">Phone</span><span>{selectedEmployee.phone || "—"}</span></div>
                   </div>
                 </div>
 
                 <div>
                   <h3 className="text-cyan-300 font-semibold mb-3">Personal</h3>
                   <div className="grid grid-cols-1 gap-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Date of Birth</span>
-                      <span>{formatDate(selectedEmployee.date_of_birth)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Notes</span>
-                      <span className="text-sm">
-                        {selectedEmployee.notes || "—"}
-                      </span>
-                    </div>
+                    <div className="flex justify-between"><span className="text-gray-400">Date of Birth</span><span>{formatDate(selectedEmployee.date_of_birth)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">Notes</span><span className="text-sm">{selectedEmployee.notes || "—"}</span></div>
                   </div>
                 </div>
               </div>

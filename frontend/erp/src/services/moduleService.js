@@ -35,4 +35,15 @@ export const moduleService = {
       return [];
     }
   },
+
+// src/services/moduleService.js
+getSubOrgUserModules: async () => {
+  try {
+    const response = await api.get("/organizations/suborg-user/modules/");
+    return response.data?.modules || [];
+  } catch (error) {
+    console.error("Error fetching sub-org user modules:", error);
+    return [];
+  }
+},
 };

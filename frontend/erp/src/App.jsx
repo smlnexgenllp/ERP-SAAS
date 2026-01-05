@@ -35,6 +35,7 @@ import JobOpeningUpdate from "./pages/modules/hr/pages/JobOpeningUpdate";
 import TaskDashboard from "./pages/dashboard/TaskDashboard";
 import ChatPage from "./pages/modules/hr/ChatPage";
 import DepartmentDesignationManagement from "./pages/modules/hr/pages/DepartmentDesignationManagement";
+import SubOrgUserDashboard from "./pages/dashboard/SubOrgUserDashboard";
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -90,7 +91,7 @@ const DashboardRouter = () => {
 
   // 3. Regular Employee (role: "employee" or "user") → Simple Employee View
   if (user?.role === "employee" || user?.role === "user") {
-    return <SubOrganizationDashboard />;  // This should be a simple employee portal
+    return <SubOrgUserDashboard/>;  // This should be a simple employee portal
   }
 
   // Fallback: if role is unknown or missing
