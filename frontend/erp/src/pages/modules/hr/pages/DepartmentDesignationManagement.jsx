@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from "react";
 import api from "../../../../services/api";
-import { Building2, Briefcase, Plus, Edit2, Trash2, Check, X } from "lucide-react";
+import {
+  Building2,
+  Briefcase,
+  Plus,
+  Edit2,
+  Trash2,
+  Check,
+  X,
+} from "lucide-react";
 
 export default function DepartmentDesignationManagement() {
   const [departments, setDepartments] = useState([]);
@@ -18,7 +26,11 @@ export default function DepartmentDesignationManagement() {
   const [editingDesig, setEditingDesig] = useState(null);
 
   // Alerts
-  const [alert, setAlert] = useState({ show: false, message: "", type: "success" });
+  const [alert, setAlert] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
   const showAlert = (message, type = "success") => {
     setAlert({ show: true, message, type });
@@ -31,7 +43,7 @@ export default function DepartmentDesignationManagement() {
       setLoading(true);
       const [deptRes, desigRes] = await Promise.all([
         api.get("/hr/departments/"),
-        api.get("/hr/designations/")
+        api.get("/hr/designations/"),
       ]);
       setDepartments(deptRes.data.results || deptRes.data || []);
       setDesignations(desigRes.data.results || desigRes.data || []);
@@ -105,7 +117,10 @@ export default function DepartmentDesignationManagement() {
 
   // Delete handlers
   const deleteDepartment = async (id) => {
-    if (!window.confirm("Delete this department? Employees will lose assignment.")) return;
+    if (
+      !window.confirm("Delete this department? Employees will lose assignment.")
+    )
+      return;
     try {
       await api.delete(`/hr/departments/${id}/`);
       showAlert("Department deleted");
@@ -151,9 +166,13 @@ export default function DepartmentDesignationManagement() {
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black text-cyan-200 py-8 px-8">
       {/* Alert */}
       {alert.show && (
-        <div className={`fixed top-20 left-1/2 -translate-x-1/2 px-8 py-4 rounded-xl shadow-2xl z-50 font-medium ${
-          alert.type === "error" ? "bg-red-900/80 border border-red-600 text-red-200" : "bg-green-900/80 border border-green-600 text-green-200"
-        }`}>
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 px-8 py-4 rounded-xl shadow-2xl z-50 font-medium ${
+            alert.type === "error"
+              ? "bg-red-900/80 border border-red-600 text-red-200"
+              : "bg-green-900/80 border border-green-600 text-green-200"
+          }`}
+        >
           {alert.message}
         </div>
       )}
@@ -173,7 +192,10 @@ export default function DepartmentDesignationManagement() {
           </div>
 
           {/* Create/Edit Form */}
-          <form onSubmit={createDepartment} className="mb-8 bg-gray-800/50 rounded-2xl p-6 border border-cyan-700/50">
+          <form
+            onSubmit={createDepartment}
+            className="mb-8 bg-gray-800/50 rounded-2xl p-6 border border-cyan-700/50"
+          >
             <div className="grid grid-cols-2 gap-4 mb-4">
               <input
                 type="text"
@@ -217,7 +239,9 @@ export default function DepartmentDesignationManagement() {
           {/* List */}
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {departments.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">No departments yet</p>
+              <p className="text-center text-gray-500 py-8">
+                No departments yet
+              </p>
             ) : (
               departments.map((dept) => (
                 <div
@@ -256,7 +280,10 @@ export default function DepartmentDesignationManagement() {
           </div>
 
           {/* Create/Edit Form */}
-          <form onSubmit={createDesignation} className="mb-8 bg-gray-800/50 rounded-2xl p-6 border border-pink-700/50">
+          <form
+            onSubmit={createDesignation}
+            className="mb-8 bg-gray-800/50 rounded-2xl p-6 border border-pink-700/50"
+          >
             <div className="grid grid-cols-2 gap-4 mb-4">
               <input
                 type="text"
@@ -299,7 +326,9 @@ export default function DepartmentDesignationManagement() {
           {/* List */}
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {designations.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">No designations yet</p>
+              <p className="text-center text-gray-500 py-8">
+                No designations yet
+              </p>
             ) : (
               designations.map((desig) => (
                 <div
@@ -307,8 +336,14 @@ export default function DepartmentDesignationManagement() {
                   className="bg-gray-800/60 border border-pink-800/40 rounded-xl p-4 flex items-center justify-between hover:border-pink-500 transition"
                 >
                   <div>
-                    <h4 className="font-semibold text-pink-200">{desig.title}</h4>
-                    {desig.grade && <p className="text-sm text-gray-400">Grade: {desig.grade}</p>}
+                    <h4 className="font-semibold text-pink-200">
+                      {desig.title}
+                    </h4>
+                    {desig.grade && (
+                      <p className="text-sm text-gray-400">
+                        Grade: {desig.grade}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-3">
                     <button

@@ -9,6 +9,8 @@ from django.utils import timezone
 from datetime import timedelta
 from apps.subscriptions.models import OrganizationModule,ModulePage, Module, Subscription, SubscriptionPlan 
 from apps.organizations.models import Organization
+from apps.organizations.models import Organization, OrganizationUser
+from apps.hr.models import Employee
 from .services import OrganizationService, ModuleAccessService
 from .serializers import SubOrgUserCreateSerializer
 from rest_framework.decorators import api_view, permission_classes
@@ -599,40 +601,34 @@ from apps.accounts.models import User  # Adjust if your User model is elsewhere
 
 
 def get_user_organization(user):
-    
-    # Case 1: User has an Employee profile
+    """
+    Returns the organization linked to the user.
+    Priority:
+    1. Employee organization
+    2. Organization creator (main admin)
+    3. OrganizationUser mapping
+    """
+
+    # 1️⃣ Employee-based organization
     try:
-        employee = user.employee  # Assuming OneToOne or reverse relation
-        if employee and employee.organization:
-            return employee.organization
-    except (AttributeError, Employee.DoesNotExist):
+        if hasattr(user, "employee") and user.employee.organization:
+            return user.employee.organization
+    except Employee.DoesNotExist:
         pass
 
-    # Case 2: User is the creator of the organization (main admin)
+    # 2️⃣ Organization creator (main admin)
     org = Organization.objects.filter(created_by=user).first()
     if org:
         return org
 
-    # Optional fallback: OrganizationUser table (if still used)
+    # 3️⃣ OrganizationUser mapping (optional / legacy)
     try:
-        org_user = OrganizationUser.objects.get(user=user)
-        return org_user.organization
+        return OrganizationUser.objects.get(user=user).organization
     except OrganizationUser.DoesNotExist:
         pass
-    try:
-        return user.employee.organization
-    except (AttributeError, Employee.DoesNotExist):
-        pass
-    try:
-        return Organization.objects.filter(created_by=user).first()
-    except:
-        pass
-    try:
-        from apps.organizations.models import OrganizationUser
-        return OrganizationUser.objects.get(user=user).organization
-    except:
-        pass
+
     return None
+
     
 
 
@@ -846,3 +842,18 @@ class MarkVideoWatchedView(APIView):
             "video_id": video.id,
             "completed": True
         })
+# apps/organizations/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from apps.organizations.models import UserOrganizationAccess
+
+class SubOrgUserModulesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        # Fetch modules for this user's organization
+        org_access = UserOrganizationAccess.objects.filter(user=user).first()
+        modules = org_access.modules if org_access else []
+        return Response({"modules": modules})

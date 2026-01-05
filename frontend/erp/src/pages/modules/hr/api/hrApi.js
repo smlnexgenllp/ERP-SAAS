@@ -10,7 +10,7 @@ export const uploadMyDocument = (formData) =>
   api.post("/hr/employee-documents/", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-export const deleteDocument = (docId) => 
+export const deleteDocument = (docId) =>
   api.delete(`/hr/employee-documents/${docId}/`);
 // =================== INVITES ===================
 export const acceptInvite = (token, payload) =>
@@ -30,16 +30,15 @@ export const fetchLeaveHistory = async () => {
   return res.data.results || res.data; // <-- fix for paginated/non-paginated response
 };
 
-
 // =================== PERMISSION REQUESTS ===================
 export const fetchPermissionHistory = async () => {
-  const res = await api.get("/hr/permission/");  // make sure endpoint matches DRF router
-  return res.data.results || res.data;           // handle paginated/non-paginated responses
+  const res = await api.get("/hr/permission/"); // make sure endpoint matches DRF router
+  return res.data.results || res.data; // handle paginated/non-paginated responses
 };
 
-
 // =================== MANAGERS ===================
-export const fetchManagers = () =>api.get("/hr/leave-requests/possible-managers/");
+export const fetchManagers = () =>
+  api.get("/hr/leave-requests/possible-managers/");
 export const getAllLeaves = () => api.get("/hr/leave-requests/");
 
 // APPROVE leave
@@ -49,7 +48,6 @@ export const approveLeave = (id, response_note = "") =>
 // REJECT leave
 export const rejectLeave = (id, response_note = "") =>
   api.post(`/hr/leave-requests/${id}/reject/`, { response_note });
-
 
 // ---------------- PERMISSIONS ----------------
 
@@ -64,7 +62,6 @@ export const approvePermission = (id, response_note = "") =>
 export const rejectPermission = (id, response_note = "") =>
   api.post(`/hr/permission/${id}/reject/`, { response_note });
 
-
 // =================== MANAGER LEAVE MANAGEMENT ===================
 export const getManagerLeaves = () => api.get("/hr/manager/leave-requests/");
 
@@ -74,15 +71,15 @@ export const fetchTrainingVideos = () =>
 
 // DELETE a specific training video (Used by the dashboard/manager component)
 export const deleteTrainingVideo = (videoId) =>
-   api.delete(`/organizations/training-videos/${videoId}/`);
+  api.delete(`/organizations/training-videos/${videoId}/`);
 
 export const uploadTrainingVideo = (formData) =>
   api.post("/organizations/training-videos/upload/", formData, {
-  headers: { "Content-Type": "multipart/form-data" },
+    headers: { "Content-Type": "multipart/form-data" },
   });
 
-  export const fetchTrainingCompletions = async () => {
-  return api.get("organizations/training-completed/status"); 
+export const fetchTrainingCompletions = async () => {
+  return api.get("organizations/training-completed/status");
 };
 
 export const fetchReimbursements = async () => {
