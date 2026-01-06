@@ -1,13 +1,37 @@
 import React, { useState, useEffect } from "react";
 import api from "../../../../services/api";
-import { ChevronDown, ChevronUp, Calendar, Cake, Users, Building2, IndianRupee } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  Cake,
+  Users,
+  Building2,
+  IndianRupee,
+} from "lucide-react";
+import EditEmployeeModal from "./EditEmployeeModal";
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
 
+  /* ---------------- Fetch Logged-in User ---------------- */
+  const fetchCurrentUser = async () => {
+    try {
+      const res = await api.get("/auth/current-user/");
+      setCurrentUserRole(res.data.user.role);
+      console.log("Current User Role:", res.data.user.role);
+    } catch (err) {
+      console.error("Failed to fetch user role");
+    }
+  };
+
+  /* ---------------- Fetch Employees ---------------- */
   const fetchEmployees = async () => {
     try {
       setLoading(true);
@@ -17,8 +41,8 @@ export default function EmployeeList() {
       let url = "/hr/employees/";
 
       while (url) {
-        const response = await api.get(url);
-        const data = response.data;
+        const res = await api.get(url);
+        const data = res.data;
 
         if (Array.isArray(data)) {
           allEmployees = data;
@@ -31,7 +55,7 @@ export default function EmployeeList() {
 
       setEmployees(allEmployees);
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || "Failed to load employees");
+      setError(err.response?.data?.detail || "Failed to load employees");
     } finally {
       setLoading(false);
     }
@@ -39,185 +63,172 @@ export default function EmployeeList() {
 
   useEffect(() => {
     fetchEmployees();
+    fetchCurrentUser();
   }, []);
 
   const toggleRow = (id) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      newSet.has(id) ? newSet.delete(id) : newSet.add(id);
-      return newSet;
+    setExpandedRows((prev) => {
+      const set = new Set(prev);
+      set.has(id) ? set.delete(id) : set.add(id);
+      return set;
     });
   };
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
-  const formatCTC = (ctc) => ctc ? `₹${Number(ctc).toLocaleString("en-IN")}` : "—";
+  const canEditEmployee =
+    currentUserRole === "HR Manager" || currentUserRole === "sub_org_admin";
+
+  const formatDate = (d) =>
+    d
+      ? new Date(d).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+
+  const formatCTC = (ctc) =>
+    ctc ? `₹${Number(ctc).toLocaleString("en-IN")}` : "—";
 
   return (
     <div className="min-h-screen bg-gray-950 p-6 text-cyan-300 font-mono">
       <div className="max-w-7xl mx-auto">
-        {/* Clean & Elegant Header */}
-        <div className="flex items-center justify-between mb-10 border-b border-cyan-800/60 pb-5">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8 border-b border-cyan-800 pb-4">
           <div className="flex items-center gap-4">
-            <Users className="w-9 h-9 text-cyan-400" />
-            <div>
-              <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400">
-                Employee Directory
-              </h1>
-              <p className="text-lg text-gray-500">{employees.length} Members</p>
-            </div>
+            <Users className="w-8 h-8 text-cyan-400" />
+            <h1 className="text-3xl font-bold">Employee Directory</h1>
           </div>
-          <button
-            onClick={fetchEmployees}
-            disabled={loading}
-            className="px-7 py-3 bg-gradient-to-r from-cyan-800/40 to-purple-800/40 border border-cyan-700 rounded-xl font-medium hover:shadow-lg hover:shadow-cyan-600/30 transition-all flex items-center gap-3"
-          >
-            {loading ? "Syncing..." : "Refresh List"}
-          </button>
-        </div>
-        {/* Loading */}
-        {loading && employees.length === 0 && (
-          <div className="text-center py-28">
-            <div className="inline-block animate-spin rounded-full h-14 w-14 border-4 border-cyan-600 border-t-transparent"></div>
-            <p className="mt-6 text-xl text-gray-400">Loading employee data...</p>
-          </div>
-        )}
-        {/* Error */}
-        {error && (
-          <div className="mb-8 p-6 bg-red-900/30 border border-red-700 rounded-xl text-center">
-            <p className="text-lg text-red-400 font-bold mb-2">Connection Error</p>
-            <p className="text-red-300 mb-4">{error}</p>
-            <button onClick={fetchEmployees} className="px-7 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-medium">
-              Retry
+
+          <div className="flex gap-4">
+            <button
+              onClick={fetchEmployees}
+              className="px-6 py-2 bg-cyan-900 rounded-lg border border-cyan-700"
+            >
+              Refresh
+            </button>
+
+            <button
+              disabled={!canEditEmployee || !selectedEmployee}
+              onClick={() => setShowEditModal(true)}
+              className={`px-6 py-2 rounded-lg font-semibold
+                ${
+                  canEditEmployee && selectedEmployee
+                    ? "bg-emerald-600 text-black hover:bg-emerald-500"
+                    : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                }`}
+            >
+              Update Employee
             </button>
           </div>
-        )}
-        {/* Empty State */}
-        {!loading && !error && employees.length === 0 && (
-          <div className="text-center py-28 bg-gray-900/60 backdrop-blur-xl rounded-2xl border border-cyan-800/50">
-            <Users className="w-20 h-20 mx-auto text-gray-700 mb-5 opacity-40" />
-            <p className="text-2xl text-gray-500">No employees found</p>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="bg-red-900/40 p-4 rounded-lg text-red-300">
+            {error}
           </div>
         )}
-        {/* Compact & Professional Expandable Table */}
-        {employees.length > 0 && (
-          <div className="bg-gray-900/60 backdrop-blur-xl border border-cyan-800/70 rounded-2xl overflow-hidden shadow-2xl">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-cyan-900/40 to-purple-900/40 border-b border-cyan-800/60">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-cyan-200 uppercase tracking-wider">Employee</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-pink-300 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-cyan-300 uppercase tracking-wider">Department</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-gray-400 uppercase tracking-wider">Details</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-cyan-900/40">
-                  {employees.map((employee) => {
-                    const isExpanded = expandedRows.has(employee.id);
-                    return (
-                      <React.Fragment key={employee.id}>
-                        {/* Main Row - Compact & Clean */}
-                        <tr
-                          onClick={() => toggleRow(employee.id)}
-                          className="hover:bg-gray-800/40 transition-all duration-200 cursor-pointer group"
-                        >
-                          <td className="px-6 py-5">
-                            <div className="flex items-center gap-4">
-                              {employee.photo ? (
-                                <img src={employee.photo} alt="" className="w-11 h-11 rounded-full border border-cyan-700 object-cover" />
-                              ) : (
-                                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-600 to-pink-600 flex items-center justify-center text-lg font-bold text-gray-900">
-                                  {employee.full_name.charAt(0)}
-                                </div>
-                              )}
-                              <div>
-                                <p className="font-semibold text-cyan-200">{employee.full_name}</p>
-                                <p className="text-xs text-gray-500">{employee.email || "—"}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="text-pink-300 font-medium">
-                              {employee.designation?.title || "—"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="text-cyan-300">
-                              {employee.department?.name || "—"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5 text-center">
-                            <div className="text-cyan-400 group-hover:text-cyan-200 transition">
-                              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                            </div>
-                          </td>
-                        </tr>
 
-                        {/* Expanded Row - Clean & Balanced */}
-                        {isExpanded && (
-                          <tr>
-                            <td colSpan={4} className="px-6 py-8 bg-gray-800/50 border-t border-cyan-700/50">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                                {/* DOJ */}
-                                <div className="flex items-center gap-4">
-                                  <div className="p-3 bg-cyan-900/40 rounded-lg border border-cyan-700">
-                                    <Calendar className="w-7 h-7 text-cyan-400" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider">Joined On</p>
-                                    <p className="text-lg font-semibold text-cyan-200">{formatDate(employee.date_of_joining)}</p>
-                                  </div>
-                                </div>
+        {/* Table */}
+        <div className="bg-gray-900 border border-cyan-800 rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-cyan-900/40">
+              <tr>
+                <th className="px-6 py-4 text-left">Employee</th>
+                <th className="px-6 py-4 text-left">Role</th>
+                <th className="px-6 py-4 text-left">Department</th>
+                <th className="px-6 py-4 text-center">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {employees.map((emp) => {
+                const expanded = expandedRows.has(emp.id);
+                return (
+                  <React.Fragment key={emp.id}>
+                    <tr
+                      onClick={() => {
+                        toggleRow(emp.id);
+                        setSelectedEmployee(emp);
+                      }}
+                      className={`cursor-pointer hover:bg-gray-800
+                        ${
+                          selectedEmployee?.id === emp.id
+                            ? "bg-cyan-900/20"
+                            : ""
+                        }`}
+                    >
+                      <td className="px-6 py-4 font-semibold">
+                        {emp.full_name}
+                      </td>
+                      <td className="px-6 py-4">
+                        {emp.designation?.title || "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                        {emp.department?.name || "—"}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {expanded ? <ChevronUp /> : <ChevronDown />}
+                      </td>
+                    </tr>
 
-                                {/* DOB */}
-                                <div className="flex items-center gap-4">
-                                  <div className="p-3 bg-pink-900/40 rounded-lg border border-pink-700">
-                                    <Cake className="w-7 h-7 text-pink-400" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider">Birthday</p>
-                                    <p className="text-lg font-semibold text-pink-200">{formatDate(employee.date_of_birth)}</p>
-                                  </div>
-                                </div>
-
-                                {/* CTC */}
-                                {employee.ctc && (
-                                  <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-emerald-900/40 rounded-lg border border-emerald-700">
-                                      <IndianRupee className="w-7 h-7 text-emerald-400" />
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500 uppercase tracking-wider">Annual CTC</p>
-                                      <p className="text-xl font-bold text-emerald-300">{formatCTC(employee.ctc)}</p>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Reports To */}
-                                <div className="flex items-center gap-4">
-                                  <div className="p-3 bg-purple-900/40 rounded-lg border border-purple-700">
-                                    <Building2 className="w-7 h-7 text-purple-400" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider">Reports To</p>
-                                    <p className="text-lg font-semibold text-purple-300">
-                                      {employee.reporting_to?.full_name || employee.reporting_to || "—"}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>                        
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                    {expanded && (
+                      <tr>
+                        <td colSpan="4" className="bg-gray-800 px-6 py-6">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            <Info
+                              icon={<Calendar />}
+                              label="Joined"
+                              value={formatDate(emp.date_of_joining)}
+                            />
+                            <Info
+                              icon={<Cake />}
+                              label="DOB"
+                              value={formatDate(emp.date_of_birth)}
+                            />
+                            <Info
+                              icon={<IndianRupee />}
+                              label="CTC"
+                              value={formatCTC(emp.ctc)}
+                            />
+                            <Info
+                              icon={<Building2 />}
+                              label="Reports To"
+                              value={
+                                emp.reporting_to?.full_name ||
+                                emp.reporting_to ||
+                                "—"
+                              }
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {showEditModal && (
+        <EditEmployeeModal
+          employee={selectedEmployee}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={fetchEmployees}
+        />
+      )}
     </div>
   );
 }
+
+/* Info Card */
+const Info = ({ icon, label, value }) => (
+  <div className="flex gap-3 items-center">
+    <div className="p-2 bg-cyan-900 rounded">{icon}</div>
+    <div>
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className="font-semibold">{value}</p>
+    </div>
+  </div>
+);

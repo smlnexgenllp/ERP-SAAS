@@ -15,8 +15,6 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = ['id', 'name', 'code']
-
-
 class DesignationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Designation
@@ -46,7 +44,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     # Nice human-readable role (Admin / HR / Employee)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
-
+    reporting_to_name = serializers.SerializerMethodField()
     class Meta:
         model = Employee
         fields = [
@@ -56,10 +54,11 @@ class EmployeeSerializer(serializers.ModelSerializer):
             'designation', 'designation_id',
             'date_of_joining', 'date_of_birth',
             'is_active', 'is_probation', 'ctc', 'photo',
-            'notes', 'created_at', 'updated_at'
+            'notes', 'created_at', 'updated_at', 'reporting_to',"reporting_to_name"
         ]
         read_only_fields = ['created_at', 'updated_at', 'employee_code', 'role_display']
-
+    def get_reporting_to_name(self, obj):
+        return obj.reporting_to.full_name if obj.reporting_to else None
 # Add this at the bottom of serializers.py
 
 class EmployeeDocumentSerializer(serializers.ModelSerializer):

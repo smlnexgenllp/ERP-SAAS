@@ -14,7 +14,6 @@ path("suborg-user/modules/", SubOrgUserModulesView.as_view(), name="suborg-user-
     # Current organization
     path('current/', views.CurrentOrganizationView.as_view(), name='current-organization'),
     path("<int:org_id>/create-user/", CreateSubOrgUserView.as_view(), name="create_suborg_user"),
-    # apps/organizations/urls.py
 path(
     "training-completed/status/",
     TrainingCompletedStatusView.as_view(),

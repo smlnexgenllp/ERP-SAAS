@@ -94,6 +94,21 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             ).order_by('name')
         except Employee.DoesNotExist:
             return Department.objects.none()
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # Admin / Sub-org Admin
+        if hasattr(user, "organization") and user.organization:
+            serializer.save(organization=user.organization)
+            return
+
+        # Employee (HR creating department)
+        try:
+            employee = Employee.objects.get(user=user)
+            serializer.save(organization=employee.organization)
+        except Employee.DoesNotExist:
+            raise PermissionDenied("Organization not found for this user")
+
 class DesignationViewSet(viewsets.ModelViewSet):
     serializer_class = DesignationSerializer
     permission_classes = [IsAuthenticated]
@@ -110,6 +125,20 @@ class DesignationViewSet(viewsets.ModelViewSet):
             ).order_by('title')
         except Employee.DoesNotExist:
             return Designation.objects.none()
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # Admin / Sub-org Admin
+        if hasattr(user, "organization") and user.organization:
+            serializer.save(organization=user.organization)
+            return
+
+        # Employee (HR)
+        try:
+            employee = Employee.objects.get(user=user)
+            serializer.save(organization=employee.organization)
+        except Employee.DoesNotExist:
+            raise PermissionDenied("Organization not found for this user")
 class EmployeeViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeSerializer
     def get_queryset(self):
@@ -1233,7 +1262,12 @@ class ReferralViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     def perform_create(self, serializer):
-            serializer.save(referred_by=self.request.user)
+        job_opening_id = self.request.data.get("job_opening")
+        serializer.save(
+            referred_by=self.request.user,
+            job_opening_id=job_opening_id
+        )
+
     @action(detail=True, methods=["patch"], url_path="update-status")
     def update_status(self, request, pk=None):
         referral = self.get_object()
