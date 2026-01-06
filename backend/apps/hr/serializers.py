@@ -15,8 +15,6 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = ['id', 'name', 'code']
-
-
 class DesignationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Designation
@@ -46,7 +44,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     # Nice human-readable role (Admin / HR / Employee)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
-
+    reporting_to_name = serializers.SerializerMethodField()
     class Meta:
         model = Employee
         fields = [
@@ -56,10 +54,11 @@ class EmployeeSerializer(serializers.ModelSerializer):
             'designation', 'designation_id',
             'date_of_joining', 'date_of_birth',
             'is_active', 'is_probation', 'ctc', 'photo',
-            'notes', 'created_at', 'updated_at'
+            'notes', 'created_at', 'updated_at', 'reporting_to',"reporting_to_name"
         ]
         read_only_fields = ['created_at', 'updated_at', 'employee_code', 'role_display']
-
+    def get_reporting_to_name(self, obj):
+        return obj.reporting_to.full_name if obj.reporting_to else None
 # Add this at the bottom of serializers.py
 
 class EmployeeDocumentSerializer(serializers.ModelSerializer):
@@ -74,8 +73,7 @@ class EmployeeDocumentSerializer(serializers.ModelSerializer):
         if obj.file:
             return obj.file.url
         return None
-# apps/hr/serializers.py
-# apps/hr/serializers.py
+
 
 from rest_framework import serializers
 from apps.hr.models import Employee
@@ -287,25 +285,66 @@ class PermissionRequestUpdateSerializer(serializers.ModelSerializer):
 
 from .models import EmployeeReimbursement
 
-class SimpleUserSerializer(serializers.ModelSerializer):
-    full_name = serializers.SerializerMethodField()
 
-    class Meta:
-        model = User
-        fields = ["id", "username", "full_name", "email"]
+from rest_framework import serializers
+from apps.hr.models import EmployeeReimbursement, Employee
+from django.contrib.auth import get_user_model
 
-    def get_full_name(self, obj):
-        return f"{obj.first_name} {obj.last_name}".strip() or obj.username
+User = get_user_model()
+
 
 class EmployeeReimbursementSerializer(serializers.ModelSerializer):
     employee = SimpleUserSerializer(read_only=True)
     manager = SimpleUserSerializer(read_only=True)
 
+    # Write-only field for frontend to send manager ID
+    manager_id = serializers.IntegerField(write_only=True, required=True)
+
     class Meta:
         model = EmployeeReimbursement
-        fields = ["id", "employee", "manager", "amount", "date", "reason", "status"]
+        fields = [
+            "id", "employee", "manager", "manager_id",
+            "amount", "date", "reason", "status"
+        ]
+        read_only_fields = ["employee", "status"]
 
+    def validate_manager_id(self, manager_id):
+        """
+        Validate that the selected manager is the employee's direct reporting manager
+        """
+        request = self.context['request']
+        user = request.user
 
+        try:
+            employee_profile = Employee.objects.select_related('reporting_to').get(user=user)
+        except Employee.DoesNotExist:
+            raise serializers.ValidationError(
+                "Your employee profile is not set up. Please contact HR."
+            )
+
+        if not employee_profile.reporting_to:
+            raise serializers.ValidationError(
+                "You do not have a reporting manager assigned. Please contact HR."
+            )
+
+        reporting_manager_user = employee_profile.reporting_to.user
+
+        if not reporting_manager_user:
+            raise serializers.ValidationError(
+                "Your reporting manager does not have an active account."
+            )
+
+        if manager_id != reporting_manager_user.id:
+            raise serializers.ValidationError(
+                f"You can only submit reimbursement requests to your assigned reporting manager: "
+                f"{employee_profile.reporting_to.full_name}."
+            )
+
+        return manager_id
+
+    def create(self, validated_data):
+        validated_data.pop('manager_id', None)
+        return super().create(validated_data)
 class SalarySerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source='employee.full_name', read_only=True)
     employee_code = serializers.CharField(source='employee.employee_code', read_only=True)
