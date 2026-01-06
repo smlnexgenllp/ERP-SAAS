@@ -132,22 +132,34 @@ class DailyChecklistViewSet(viewsets.ModelViewSet):
         # Case 3: Authenticated but no employee profile and not admin → no access
         return DailyChecklist.objects.none()
 
+    # In apps/hr/views/task_views.py (or wherever your DailyChecklistViewSet is)
+
     @action(detail=True, methods=['patch'], url_path='rate')
     def rate(self, request, pk=None):
         checklist = self.get_object()
 
         rating = request.data.get('rating')
         if not rating or not (1 <= int(rating) <= 5):
-            return Response({"error": "Rating must be an integer between 1 and 5"}, status=400)
+            return Response(
+                {"error": "Rating must be an integer between 1 and 5"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Optional: Restrict rating to managers/admins
-        if user.role not in ['sub_org_admin', 'main_org_admin', 'super_admin', 'hr_manager']:
-            # You can remove this if employees should rate themselves
-            return Response({"error": "You do not have permission to rate checklists"}, status=403)
+        # FIX: Use request.user instead of undefined 'user'
+        user = request.user
+        employee = getattr(user, 'employee', None)
 
-        # Save rating
-        checklist.rating = rating
-        checklist.rated_by = getattr(request.user, 'employee', None)
+        # Restrict who can rate — only admins and HR managers
+        allowed_roles = ['sub_org_admin', 'main_org_admin', 'super_admin', 'hr_manager']
+        if user.role not in allowed_roles and (employee and employee.role not in allowed_roles):
+            return Response(
+                {"error": "You do not have permission to rate daily checklists"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Save the rating
+        checklist.rating = int(rating)
+        checklist.rated_by = employee  # or None if pure admin
         checklist.comments = request.data.get('comments', checklist.comments or '')
         checklist.save()
 
