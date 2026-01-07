@@ -129,78 +129,79 @@ class OrgTreeSerializer(serializers.ModelSerializer):
         # Recursively serialize them
         return OrgTreeSerializer(reports, many=True, context=self.context).data
 class EmployeeCreateInvitationSerializer(serializers.ModelSerializer):
-    user_email = serializers.EmailField(write_only=True, required=True)
+    user_email = serializers.EmailField(write_only=True, source='email')
     full_name = serializers.CharField(required=True)
 
     class Meta:
         model = EmployeeInvite
         fields = [
             'full_name', 'user_email', 'phone', 'role',
-            'department', 'designation', 'date_of_joining', 'is_probation',
-            'ctc', 'notes'
+            'department', 'designation', 'date_of_joining',
+            'is_probation', 'ctc', 'notes', 'reporting_to'
         ]
 
     def validate_user_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        if EmployeeInvite.objects.filter(email=value).exists():
-            raise serializers.ValidationError("An invitation has already been sent to this email.")
+        request = self.context.get('request')
+        organization = getattr(request.user.employee, 'organization', None)
+
+        if organization:
+            EmployeeInvite.objects.filter(
+                email=value,
+                organization=organization,
+                is_accepted=False
+            ).delete()
+
         return value.lower()
+
+
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get('request')
+
+        if request and hasattr(request.user, 'employee'):
+            org = request.user.employee.organization
+            fields['department'].queryset = Department.objects.filter(organization=org)
+            fields['designation'].queryset = Designation.objects.filter(organization=org)
+
+        return fields
 
     @transaction.atomic
     def create(self, validated_data):
         request = self.context.get('request')
 
-        email = validated_data.pop('user_email')
-        full_name = validated_data.pop('full_name')
+        if not request or not hasattr(request.user, 'employee'):
+            raise serializers.ValidationError("Unable to determine organization.")
 
-        # Determine which organization the invite belongs to
-        # Best: from logged-in user's employee profile
-        if request and hasattr(request.user, "employee"):
-            organization = request.user.employee.organization
-        else:
-            # Fallback (you may change this)
-            organization = Organization.objects.first()
+        organization = request.user.employee.organization
 
-        # Allowed invite fields
-        allowed_fields = [
-            'phone', 'role', 'department', 'designation',
-            'date_of_joining', 'is_probation', 'ctc', 'notes'
-        ]
-        invite_data = {k: validated_data[k] for k in allowed_fields if k in validated_data}
-
-        # Create the invite (🔥 ORGANIZATION ADDED)
         invite = EmployeeInvite.objects.create(
-            full_name=full_name,
-            email=email,
-            organization=organization,   # ← FIXED
-            **invite_data
+            organization=organization,
+            **validated_data
         )
 
-        # Accept URL
-        accept_url = f"http://{request.get_host()}/api/hr/employees/accept-invite/{invite.token}/"
+        scheme = 'https' if request.is_secure() else 'http'
+        accept_url = f"{scheme}://{request.get_host()}/api/hr/employees/accept-invite/{invite.token}/"
 
-        # HTML email
         html_message = render_to_string(
             'emails/invitation_email.html',
             {
-                'full_name': full_name,
+                'full_name': invite.full_name,
                 'organization': organization.name,
                 'accept_url': accept_url
             }
         )
 
-        # Send the email
         send_mail(
             subject=f"Invitation to join {organization.name}",
             message='',
             html_message=html_message,
             from_email=None,
-            recipient_list=[email],
+            recipient_list=[invite.email],
             fail_silently=False
         )
 
         return invite
+
     
 
 from rest_framework import serializers
