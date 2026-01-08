@@ -1,4 +1,4 @@
-// App.jsx – FIXED (no redirect loops, production-safe)
+// App.jsx – UPDATED: HR, Manager, TL now have full HR module access
 
 import React from "react";
 import {
@@ -14,7 +14,7 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Dashboard from "./pages/dashboard/Dashboard";
 import SubOrganizationDashboard from "./pages/dashboard/SubOrganizationDashboard";
-import UserDashboard from "./pages/dashboard/UserDashboard";
+import SubOrgUserDashboard from "./pages/dashboard/SubOrgUserDashboard";
 import SubOrgLogin from "./pages/auth/SubOrgLogin";
 import EmployeeLogin from "./pages/modules/hr/pages/EmployeeLogin";
 
@@ -35,37 +35,54 @@ import JobOpeningUpdate from "./pages/modules/hr/pages/JobOpeningUpdate";
 import TaskDashboard from "./pages/dashboard/TaskDashboard";
 import ChatPage from "./pages/modules/hr/ChatPage";
 import DepartmentDesignationManagement from "./pages/modules/hr/pages/DepartmentDesignationManagement";
-import SubOrgUserDashboard from "./pages/dashboard/SubOrgUserDashboard";
+
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-
-  if (loading) return <div>Loading...</div>;
-
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
+// HR Module Access: HR Manager, Manager, Team Lead, Admin, Org Admins
 const HRProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, user } = useAuth();
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
 
-  const hasHRAccess =
-    user?.modules?.includes("hr") ||
-    ["hr_manager", "admin", "main_org_admin", "sub_org_admin", "accountant","user"].includes(user?.role);
+  const userRole = user?.org_role || user?.role; // Prefer org_role (HR Manager, Admin, etc.)
+
+  const hasHRAccess = [
+    'HR Manager',
+    'Manager',
+    'Team Lead',
+    'Admin',                    // From OrganizationUser
+    'main_org_admin',
+    'sub_org_admin',
+    'super_admin'
+  ].includes(userRole);
 
   return isAuthenticated && hasHRAccess ? children : <Navigate to="/dashboard" replace />;
 };
 
+// Payroll Access: Similar roles + Accountant
 const PayrollProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, user } = useAuth();
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
 
-  const hasPayrollAccess =
-    user?.modules?.includes("payroll") ||
-    ["payroll_manager", "admin", "main_org_admin", "sub_org_admin", "hr_manager", "accountant"].includes(user?.role);
+  const userRole = user?.org_role || user?.role;
+
+  const hasPayrollAccess = [
+    'HR Manager',
+    'Manager',
+    'Team Lead',
+    'Admin',
+    'main_org_admin',
+    'sub_org_admin',
+    'super_admin',
+    'accountant'  // if you have this role
+  ].includes(userRole);
 
   return isAuthenticated && hasPayrollAccess ? children : <Navigate to="/dashboard" replace />;
 };
@@ -79,25 +96,24 @@ const DashboardRouter = () => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  // 1. Super Admin → Main Dashboard
+  // Super Admin → Main Dashboard
   if (user?.role === "super_admin") {
     return <Dashboard />;
   }
 
-  // 2. Sub Org Admin → SubOrganizationDashboard (full HR tools)
+  // Sub Org Admin → Full HR Tools Dashboard
   if (user?.role === "sub_org_admin") {
     return <SubOrganizationDashboard />;
   }
 
-  // 3. Regular Employee (role: "employee" or "user") → Simple Employee View
+  // Regular Employee → Simple Portal
   if (user?.role === "employee" || user?.role === "user") {
-    return <SubOrgUserDashboard/>;  // This should be a simple employee portal
+    return <SubOrgUserDashboard />;
   }
 
-  // Fallback: if role is unknown or missing
+  // Fallback
   return <Navigate to="/login" replace />;
 };
-
 
 /* -------------------- APP -------------------- */
 
@@ -131,7 +147,7 @@ function App() {
             }
           />
 
-          {/* -------- HR MODULE -------- */}
+          {/* -------- HR MODULE (Now accessible by HR, Manager, TL) -------- */}
           <Route path="/hr/dashboard" element={<HRProtectedRoute><HRDashboard /></HRProtectedRoute>} />
           <Route path="/hr/employees" element={<HRProtectedRoute><EmployeeList /></HRProtectedRoute>} />
           <Route path="/hr/employees/add" element={<HRProtectedRoute><AddEmployee /></HRProtectedRoute>} />
@@ -139,21 +155,19 @@ function App() {
           <Route path="/hr/leaves" element={<HRProtectedRoute><LeaveManagement /></HRProtectedRoute>} />
           <Route path="/hr/reimbursements" element={<HRProtectedRoute><Reimbursement /></HRProtectedRoute>} />
           <Route path="/hr/org-tree" element={<HRProtectedRoute><OrgTree /></HRProtectedRoute>} />
-          <Route path="/hr/jobreferrals" element={<HRProtectedRoute><JobReferral/></HRProtectedRoute>} />
-          <Route path="/hr/jobopenings" element={<HRProtectedRoute><JobOpeningUpdate/></HRProtectedRoute>} />
-          <Route path="/hr/departments" element={<HRProtectedRoute><DepartmentDesignationManagement/></HRProtectedRoute>} />
-          {/* Payroll Module (New Unified Page with Tabs) */}
+          <Route path="/hr/jobreferrals" element={<HRProtectedRoute><JobReferral /></HRProtectedRoute>} />
+          <Route path="/hr/jobopenings" element={<HRProtectedRoute><JobOpeningUpdate /></HRProtectedRoute>} />
+          <Route path="/hr/departments" element={<HRProtectedRoute><DepartmentDesignationManagement /></HRProtectedRoute>} />
 
           {/* -------- PAYROLL -------- */}
           <Route path="/hr/payroll" element={<HRProtectedRoute><PayrollPage /></HRProtectedRoute>} />
           <Route path="/payroll/dashboard" element={<PayrollProtectedRoute><PayrollDashboard /></PayrollProtectedRoute>} />
           <Route path="/payroll/salary-setup" element={<PayrollProtectedRoute><SalarySetupWithESIPF /></PayrollProtectedRoute>} />
           <Route path="/payroll/invoice-generation" element={<PayrollProtectedRoute><InvoiceGeneration /></PayrollProtectedRoute>} />
-          
 
+          {/* -------- OTHER HR FEATURES -------- */}
           <Route path="/hr/tasks" element={<HRProtectedRoute><TaskDashboard /></HRProtectedRoute>} />
           <Route path="/hr/chat" element={<HRProtectedRoute><ChatPage /></HRProtectedRoute>} />
-
 
           {/* -------- REDIRECTS -------- */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

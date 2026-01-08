@@ -1670,3 +1670,60 @@ def send_offer_email(referral):
     print(f"Offer email sent to {candidate_name} ({candidate_email}) for {job_title}")
 
     return Response(data)
+
+@action(detail=False, methods=['get'], url_path='me', permission_classes=[IsAuthenticated])
+def me(self, request):
+    """
+    Enhanced /employees/me/ endpoint
+    Returns current user's Employee profile with:
+    - reporting_to details (name, code, id)
+    - subordinates list (for team tasks)
+    """
+    try:
+        # Fetch employee with related data efficiently
+        employee = Employee.objects.select_related(
+            'reporting_to',
+            'department',
+            'designation',
+            'organization'
+        ).prefetch_related('subordinates').get(user=request.user)
+
+        # Use the existing serializer (which now includes reporting_to_name etc.)
+        serializer = self.get_serializer(employee)
+        data = serializer.data
+
+        # Explicitly add subordinates (since SerializerMethodField needs obj context)
+        # This ensures it's always included even if serializer changes
+        data['subordinates'] = [
+            {
+                'id': sub.id,
+                'full_name': sub.full_name,
+                'employee_code': sub.employee_code or '',
+            }
+            for sub in employee.subordinates.all()
+        ]
+
+        # Ensure reporting_to details are present (fallback if serializer misses)
+        if employee.reporting_to:
+            data.setdefault('reporting_to_id', employee.reporting_to.id)
+            data.setdefault('reporting_to_name', employee.reporting_to.full_name)
+            data.setdefault('reporting_to_code', employee.reporting_to.employee_code or '')
+        else:
+            data['reporting_to_id'] = None
+            data['reporting_to_name'] = None
+            data['reporting_to_code'] = None
+
+        return Response(data)
+
+    except Employee.DoesNotExist:
+        return Response(
+            {"detail": "No employee profile found for this user."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        # Log unexpected errors
+        logger.error(f"Error in /employees/me/: {str(e)}")
+        return Response(
+            {"detail": "An error occurred while fetching your profile."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )    

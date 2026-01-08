@@ -33,7 +33,7 @@ from .views.org_tree_views import (
 from .views.payslip_views import(
     generate_payslip_pdf,
 )
-from .views.task_views import TaskViewSet, DailyChecklistViewSet,performance_report, project_updates,ProjectViewSet
+from .views.task_views import TaskViewSet, DailyChecklistViewSet,performance_report, project_updates,ProjectViewSet,DailyTLReportViewSet
 from .views.chat_views import (ChatGroupViewSet, group_messages, upload_chat_file, create_custom_chat_group,get_project_chat_members,get_pinned_messages)
 # Router for standard CRUD APIs
 router = DefaultRouter()
@@ -51,6 +51,7 @@ router.register(r'tasks', TaskViewSet)
 router.register(r'daily-checklists', DailyChecklistViewSet, basename='daily-checklist')
 router.register(r'projects', ProjectViewSet)
 router.register(r'chat/groups', ChatGroupViewSet, basename='chat-groups')
+router.register(r'daily-tl-reports', DailyTLReportViewSet, basename='daily-tl-report')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -93,6 +94,7 @@ urlpatterns = [
     path('projects/<int:project_id>/chat-members/', get_project_chat_members, name='project-chat-members'),
     path('chat/groups/<int:group_id>/pinned/', get_pinned_messages, name='chat-pinned-messages'),
     path('daily-checklists/<int:pk>/rate/', DailyChecklistViewSet.as_view({'patch': 'rate'}), name='dailychecklist-rate'),
+    
 
 ]
 if settings.DEBUG:
