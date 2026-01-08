@@ -15,6 +15,7 @@ import uuid
 from datetime import date  # <-- Add this line!
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.utils import timezone
 User = get_user_model()
 
 phone_validator = RegexValidator(r"^\+?1?\d{9,15}$", "Enter a valid phone number.")
@@ -789,3 +790,56 @@ class UnreadMessage(models.Model):
 
     def __str__(self):
         return f"Unread: {self.message} for {self.user}"
+
+
+class DailyTLReport(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE
+    )
+    team_lead = models.ForeignKey(
+        'apps_hr.Employee',
+        on_delete=models.CASCADE,
+        related_name='tl_sent_reports',
+        limit_choices_to={'role': 'team_lead'}  # Optional: restrict to TLs only
+    )
+    manager = models.ForeignKey(
+        'apps_hr.Employee',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='manager_received_tl_reports'
+    )
+    date = models.DateField(default=timezone.now)
+    report_summary = models.TextField(
+        blank=True,
+        default=""
+    )
+    data = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Optional structured data: tasks completed, attendance, etc."
+    )
+    sent_at = models.DateTimeField(auto_now_add=True)
+    is_submitted = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('team_lead', 'date')
+        ordering = ['-date', '-sent_at']
+        verbose_name = "Daily Team Lead Report"
+        verbose_name_plural = "Daily Team Lead Reports"
+
+    def __str__(self):
+        status = "Submitted" if self.is_submitted else "Draft"
+        manager_name = self.manager.full_name if self.manager else "No Manager"
+        return f"{self.team_lead.full_name} → {manager_name} ({self.date})"
+
+    def save(self, *args, **kwargs):
+        # Auto-set manager from team_lead.reporting_to
+        if self.team_lead and self.team_lead.reporting_to:
+            self.manager = self.team_lead.reporting_to
+        elif self.team_lead and not self.team_lead.reporting_to:
+            # Optional: warn or prevent if no manager set
+            pass  # or raise ValidationError if required
+
+        super().save(*args, **kwargs)
