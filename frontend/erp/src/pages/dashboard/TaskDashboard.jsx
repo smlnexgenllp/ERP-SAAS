@@ -1,4 +1,5 @@
-// src/pages/TaskDashboard.jsx (CLEAN, ALIGNED & PROFESSIONAL)
+// src/pages/TaskDashboard.jsx – FINAL VERSION WITH TL REPORT HISTORY
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import TaskList from '../../components/modules/hr/TaskList';
@@ -8,14 +9,21 @@ import PerformanceReport from '../../components/modules/hr/PerformanceReport';
 import CreateProjectForm from '../../components/modules/hr/CreateProjectForm';
 import ProjectList from '../../components/modules/hr/ProjectList';
 
+// TL Components
+import DailyTLReportForm from '../../components/modules/hr/DailyTLReportForm';           // Submit today's report
+import TLReportHistory from '../../components/modules/hr/TLReportHistory';                 // View past reports (new component)
+import ManagerTLReportsView from '../../components/modules/hr/ManagerTLReportsView';       // Manager sees all incoming
+
 import {
   CheckCircle2,
   CalendarCheck,
-  Target,
   Users,
   CalendarDays,
   TrendingUp,
-  FolderOpen
+  FolderOpen,
+  FileText,
+  Eye,
+  History
 } from 'lucide-react';
 
 const TaskDashboard = () => {
@@ -45,60 +53,84 @@ const TaskDashboard = () => {
     );
   }
 
-  const userRole = user?.role || 'user';
+  const displayedRole = user?.org_role || user?.role || 'Employee';
+  const userRoleLower = displayedRole.toLowerCase();
 
-  const isTLOrAbove = [
-    'tl', 'team_lead', 'hr_manager',
-    'main_org_admin', 'sub_org_admin', 'super_admin'
-  ].includes(userRole);
-
+  const isTeamLead = userRoleLower === 'team lead' || userRoleLower === 'team_lead';
   const isManagerOrAbove = [
-    'hr_manager', 'main_org_admin', 'sub_org_admin', 'super_admin'
-  ].includes(userRole);
+    'manager', 'hr manager', 'admin',
+    'main_org_admin', 'sub_org_admin', 'super_admin'
+  ].includes(userRoleLower);
+
+  const canAssignTasks = [
+    'hr manager', 'manager', 'team lead', 'team_lead',
+    'admin', 'main_org_admin', 'sub_org_admin', 'super_admin'
+  ].includes(userRoleLower);
+
+  const hasFullAccess = canAssignTasks;
 
   const tabs = [
     { key: 'my-tasks', label: 'My Tasks', icon: CheckCircle2, alwaysShow: true },
-    { key: 'assign-tasks', label: 'Assign Tasks', icon: Users, show: isTLOrAbove },
-    { key: 'daily-checklists', label: 'Rate Daily Checklists', icon: CalendarCheck, show: isManagerOrAbove },
-    { key: 'performance', label: 'Performance Report', icon: TrendingUp, show: isManagerOrAbove },
-    { key: 'create-project', label: 'Create Project', icon: FolderOpen, show: isManagerOrAbove },
-    { key: 'projects', label: 'Projects', icon: FolderOpen, show: isManagerOrAbove },
+    { key: 'assign-tasks', label: 'Assign Tasks', icon: Users, show: canAssignTasks },
+    { key: 'daily-checklists', label: 'Rate Checklists', icon: CalendarCheck, show: hasFullAccess },
+    { key: 'performance', label: 'Performance Report', icon: TrendingUp, show: hasFullAccess },
+    { key: 'create-project', label: 'Create Project', icon: FolderOpen, show: hasFullAccess },
+    { key: 'projects', label: 'Projects', icon: FolderOpen, show: hasFullAccess },
+
+    // TEAM LEAD: Submit today's report
+    {
+      key: 'submit-tl-report',
+      label: 'Submit Today\'s Report',
+      icon: FileText,
+      show: isTeamLead
+    },
+
+    // TEAM LEAD: View their own report history
+    {
+      key: 'my-tl-reports',
+      label: 'My Daily Reports',
+      icon: History,
+      show: isTeamLead
+    },
+
+    // MANAGER+: View reports from all TLs reporting to them
+    {
+      key: 'view-tl-reports',
+      label: 'Team Lead Reports',
+      icon: Eye,
+      show: isManagerOrAbove
+    },
   ];
 
   const visibleTabs = tabs.filter(tab => tab.alwaysShow || tab.show);
 
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono flex flex-col">
-      {/* Scrollable Main Content */}
       <div className="flex-1 overflow-y-auto pb-32">
         <div className="p-6 max-w-7xl mx-auto">
-
-          {/* Header */}
           <header className="border-b-2 border-cyan-800 pb-5 mb-10 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-4 h-4 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/50 animate-pulse"></div>
-              <h1 className=" font-bold text-blue-300">
+              <h1 className="font-bold text-blue-300">
                 ALU-CORE: TASK & PERFORMANCE
               </h1>
             </div>
             <div className="text-right">
-              <p className=" text-gray-400">
-                [{user.first_name || user.email}] • [{userRole.toUpperCase()}]
+              <p className="text-gray-400">
+                [{user.first_name || user.email}] • [{displayedRole.toUpperCase()}]
               </p>
             </div>
           </header>
 
-          {/* Welcome Message */}
           <div className="text-center mb-12">
-            <h2 className=" font-bold text-cyan-300 mb-3">
+            <h2 className="font-bold text-cyan-300 mb-3">
               Welcome back, {user.first_name || user.email.split('@')[0]}
             </h2>
-            <p className=" text-gray-400">
-              Manage tasks, performance, and projects across your team
+            <p className="text-gray-400">
+              Manage tasks, performance, and team reporting
             </p>
           </div>
 
-          {/* Navigation Tabs */}
           <div className="flex flex-wrap justify-center gap-6 mb-12">
             {visibleTabs.map((tab) => (
               <button
@@ -116,76 +148,53 @@ const TaskDashboard = () => {
             ))}
           </div>
 
-          {/* Main Content Area */}
           <div className="bg-gray-900/40 backdrop-blur border-2 border-cyan-900 rounded-2xl shadow-2xl p-10 min-h-[600px]">
-            {/* My Tasks */}
-            {view === 'my-tasks' && (
+            {view === 'my-tasks' && <TaskList />}
+
+            {view === 'assign-tasks' && canAssignTasks && <CreateTaskForm />}
+
+            {view === 'daily-checklists' && hasFullAccess && <DailyChecklistManager />}
+
+            {view === 'performance' && hasFullAccess && <PerformanceReport />}
+
+            {view === 'create-project' && hasFullAccess && <CreateProjectForm />}
+
+            {view === 'projects' && hasFullAccess && <ProjectList />}
+
+            {/* TEAM LEAD: Submit Today's Report */}
+            {view === 'submit-tl-report' && isTeamLead && (
               <div>
                 <div className="flex items-center gap-4 mb-10">
-                  <CheckCircle2 className="w-10 h-10 text-cyan-400" />
-                  <h3 className=" font-bold">My Assigned Tasks</h3>
+                  <FileText className="w-10 h-10 text-cyan-400" />
+                  <h3 className="font-bold text-2xl">Submit Today's Team Report</h3>
                 </div>
-                <TaskList />
+                <DailyTLReportForm />
               </div>
             )}
 
-            {/* Assign Tasks */}
-            {view === 'assign-tasks' && isTLOrAbove && (
+            {/* TEAM LEAD: View Their Own Report History */}
+            {view === 'my-tl-reports' && isTeamLead && (
               <div>
                 <div className="flex items-center gap-4 mb-10">
-                  <Users className="w-10 h-10 text-cyan-400" />
-                  <h3 className="font-bold">Assign New Tasks</h3>
+                  <History className="w-10 h-10 text-cyan-400" />
+                  <h3 className="font-bold text-2xl">My Submitted Daily Reports</h3>
                 </div>
-                <CreateTaskForm />
+                <TLReportHistory />
               </div>
             )}
 
-            {/* Rate Daily Checklists */}
-            {view === 'daily-checklists' && isManagerOrAbove && (
+            {/* MANAGER: View Incoming TL Reports */}
+            {view === 'view-tl-reports' && isManagerOrAbove && (
               <div>
                 <div className="flex items-center gap-4 mb-10">
-                  <CalendarDays className="w-10 h-10 text-cyan-400" />
-                  <h3 className=" font-bold">Rate Team Daily Performance</h3>
+                  <Eye className="w-10 h-10 text-cyan-400" />
+                  <h3 className="font-bold text-2xl">Incoming Team Lead Reports</h3>
                 </div>
-                <DailyChecklistManager />
-              </div>
-            )}
-
-            {/* Performance Report */}
-            {view === 'performance' && isManagerOrAbove && (
-              <div>
-                <div className="flex items-center gap-4 mb-10">
-                  <TrendingUp className="w-10 h-10 text-cyan-400" />
-                  <h3 className=" font-bold">Team Performance Report</h3>
-                </div>
-                <PerformanceReport />
-              </div>
-            )}
-
-            {/* Create Project */}
-            {view === 'create-project' && isManagerOrAbove && (
-              <div>
-                <div className="flex items-center gap-4 mb-10">
-                  <FolderOpen className="w-10 h-10 text-cyan-400" />
-                  <h3 className=" font-bold">Launch New Project</h3>
-                </div>
-                <CreateProjectForm />
-              </div>
-            )}
-
-            {/* Projects List */}
-            {view === 'projects' && isManagerOrAbove && (
-              <div>
-                <div className="flex items-center gap-4 mb-10">
-                  <FolderOpen className="w-10 h-10 text-cyan-400" />
-                  <h3 className=" font-bold">Project Management</h3>
-                </div>
-                <ProjectList />
+                <ManagerTLReportsView />
               </div>
             )}
           </div>
 
-          {/* Status Footer */}
           <div className="mt-12 text-center text-gray-500">
             <p>
               Task System Online • {visibleTabs.length} Modules Active • {new Date().toLocaleDateString()}
@@ -194,10 +203,9 @@ const TaskDashboard = () => {
         </div>
       </div>
 
-      {/* Terminal Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t-2 border-cyan-500 px-6 py-4 flex items-center shadow-2xl">
         <span className="text-green-400 font-bold mr-4">&gt;</span>
-        <span className="text-gray-400">task-dashboard@{userRole}</span>
+        <span className="text-gray-400">task-dashboard@{displayedRole}</span>
         <span className="text-cyan-400 mx-2">~</span>
         <span className="text-gray-500">type "help" for commands</span>
       </div>
