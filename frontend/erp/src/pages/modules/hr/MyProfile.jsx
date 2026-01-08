@@ -27,6 +27,7 @@ import {
   XCircle,
   Clock as ClockIcon,
   PlayCircle,
+  ClipboardList,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -480,8 +481,8 @@ export default function MyProfile() {
     return (
       <span className="px-3 py-1 bg-yellow-900/50 border border-yellow-600 text-yellow-300 rounded-full text-xs font-bold flex items-center gap-1">
         <ClockIcon className="w-4 h-4" /> PENDING
-        </span>
-      );
+      </span>
+    );
   };
 
   const formatTitle = (title) => {
@@ -632,6 +633,17 @@ export default function MyProfile() {
                     </span>
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </button>
+                  <button
+                    onClick={() => navigate("/hr/tasks")}
+                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                  >
+                    <span className="flex items-center gap-3">
+                      <ClipboardList className="w-6 h-6 text-cyan-400" />
+                      Task Management
+                    </span>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                  </button>
+
                 </div>
               </div>
 
@@ -684,11 +696,10 @@ export default function MyProfile() {
                         if (tab === "status") setStatusSubTab("leaves");
                         if (tab === "reimbursement") setReimbursementTab("pending");
                       }}
-                      className={`px-6 py-3 ${
-                        activeTab === tab
+                      className={`px-6 py-3 ${activeTab === tab
                           ? "text-cyan-300 border-b-2 border-cyan-400"
                           : "text-gray-500 hover:text-gray-400"
-                      } transition`}
+                        } transition`}
                     >
                       {tab.charAt(0).toUpperCase() + tab.slice(1)}
                     </button>
@@ -798,21 +809,19 @@ export default function MyProfile() {
                     <div className="flex border-b border-cyan-800 mb-6 text-sm">
                       <button
                         onClick={() => setStatusSubTab("leaves")}
-                        className={`px-6 py-3 ${
-                          statusSubTab === "leaves"
+                        className={`px-6 py-3 ${statusSubTab === "leaves"
                             ? "text-cyan-300 border-b-2 border-cyan-400"
                             : "text-gray-500 hover:text-gray-400"
-                        } transition`}
+                          } transition`}
                       >
                         Leaves
                       </button>
                       <button
                         onClick={() => setStatusSubTab("permissions")}
-                        className={`px-6 py-3 ${
-                          statusSubTab === "permissions"
+                        className={`px-6 py-3 ${statusSubTab === "permissions"
                             ? "text-cyan-300 border-b-2 border-cyan-400"
                             : "text-gray-500 hover:text-gray-400"
-                        } transition`}
+                          } transition`}
                       >
                         Permissions
                       </button>
@@ -895,21 +904,19 @@ export default function MyProfile() {
                     <div className="flex border-b border-cyan-800 mb-6 text-sm">
                       <button
                         onClick={() => setReimbursementTab("pending")}
-                        className={`px-6 py-3 ${
-                          reimbursementTab === "pending"
+                        className={`px-6 py-3 ${reimbursementTab === "pending"
                             ? "text-cyan-300 border-b-2 border-cyan-400"
                             : "text-gray-500 hover:text-gray-400"
-                        } transition`}
+                          } transition`}
                       >
                         Pending
                       </button>
                       <button
                         onClick={() => setReimbursementTab("completed")}
-                        className={`px-6 py-3 ${
-                          reimbursementTab === "completed"
+                        className={`px-6 py-3 ${reimbursementTab === "completed"
                             ? "text-cyan-300 border-b-2 border-cyan-400"
                             : "text-gray-500 hover:text-gray-400"
-                        } transition`}
+                          } transition`}
                       >
                         Completed
                       </button>
@@ -969,11 +976,10 @@ export default function MyProfile() {
                       (day) => (
                         <div
                           key={day}
-                          className={`py-3 rounded-lg ${
-                            day === 26
+                          className={`py-3 rounded-lg ${day === 26
                               ? "bg-cyan-600 text-gray-900 font-bold"
                               : "hover:bg-gray-800/40"
-                          } transition`}
+                            } transition`}
                         >
                           {day}
                         </div>
@@ -1407,9 +1413,8 @@ export default function MyProfile() {
                       <div
                         className="bg-cyan-500 h-3 rounded-full transition-all duration-500"
                         style={{
-                          width: `${
-                            (watchedVideos.size / trainingVideos.length) * 100
-                          }%`,
+                          width: `${(watchedVideos.size / trainingVideos.length) * 100
+                            }%`,
                         }}
                       />
                     </div>
@@ -1422,9 +1427,8 @@ export default function MyProfile() {
                       return (
                         <div
                           key={video.id}
-                          className={`bg-gray-800/50 rounded-lg overflow-hidden shadow hover:shadow-cyan-800/50 transition ${
-                            !unlocked ? "opacity-60" : ""
-                          }`}
+                          className={`bg-gray-800/50 rounded-lg overflow-hidden shadow hover:shadow-cyan-800/50 transition ${!unlocked ? "opacity-60" : ""
+                            }`}
                         >
                           <div className="aspect-video bg-black relative">
                             {video.video ? (
