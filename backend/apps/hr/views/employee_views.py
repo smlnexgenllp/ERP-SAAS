@@ -29,6 +29,7 @@ from rest_framework import viewsets, permissions
 from apps.hr.models import JobOpening, Referral
 from apps.hr.serializers import JobOpeningSerializer, ReferralSerializer
 import logging
+from apps.organizations.models import OrganizationUser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -59,7 +60,24 @@ from django.contrib.auth import get_user_model
 from apps.hr.models import Employee
 from apps.hr.serializers import SimpleUserSerializer
 from django.db.models import Count, Sum, Q, F  
+
 logger = logging.getLogger(__name__)
+from apps.organizations.models import OrganizationUser
+
+def get_user_org_role(user, organization):
+    """
+    Returns the user's role in the given organization from OrganizationUser model.
+    Returns None if not found or inactive.
+    """
+    try:
+        org_user = OrganizationUser.objects.get(
+            user=user,
+            organization=organization,
+            is_active=True
+        )
+        return org_user.role
+    except OrganizationUser.DoesNotExist:
+        return None
 class DepartmentViewSet(viewsets.ModelViewSet):
     serializer_class = DepartmentSerializer
     permission_classes = [IsAuthenticated]
@@ -76,6 +94,21 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             ).order_by('name')
         except Employee.DoesNotExist:
             return Department.objects.none()
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # Admin / Sub-org Admin
+        if hasattr(user, "organization") and user.organization:
+            serializer.save(organization=user.organization)
+            return
+
+        # Employee (HR creating department)
+        try:
+            employee = Employee.objects.get(user=user)
+            serializer.save(organization=employee.organization)
+        except Employee.DoesNotExist:
+            raise PermissionDenied("Organization not found for this user")
+
 class DesignationViewSet(viewsets.ModelViewSet):
     serializer_class = DesignationSerializer
     permission_classes = [IsAuthenticated]
@@ -92,6 +125,20 @@ class DesignationViewSet(viewsets.ModelViewSet):
             ).order_by('title')
         except Employee.DoesNotExist:
             return Designation.objects.none()
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # Admin / Sub-org Admin
+        if hasattr(user, "organization") and user.organization:
+            serializer.save(organization=user.organization)
+            return
+
+        # Employee (HR)
+        try:
+            employee = Employee.objects.get(user=user)
+            serializer.save(organization=employee.organization)
+        except Employee.DoesNotExist:
+            raise PermissionDenied("Organization not found for this user")
 class EmployeeViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeSerializer
     def get_queryset(self):
@@ -218,27 +265,38 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         organization = getattr(user, 'organization', None)
+        
         if not organization:
             try:
                 employee = Employee.objects.get(user=user)
                 organization = employee.organization
             except Employee.DoesNotExist:
                 return LeaveRequest.objects.none()
+        
         if not organization:
             return LeaveRequest.objects.none()
+
+        # Base queryset for this organization
         queryset = LeaveRequest.objects.filter(
             organization=organization
-        ).select_related(
-            'employee',
-            'manager',
-            'organization'
-        )
+        ).select_related('employee', 'manager', 'organization')
+        try:
+            org_user = OrganizationUser.objects.get(
+                user=user,
+                organization=organization,
+                is_active=True
+            )
+            org_role = org_user.role
+        except OrganizationUser.DoesNotExist:
+            org_role = None
+        if org_role in ['Admin', 'HR Manager']:
+            return queryset.order_by('-applied_at')
+        if org_role in ['Manager', 'Team Lead']:
+            return queryset.filter(manager=user).order_by('-applied_at')
         user_role = getattr(user, 'role', None)
         if user_role in ['admin', 'hr', 'sub_org_admin']:
             return queryset.order_by('-applied_at')
-        return queryset.filter(
-            employee=user
-        ).order_by('-applied_at')
+        return queryset.filter(employee=user).order_by('-applied_at')
     def perform_create(self, serializer):
         try:
             organization = self.request.user.employee.organization
@@ -273,45 +331,23 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         except Employee.DoesNotExist:
             return Response({"detail": "Employee profile not found."}, status=404)
 
-        organization = current_employee.organization
         managers_list = []
 
-        # 1. Add direct reporting manager FIRST (if exists and valid)
-        if current_employee.reporting_to:
+        if current_employee.reporting_to and current_employee.reporting_to.user:
             direct_manager = current_employee.reporting_to
-            if direct_manager.user and direct_manager.full_name.strip():
-                code = direct_manager.employee_code or "No Code"
-                managers_list.append({
-                    "id": direct_manager.user.id,
-                    "full_name": direct_manager.full_name,
-                    "email": direct_manager.email or direct_manager.user.email,
-                    "employee_code": code,
-                    "display_label": f"{direct_manager.full_name} ({code})",
-                    "is_direct_manager": True
-                })
-
-        # 2. Add all HR/Admin/sub_org_admin with valid profiles
-        hr_admins = Employee.objects.filter(
-            organization=organization,
-            role__in=['admin', 'hr', 'sub_org_admin'],
-            user__isnull=False,
-            full_name__isnull=False,
-            full_name__gt=''
-        ).select_related('user').order_by('full_name')
-
-        for emp in hr_admins:
-            # Avoid duplicates (in case direct manager is also HR/Admin)
-            if any(m['id'] == emp.user.id for m in managers_list):
-                continue
-            code = emp.employee_code or "No Code"
+            code = direct_manager.employee_code or "No Code"
             managers_list.append({
-                "id": emp.user.id,
-                "full_name": emp.full_name,
-                "email": emp.email or emp.user.email,
+                "id": direct_manager.user.id,
+                "full_name": direct_manager.full_name,
+                "email": direct_manager.email or direct_manager.user.email,
                 "employee_code": code,
-                "display_label": f"{emp.full_name} ({code})",
-                "is_direct_manager": False
+                "display_label": f"{direct_manager.full_name} ({code})",
+                "is_direct_manager": True
             })
+        else:
+            return Response({
+                "detail": "No reporting manager assigned. Please contact HR."
+            }, status=400)
 
         return Response(managers_list)
 class PermissionRequestViewSet(viewsets.ModelViewSet):
@@ -324,27 +360,38 @@ class PermissionRequestViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         organization = getattr(user, 'organization', None)
+        
         if not organization:
             try:
                 employee = Employee.objects.get(user=user)
                 organization = employee.organization
             except Employee.DoesNotExist:
                 return PermissionRequest.objects.none()
+        
         if not organization:
             return PermissionRequest.objects.none()
+
+        # Base queryset for this organization
         queryset = PermissionRequest.objects.filter(
             organization=organization
-        ).select_related(
-            'employee',
-            'manager',
-            'organization'
-        )
+        ).select_related('employee', 'manager', 'organization')
+        try:
+            org_user = OrganizationUser.objects.get(
+                user=user,
+                organization=organization,
+                is_active=True
+            )
+            org_role = org_user.role
+        except OrganizationUser.DoesNotExist:
+            org_role = None
+        if org_role in ['Admin', 'HR Manager']:
+            return queryset.order_by('-applied_at')
+        if org_role in ['Manager', 'Team Lead']:
+            return queryset.filter(manager=user).order_by('-applied_at')
         user_role = getattr(user, 'role', None)
         if user_role in ['admin', 'hr', 'sub_org_admin']:
             return queryset.order_by('-applied_at')
-        return queryset.filter(
-            employee=user
-        ).order_by('-applied_at')
+        return queryset.filter(employee=user).order_by('-applied_at')
 
     def perform_create(self, serializer):
         try:
@@ -415,7 +462,7 @@ class EmployeeReimbursementViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        # Step 1: Resolve organization (same as referrals)
+        # Step 1: Resolve organization
         organization = getattr(user, 'organization', None)
         if not organization:
             try:
@@ -427,26 +474,54 @@ class EmployeeReimbursementViewSet(viewsets.ModelViewSet):
         if not organization:
             return EmployeeReimbursement.objects.none()
 
+        # Base queryset for this organization
         queryset = EmployeeReimbursement.objects.select_related(
             'employee', 'manager', 'organization'
-        ).filter(
-            organization=organization
-        )
-        user_role = getattr(user, 'role', None)
-        if user.is_superuser or user.is_staff or user_role in ['admin', 'hr', 'sub_org_admin']:
+        ).filter(organization=organization)
+
+        # Step 2: Get role from OrganizationUser (new system)
+        try:
+            org_user = OrganizationUser.objects.get(
+                user=user,
+                organization=organization,
+                is_active=True
+            )
+            org_role = org_user.role
+        except OrganizationUser.DoesNotExist:
+            org_role = None
+
+        # Admin / HR Manager → see all
+        if org_role in ['Admin', 'HR Manager']:
             return queryset.order_by('-date')
-        try:
-            employee = Employee.objects.get(user=user)
-            return queryset.filter(employee=user).order_by('-date')
-        except Employee.DoesNotExist:
-            return EmployeeReimbursement.objects.none()
+
+        # Manager / TL → see only reimbursements where they are the manager
+        if org_role in ['Manager', 'Team Lead']:
+            return queryset.filter(manager=user).order_by('-date')
+
+        # Fallback: Old user.role system (for backward compatibility)
+        user_role = getattr(user, 'role', None)
+        if user_role in ['admin', 'hr', 'sub_org_admin'] or user.is_superuser or user.is_staff:
+            return queryset.order_by('-date')
+
+        # Regular employee → only their own reimbursements
+        return queryset.filter(employee=user).order_by('-date')
     def perform_create(self, serializer):
-        organization = None
+        user = self.request.user
+
         try:
-            organization = self.request.user.employee.organization
-        except AttributeError:
-            pass
-        serializer.save(employee=self.request.user, organization=organization)
+            employee_profile = Employee.objects.select_related('reporting_to').get(user=user)
+        except Employee.DoesNotExist:
+            raise ValidationError("Employee profile not found.")
+
+        if not employee_profile.reporting_to or not employee_profile.reporting_to.user:
+            raise ValidationError("Reporting manager not properly configured.")
+
+        serializer.save(
+            employee=user,
+            organization=employee_profile.organization,
+            manager=employee_profile.reporting_to.user
+        )
+
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         reimbursement = self.get_object()
@@ -1187,7 +1262,12 @@ class ReferralViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     def perform_create(self, serializer):
-            serializer.save(referred_by=self.request.user)
+        job_opening_id = self.request.data.get("job_opening")
+        serializer.save(
+            referred_by=self.request.user,
+            job_opening_id=job_opening_id
+        )
+
     @action(detail=True, methods=["patch"], url_path="update-status")
     def update_status(self, request, pk=None):
         referral = self.get_object()

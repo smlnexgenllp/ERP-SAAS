@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     # Your custom apps
     'apps.accounts',
     'apps.organizations',
-    'apps.subscriptions',
+    'apps.subscriptions.apps.SubscriptionsConfig',
     'apps.core',
     'apps.hr.apps.HrConfig',
     'apps.inventory',

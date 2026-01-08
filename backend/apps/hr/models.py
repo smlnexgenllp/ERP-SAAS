@@ -130,7 +130,7 @@ import uuid
 
 class EmployeeInvite(models.Model):
     full_name = models.CharField(max_length=200)
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
     phone = models.CharField(max_length=20, blank=True, null=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="employee")
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
@@ -143,7 +143,8 @@ class EmployeeInvite(models.Model):
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     is_accepted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    reporting_to = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True, related_name='invited_reportees')
+    
     def __str__(self):
         return f"{self.full_name} <{self.email}>"
 

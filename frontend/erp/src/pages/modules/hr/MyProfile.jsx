@@ -325,25 +325,51 @@ export default function MyProfile() {
     loadDocuments();
   };
 
-  const submitReimbursement = async (e) => {
-    e.preventDefault();
-    try {
-      await submitReimbursementRequest({
-        employee: profile.id,
-        manager: reimbursement.manager_id,
-        amount: reimbursement.amount,
-        date: reimbursement.date,
-        reason: reimbursement.reason,
-      });
-      alert("Reimbursement request submitted successfully!");
-      setShowReimbursementModal(false);
-      setReimbursement({ amount: "", date: "", reason: "", manager_id: "" });
-      fetchMyReimbursements();
-    } catch (err) {
-      console.error("Reimbursement error:", err.response?.data || err);
-      alert("Failed to submit reimbursement request");
+  useEffect(() => {
+  if (managers.length > 0 && !reimbursement.manager_id) {
+    const directManager = managers.find(m => m.is_direct_manager);
+    if (directManager) {
+      setReimbursement(prev => ({
+        ...prev,
+        manager_id: directManager.id.toString()
+      }));
     }
+  }
+}, [managers, reimbursement.manager_id]);
+ const submitReimbursement = async (e) => {
+  e.preventDefault();
+
+  if (!reimbursement.manager_id) {
+    alert("Please select a manager");
+    return;
+  }
+  const payload = {
+    amount: parseFloat(reimbursement.amount),  
+    date: reimbursement.date,
+    reason: reimbursement.reason.trim(),
+    manager_id: parseInt(reimbursement.manager_id),
   };
+
+  console.log("Sending payload:", payload);  
+
+  try {
+    await submitReimbursementRequest(payload);
+    alert("Reimbursement request submitted successfully!");
+    setShowReimbursementModal(false);
+    setReimbursement({ amount: "", date: "", reason: "", manager_id: "" });
+    fetchMyReimbursements();
+  } catch (err) {
+  console.error("Error:", err.response?.data);
+  const errors = err.response?.data;
+  let msg = "Failed to submit reimbursement request";
+
+  if (errors?.manager_id) msg = errors.manager_id[0];
+  else if (errors?.amount) msg = "Invalid amount";
+  else if (errors?.non_field_errors) msg = errors.non_field_errors[0];
+
+  alert(msg);
+}
+};
 
   const deleteDoc = async (id) => {
     if (!window.confirm("Are you sure you want to delete this document?")) return;
@@ -1317,26 +1343,17 @@ export default function MyProfile() {
                 <label className="block text-sm text-gray-400 mb-1">
                   Reporting Manager
                 </label>
-                <select
-                  className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300"
-                  value={reimbursement.manager_id}
-                  onChange={(e) =>
-                    setReimbursement({
-                      ...reimbursement,
-                      manager_id: e.target.value,
-                    })
-                  }
-                  required
-                >
-                  <option value="" className="bg-gray-900">
-                    Select Manager
-                  </option>
-                  {managers.map((m) => (
-                    <option key={m.id} value={m.id} className="bg-gray-900">
-                      {m.full_name}
-                    </option>
-                  ))}
-                </select>
+               <select
+  value={reimbursement.manager_id}
+  disabled
+  className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 opacity-70"
+>
+  {managers.map((m) => (
+    <option key={m.id} value={m.id}>
+      {m.full_name} {m.is_direct_manager && "(Direct Manager)"}
+    </option>
+  ))}
+</select>
               </div>
 
               <div>

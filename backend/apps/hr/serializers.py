@@ -15,8 +15,6 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = ['id', 'name', 'code']
-
-
 class DesignationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Designation
@@ -78,9 +76,11 @@ class EmployeeSerializer(serializers.ModelSerializer):
             'subordinates',  # ← ADD THIS
             'date_of_joining', 'date_of_birth',
             'is_active', 'is_probation', 'ctc', 'photo',
-            'notes', 'created_at', 'updated_at'
+            'notes', 'created_at', 'updated_at', 'reporting_to',"reporting_to_name"
         ]
         read_only_fields = ['created_at', 'updated_at', 'employee_code', 'role_display']
+    def get_reporting_to_name(self, obj):
+        return obj.reporting_to.full_name if obj.reporting_to else None
 # Add this at the bottom of serializers.py
 
 class EmployeeDocumentSerializer(serializers.ModelSerializer):
@@ -95,8 +95,7 @@ class EmployeeDocumentSerializer(serializers.ModelSerializer):
         if obj.file:
             return obj.file.url
         return None
-# apps/hr/serializers.py
-# apps/hr/serializers.py
+
 
 from rest_framework import serializers
 from apps.hr.models import Employee
@@ -152,78 +151,79 @@ class OrgTreeSerializer(serializers.ModelSerializer):
         # Recursively serialize them
         return OrgTreeSerializer(reports, many=True, context=self.context).data
 class EmployeeCreateInvitationSerializer(serializers.ModelSerializer):
-    user_email = serializers.EmailField(write_only=True, required=True)
+    user_email = serializers.EmailField(write_only=True, source='email')
     full_name = serializers.CharField(required=True)
 
     class Meta:
         model = EmployeeInvite
         fields = [
             'full_name', 'user_email', 'phone', 'role',
-            'department', 'designation', 'date_of_joining', 'is_probation',
-            'ctc', 'notes'
+            'department', 'designation', 'date_of_joining',
+            'is_probation', 'ctc', 'notes', 'reporting_to'
         ]
 
     def validate_user_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        if EmployeeInvite.objects.filter(email=value).exists():
-            raise serializers.ValidationError("An invitation has already been sent to this email.")
+        request = self.context.get('request')
+        organization = getattr(request.user.employee, 'organization', None)
+
+        if organization:
+            EmployeeInvite.objects.filter(
+                email=value,
+                organization=organization,
+                is_accepted=False
+            ).delete()
+
         return value.lower()
+
+
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get('request')
+
+        if request and hasattr(request.user, 'employee'):
+            org = request.user.employee.organization
+            fields['department'].queryset = Department.objects.filter(organization=org)
+            fields['designation'].queryset = Designation.objects.filter(organization=org)
+
+        return fields
 
     @transaction.atomic
     def create(self, validated_data):
         request = self.context.get('request')
 
-        email = validated_data.pop('user_email')
-        full_name = validated_data.pop('full_name')
+        if not request or not hasattr(request.user, 'employee'):
+            raise serializers.ValidationError("Unable to determine organization.")
 
-        # Determine which organization the invite belongs to
-        # Best: from logged-in user's employee profile
-        if request and hasattr(request.user, "employee"):
-            organization = request.user.employee.organization
-        else:
-            # Fallback (you may change this)
-            organization = Organization.objects.first()
+        organization = request.user.employee.organization
 
-        # Allowed invite fields
-        allowed_fields = [
-            'phone', 'role', 'department', 'designation',
-            'date_of_joining', 'is_probation', 'ctc', 'notes'
-        ]
-        invite_data = {k: validated_data[k] for k in allowed_fields if k in validated_data}
-
-        # Create the invite (🔥 ORGANIZATION ADDED)
         invite = EmployeeInvite.objects.create(
-            full_name=full_name,
-            email=email,
-            organization=organization,   # ← FIXED
-            **invite_data
+            organization=organization,
+            **validated_data
         )
 
-        # Accept URL
-        accept_url = f"http://{request.get_host()}/api/hr/employees/accept-invite/{invite.token}/"
+        scheme = 'https' if request.is_secure() else 'http'
+        accept_url = f"{scheme}://{request.get_host()}/api/hr/employees/accept-invite/{invite.token}/"
 
-        # HTML email
         html_message = render_to_string(
             'emails/invitation_email.html',
             {
-                'full_name': full_name,
+                'full_name': invite.full_name,
                 'organization': organization.name,
                 'accept_url': accept_url
             }
         )
 
-        # Send the email
         send_mail(
             subject=f"Invitation to join {organization.name}",
             message='',
             html_message=html_message,
             from_email=None,
-            recipient_list=[email],
+            recipient_list=[invite.email],
             fail_silently=False
         )
 
         return invite
+
     
 
 from rest_framework import serializers
@@ -308,25 +308,66 @@ class PermissionRequestUpdateSerializer(serializers.ModelSerializer):
 
 from .models import EmployeeReimbursement
 
-class SimpleUserSerializer(serializers.ModelSerializer):
-    full_name = serializers.SerializerMethodField()
 
-    class Meta:
-        model = User
-        fields = ["id", "username", "full_name", "email"]
+from rest_framework import serializers
+from apps.hr.models import EmployeeReimbursement, Employee
+from django.contrib.auth import get_user_model
 
-    def get_full_name(self, obj):
-        return f"{obj.first_name} {obj.last_name}".strip() or obj.username
+User = get_user_model()
+
 
 class EmployeeReimbursementSerializer(serializers.ModelSerializer):
     employee = SimpleUserSerializer(read_only=True)
     manager = SimpleUserSerializer(read_only=True)
 
+    # Write-only field for frontend to send manager ID
+    manager_id = serializers.IntegerField(write_only=True, required=True)
+
     class Meta:
         model = EmployeeReimbursement
-        fields = ["id", "employee", "manager", "amount", "date", "reason", "status"]
+        fields = [
+            "id", "employee", "manager", "manager_id",
+            "amount", "date", "reason", "status"
+        ]
+        read_only_fields = ["employee", "status"]
 
+    def validate_manager_id(self, manager_id):
+        """
+        Validate that the selected manager is the employee's direct reporting manager
+        """
+        request = self.context['request']
+        user = request.user
 
+        try:
+            employee_profile = Employee.objects.select_related('reporting_to').get(user=user)
+        except Employee.DoesNotExist:
+            raise serializers.ValidationError(
+                "Your employee profile is not set up. Please contact HR."
+            )
+
+        if not employee_profile.reporting_to:
+            raise serializers.ValidationError(
+                "You do not have a reporting manager assigned. Please contact HR."
+            )
+
+        reporting_manager_user = employee_profile.reporting_to.user
+
+        if not reporting_manager_user:
+            raise serializers.ValidationError(
+                "Your reporting manager does not have an active account."
+            )
+
+        if manager_id != reporting_manager_user.id:
+            raise serializers.ValidationError(
+                f"You can only submit reimbursement requests to your assigned reporting manager: "
+                f"{employee_profile.reporting_to.full_name}."
+            )
+
+        return manager_id
+
+    def create(self, validated_data):
+        validated_data.pop('manager_id', None)
+        return super().create(validated_data)
 class SalarySerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source='employee.full_name', read_only=True)
     employee_code = serializers.CharField(source='employee.employee_code', read_only=True)
