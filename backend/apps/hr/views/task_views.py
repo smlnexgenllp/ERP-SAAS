@@ -1,6 +1,6 @@
 # hr/views.py
 
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status,permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -8,10 +8,10 @@ from django.db import models as django_models
 from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from apps.hr.models import Task, TaskUpdate, DailyChecklist, Employee,Project
-from apps.hr.serializers import TaskSerializer, TaskProgressUpdateSerializer, DailyChecklistSerializer,ProjectSerializer
+from apps.hr.serializers import TaskSerializer, TaskProgressUpdateSerializer, DailyChecklistSerializer,ProjectSerializer,DailyTLReportSerializer,DailyTLReport
 from django.db.models import Avg, Count, Q
 from datetime import datetime, timedelta
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
@@ -132,34 +132,22 @@ class DailyChecklistViewSet(viewsets.ModelViewSet):
         # Case 3: Authenticated but no employee profile and not admin → no access
         return DailyChecklist.objects.none()
 
-    # In apps/hr/views/task_views.py (or wherever your DailyChecklistViewSet is)
-
     @action(detail=True, methods=['patch'], url_path='rate')
     def rate(self, request, pk=None):
         checklist = self.get_object()
 
         rating = request.data.get('rating')
         if not rating or not (1 <= int(rating) <= 5):
-            return Response(
-                {"error": "Rating must be an integer between 1 and 5"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "Rating must be an integer between 1 and 5"}, status=400)
 
-        # FIX: Use request.user instead of undefined 'user'
-        user = request.user
-        employee = getattr(user, 'employee', None)
+        # Optional: Restrict rating to managers/admins
+        if user.role not in ['sub_org_admin', 'main_org_admin', 'super_admin', 'hr_manager']:
+            # You can remove this if employees should rate themselves
+            return Response({"error": "You do not have permission to rate checklists"}, status=403)
 
-        # Restrict who can rate — only admins and HR managers
-        allowed_roles = ['sub_org_admin', 'main_org_admin', 'super_admin', 'hr_manager']
-        if user.role not in allowed_roles and (employee and employee.role not in allowed_roles):
-            return Response(
-                {"error": "You do not have permission to rate daily checklists"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # Save the rating
-        checklist.rating = int(rating)
-        checklist.rated_by = employee  # or None if pure admin
+        # Save rating
+        checklist.rating = rating
+        checklist.rated_by = getattr(request.user, 'employee', None)
         checklist.comments = request.data.get('comments', checklist.comments or '')
         checklist.save()
 
@@ -275,4 +263,50 @@ class ProjectViewSet(viewsets.ModelViewSet):  # ← CHANGE FROM ReadOnlyModelVie
         serializer.save(
             organization=organization,
             created_by=employee
+        )
+
+class DailyTLReportViewSet(viewsets.ModelViewSet):
+    queryset = DailyTLReport.objects.all()
+    serializer_class = DailyTLReportSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        try:
+            employee = user.employee
+        except AttributeError:
+            return DailyTLReport.objects.none()
+
+        # Managers see reports sent to them
+        if employee.subordinates.filter(role='team_lead').exists():
+            return DailyTLReport.objects.filter(manager=employee)
+
+        # Team Leads see only their own
+        if employee.role == 'team_lead':
+            return DailyTLReport.objects.filter(team_lead=employee)
+
+        # Admins/HR see all
+        if employee.role in ['admin', 'hr_manager', 'sub_org_admin']:
+            return DailyTLReport.objects.filter(organization=employee.organization)
+
+        return DailyTLReport.objects.none()
+
+    def perform_create(self, serializer):
+        try:
+            employee = self.request.user.employee
+        except AttributeError:
+            raise PermissionDenied("No employee profile linked to your account.")
+
+        # Accept both 'team_lead' and 'team lead' (common typo)
+        if employee.role not in ['team_lead', 'team lead']:
+            raise PermissionDenied("Only Team Leads can submit daily reports.")
+
+        # Prevent duplicate for today
+        today = timezone.now().date()
+        if DailyTLReport.objects.filter(team_lead=employee, date=today).exists():
+            raise PermissionDenied("You have already submitted a report today.")
+
+        serializer.save(
+            team_lead=employee,
+            organization=employee.organization
         )
