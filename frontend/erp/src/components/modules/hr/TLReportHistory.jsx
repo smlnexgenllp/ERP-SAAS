@@ -14,7 +14,7 @@ const TLReportHistory = () => {
 
   const fetchMyReports = async () => {
     try {
-      const res = await api.get('/api/hr/daily-tl-reports/');
+      const res = await api.get('/hr/daily-tl-reports/');
       // Backend already filters to only user's reports if TL
       setReports(res.data);
     } catch (err) {
