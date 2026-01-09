@@ -12,6 +12,7 @@ from apps.hr.serializers import TaskSerializer, TaskProgressUpdateSerializer, Da
 from django.db.models import Avg, Count, Q
 from datetime import datetime, timedelta
 from rest_framework.decorators import api_view, permission_classes
+from django.utils import timezone
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
@@ -295,18 +296,22 @@ class DailyTLReportViewSet(viewsets.ModelViewSet):
         try:
             employee = self.request.user.employee
         except AttributeError:
-            raise PermissionDenied("No employee profile linked to your account.")
+            raise PermissionDenied("No employee profile linked.")
 
-        # Accept both 'team_lead' and 'team lead' (common typo)
-        if employee.role not in ['team_lead', 'team lead']:
-            raise PermissionDenied("Only Team Leads can submit daily reports.")
+        # Flexible check - accepts common variations
+        role_lower = (employee.role or '').lower().strip()
+        if role_lower not in ['team_lead', 'team lead', 'tl', 'teamlead']:
+            raise PermissionDenied(f"Only Team Leads can submit reports. Current role: '{employee.role}'")
 
-        # Prevent duplicate for today
+        if not employee.reporting_to:
+            raise PermissionDenied("No reporting manager assigned.")
+
         today = timezone.now().date()
         if DailyTLReport.objects.filter(team_lead=employee, date=today).exists():
-            raise PermissionDenied("You have already submitted a report today.")
+            raise PermissionDenied("Already submitted today.")
 
         serializer.save(
             team_lead=employee,
+            manager=employee.reporting_to,
             organization=employee.organization
         )
