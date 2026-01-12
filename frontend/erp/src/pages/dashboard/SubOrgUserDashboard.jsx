@@ -1,23 +1,30 @@
-// src/pages/dashboard/SubOrgUserDashboard.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import ModuleGrid from "../../components/dashboard/ModuleGrid";
-import { moduleService } from "../../services/moduleService";
-import api from "../../services/api"; // axios instance
+import api from "../../services/api";
+import {
+  FiPlus,
+  FiLogOut,
+  FiUser,
+  FiBriefcase
+} from "react-icons/fi";
 
 const SubOrgUserDashboard = () => {
   const { user, organization, logout } = useAuth();
   const navigate = useNavigate();
+  const inputRef = useRef(null);
+
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ activeModules: 0, totalUsers: 1 });
   const [command, setCommand] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
   const [showAlert, setShowAlert] = useState(false);
-  const inputRef = useRef(null);
 
-  // Map module codes to names for display
+  /* ================= ROLE ================= */
+  const [userRole, setUserRole] = useState(user?.org_role || user?.role);
+  const isMD = userRole === "MD";
+
   const moduleNameMap = {
     hr_management: "HR Management",
     inventory: "Inventory",
@@ -28,37 +35,21 @@ const SubOrgUserDashboard = () => {
     transport: "Transport",
   };
 
+  /* ================= LOAD MODULES ================= */
   useEffect(() => {
-    if (!user) {
-      navigate("/login", { replace: true });
-      return;
-    }
+    if (!user) return navigate("/login");
 
     const loadModules = async () => {
       try {
-        setLoading(true);
-        // Fetch user-specific modules from backend
-        const response = await api.get(
-          `/organizations/suborg-user/modules/`
-        );
-        // response.data.modules expected as ["hr_management", "inventory"]
-        const userModules = response.data?.modules || [];
-
-        // Transform to ModuleGrid-compatible objects
-        const formattedModules = userModules.map((code, idx) => ({
+        const res = await api.get("/organizations/suborg-user/modules/");
+        const formatted = (res.data?.modules || []).map((code, idx) => ({
           module_id: idx,
           code,
           name: moduleNameMap[code] || code,
-          description: "",
           is_active: true,
-          available_in_plans: [],
         }));
-
-        setModules(formattedModules);
-        const activeCount = formattedModules.filter((m) => m.is_active).length;
-        setStats((prev) => ({ ...prev, activeModules: activeCount }));
-      } catch (error) {
-        console.error("Error loading modules:", error);
+        setModules(formatted);
+      } catch {
         setModules([]);
       } finally {
         setLoading(false);
@@ -66,194 +57,136 @@ const SubOrgUserDashboard = () => {
     };
 
     loadModules();
-  }, [user, organization, navigate]);
+  }, [user, navigate]);
 
-  // Handle module click navigation
-  const handleModuleClick = (module) => {
-    if (!module.is_active) return;
-    const routes = {
-      hr_management: "/hr/dashboard",
-      inventory: "/inventory/dashboard",
-      accounting: "/accounting/dashboard",
-      crm: "/crm/dashboard",
-      project_management: "/projects/dashboard",
-      sales: "/sales/dashboard",
-      transport: "/transport/dashboard",
-    };
-    navigate(routes[module.code] || "/");
-  };
+  /* ================= FETCH ROLE ================= */
+  useEffect(() => {
+    api
+      .get("/organizations/suborg-user/role/")
+      .then(res => setUserRole(res.data?.role))
+      .catch(() => {});
+  }, []);
 
-  // Terminal command handling
+  /* ================= TERMINAL ================= */
   const handleCommand = (e) => {
     if (e.key !== "Enter") return;
-    const cmd = command.trim().toLowerCase();
+    const cmd = command.toLowerCase().trim();
     setCommand("");
 
-    const showAlertFn = (msg) => {
+    const notify = (msg) => {
       setAlertMessage(msg);
       setShowAlert(true);
       setTimeout(() => setShowAlert(false), 3000);
     };
 
-    if (!cmd) return;
+    if (cmd === "logout") return logout();
+    if (cmd === "help")
+      return notify("Commands: hr, inventory, sales, accounting, crm, projects, logout");
 
-    if (["help", "?", "commands"].includes(cmd)) {
-      showAlertFn(
-        "Commands: help, modules, logout, hr, inventory, sales, accounting, crm, projects, transport, clear"
-      );
-      return;
-    }
-
-    if (["modules", "list modules"].includes(cmd)) {
-      showAlertFn(`You have ${stats.activeModules} active module(s).`);
-      return;
-    }
-
-    if (cmd === "logout") {
-      logout();
-      return;
-    }
-
-    if (cmd === "clear") {
-      showAlertFn("Terminal cleared.");
-      return;
-    }
-
-    const moduleShortcuts = {
+    const routes = {
       hr: "/hr/dashboard",
-      hrmanagement: "/hr/dashboard",
       inventory: "/inventory/dashboard",
-      stock: "/inventory/dashboard",
       sales: "/sales/dashboard",
-      transport: "/transport/dashboard",
       accounting: "/accounting/dashboard",
-      finance: "/accounting/dashboard",
       crm: "/crm/dashboard",
       projects: "/projects/dashboard",
-      project: "/projects/dashboard",
     };
 
-    if (moduleShortcuts[cmd]) {
-      navigate(moduleShortcuts[cmd]);
-      return;
-    }
+    if (routes[cmd]) return navigate(routes[cmd]);
 
-    showAlertFn(`Unknown command: "${cmd}". Type "help" for available commands.`);
+    notify(`Unknown command: ${cmd}`);
   };
-
-  const handleCommandBarClick = () => inputRef.current?.focus();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-cyan-300">Loading dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center text-cyan-300">
+        Loading Dashboard...
       </div>
     );
   }
 
+  /* ================= UI ================= */
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono flex flex-col relative">
-      <div className="flex-1 overflow-y-auto pb-20">
-        {/* Header */}
-        <div className="bg-gray-900/30 backdrop-blur-md border-b border-cyan-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-6">
-              <div className="flex items-center">
-                <div className="bg-gray-800/50 p-3 rounded-lg mr-4">
-                  <div className="w-8 h-8 bg-cyan-700 rounded flex items-center justify-center text-gray-950 font-bold">
-                    {organization?.name?.charAt(0) || "S"}
-                  </div>
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-blue-300">
-                    {organization?.name}
-                  </h1>
-                  <p className="text-cyan-300 mt-1">
-                    Welcome back, {user?.first_name} • Sub-Organization User Dashboard
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={logout}
-                  className="bg-blue-300 hover:bg-cyan-600 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono pb-24">
+      
+      {/* ================= NAV BAR ================= */}
+      <div className="bg-gray-900 border-b border-cyan-800 px-8 py-4 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-blue-300">
+            {organization?.name}
+          </h1>
+          <p className="text-cyan-400 text-sm">
+            Plan: {organization?.plan_tier?.toUpperCase()}
+          </p>
         </div>
 
-        {/* Main */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { label: "Active Modules", value: stats.activeModules },
-              { label: "Total Users", value: stats.totalUsers },
-              { label: "Plan Tier", value: organization?.plan_tier?.toUpperCase() },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="bg-gray-900/40 border border-cyan-800 rounded-xl p-6 flex items-center gap-4"
-              >
-                <div className="bg-cyan-900/50 p-3 rounded-lg">
-                  <div className="w-10 h-10 bg-cyan-700 rounded flex items-center justify-center text-gray-950 font-bold">
-                    {stat.label.charAt(0)}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-cyan-400 text-sm">{stat.label}</p>
-                  <p className="text-blue-300 font-bold text-2xl">{stat.value}</p>
-                </div>
-              </div>
-            ))}
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="flex items-center gap-2 text-blue-300 font-semibold">
+              <FiUser /> {user?.first_name} {user?.last_name}
+            </p>
+            <p className="flex items-center gap-2 text-cyan-400 text-sm">
+              <FiBriefcase /> Role: {userRole}
+            </p>
           </div>
 
-          {/* Modules */}
-          <div className="bg-gray-900/40 border border-cyan-800 rounded-xl">
-            <div className="px-6 py-4 border-b border-cyan-800">
-              <h2 className="text-2xl font-bold text-blue-300">Your Modules</h2>
-            </div>
-            <div className="p-6">
-              {modules.length > 0 ? (
-                <ModuleGrid modules={modules} onModuleClick={handleModuleClick} />
-              ) : (
-                <div className="text-center py-12 text-cyan-300">
-                  <p className="text-blue-300 text-lg">No Modules Assigned</p>
-                  <p className="mt-2">Contact your administrator.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </main>
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-bold"
+          >
+            <FiLogOut /> Logout
+          </button>
+        </div>
       </div>
 
-      {/* Terminal Command Bar */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t-2 border-cyan-500 px-6 py-4 flex items-center cursor-text shadow-2xl"
-        onClick={handleCommandBarClick}
-      >
-        <span className="text-green-400 font-bold mr-3">&gt;</span>
+      {/* ================= MODULES ================= */}
+      <div className="p-8">
+        <h2 className="text-2xl font-bold mb-6 text-blue-300">
+          Assigned Modules
+        </h2>
+
+        <ModuleGrid
+          modules={modules}
+          onModuleClick={(m) => navigate(`/${m.code}/dashboard`)}
+        />
+      </div>
+
+      {/* ================= MD BUDGET ACCESS ================= */}
+      {isMD && (
+        <div className="mx-8 mb-8 bg-gray-900/40 border border-cyan-800 rounded-xl p-6 flex justify-between items-center">
+          <div>
+            <h3 className="text-xl font-bold text-blue-300">
+              Monthly Budget Management
+            </h3>
+            <p className="text-cyan-400 text-sm mt-1">
+              Create, review & release organizational budgets
+            </p>
+          </div>
+
+          <button
+            onClick={() => navigate("/finance/budgets")}
+            className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold flex items-center gap-2"
+          >
+            <FiPlus /> Manage Budgets
+          </button>
+        </div>
+      )}
+
+      {/* ================= TERMINAL ================= */}
+      <div className="fixed bottom-0 w-full bg-gray-900 border-t border-cyan-500 px-6 py-3 flex">
+        <span className="text-green-400 mr-2">&gt;</span>
         <input
           ref={inputRef}
-          type="text"
           value={command}
           onChange={(e) => setCommand(e.target.value)}
           onKeyDown={handleCommand}
-          placeholder="Type command: help, hr, modules..."
-          className="flex-1 bg-transparent text-green-400 outline-none font-mono text-base"
-          spellCheck={false}
+          className="flex-1 bg-transparent outline-none text-green-400"
+          placeholder="Type command (help)..."
         />
       </div>
 
       {showAlert && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800/90 border border-cyan-500 text-cyan-200 px-6 py-3 rounded-lg shadow-xl text-sm font-mono">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800 border border-cyan-500 px-6 py-2 rounded-lg shadow-xl">
           {alertMessage}
         </div>
       )}

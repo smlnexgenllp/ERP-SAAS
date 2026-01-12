@@ -52,6 +52,10 @@ class OrganizationUser(models.Model):
         ("Admin", "Admin"),
         ("HR Manager", "HR Manager"),
         ("Employee", "Employee"),
+        ("MD", "MD"),
+        ("Team Lead", "Team Lead"),
+        ("Manager", "Manager"),
+        ("Accounts Manager", "Accounts Manager"),
     )
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)

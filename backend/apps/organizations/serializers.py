@@ -229,7 +229,7 @@ class OrganizationUserSerializer(serializers.ModelSerializer):
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 User = get_user_model()
-SUB_ORG_ROLES = ["Admin", "HR Manager", "Employee"]
+SUB_ORG_ROLES = ["Admin", "HR Manager", "Employee", "MD", "Team Lead", "Manager", "Accounts Manager"]
 # apps/organizations/serializers.py
 from apps.organizations.models import UserOrganizationAccess, OrganizationUser
 
@@ -240,7 +240,7 @@ class SubOrgUserCreateSerializer(serializers.ModelSerializer):
         allow_empty=True,
         help_text="List of module codes this user can access"
     )
-    role = serializers.ChoiceField(choices=["Admin", "HR Manager", "Employee"])
+    role = serializers.ChoiceField(choices=["Admin", "HR Manager", "Employee", "MD", "Team Lead", "Manager", "Accounts Manager"])
 
     class Meta:
         model = User

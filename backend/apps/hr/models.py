@@ -737,7 +737,6 @@ class ChatGroup(models.Model):
         if self.group_type == 'custom':
             return self.manual_members.filter(id=user.id).exists()
         elif self.group_type == 'project' and self.project:
-            # Employee has OneToOne to User
             return self.project.members.filter(user=user).exists()
         elif self.group_type == 'organization' and self.organization:
             return self.organization.employees.filter(user=user).exists()

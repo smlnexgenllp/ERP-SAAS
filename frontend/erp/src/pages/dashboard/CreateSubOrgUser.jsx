@@ -20,6 +20,10 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
     { value: "Admin", label: "Admin" },
     { value: "HR Manager", label: "HR Manager" },
     { value: "Employee", label: "Employee" },
+    { value: "Manager", label: "Manager" },
+    { value: "MD", label: "MD" },
+    { value: "Team Lead", label: "Team Lead" },
+    {value:"Accounts Manager", label: "Accounts Manager"},
   ];
 
   // Fetch modules
