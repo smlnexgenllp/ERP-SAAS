@@ -1,6 +1,6 @@
 from django.urls import path, include
 from . import views
-from .views import TrainingVideoDetailView,TrainingProgressView,TrainingCompletedStatusView,TrainingCompletedView, CreateSubOrgUserView, SubOrgLoginView, TrainingVideoUploadView, TrainingVideoListView
+from .views import TrainingVideoDetailView,CurrentUserView,get_suborg_user_role,TrainingProgressView,TrainingCompletedStatusView,TrainingCompletedView, CreateSubOrgUserView, SubOrgLoginView, TrainingVideoUploadView, TrainingVideoListView
 from apps.organizations.views import SubOrgUserModulesView
 urlpatterns = [
     # Organization registration
@@ -10,9 +10,11 @@ urlpatterns = [
 path("suborg-user/modules/", SubOrgUserModulesView.as_view(), name="suborg-user-modules"),
 
     path('register/', views.OrganizationRegistrationView.as_view(), name='organization-register'),
-    
+    path("auth/me/", CurrentUserView.as_view()),
+
     # Current organization
     path('current/', views.CurrentOrganizationView.as_view(), name='current-organization'),
+     path("suborg-user/role/", get_suborg_user_role, name="suborg-user-role"),
     path("<int:org_id>/create-user/", CreateSubOrgUserView.as_view(), name="create_suborg_user"),
 path(
     "training-completed/status/",

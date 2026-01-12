@@ -11,25 +11,34 @@ import {
 } from "lucide-react";
 import EditEmployeeModal from "./EditEmployeeModal";
 
+/* ===========================
+   Employee List Component
+=========================== */
 export default function EmployeeList() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [currentUserRole, setCurrentUserRole] = useState(null);
 
-  /* ---------------- Fetch Logged-in User ---------------- */
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await api.get("/auth/current-user/");
-      setCurrentUserRole(res.data.user.role);
-      console.log("Current User Role:", res.data.user.role);
-    } catch (err) {
-      console.error("Failed to fetch user role");
-    }
-  };
+  // 🔐 Roles
+  const [accountRole, setAccountRole] = useState(null);
+  const [orgRole, setOrgRole] = useState(null);
+
+  /* ---------------- Fetch Current User Context ---------------- */
+ const fetchCurrentUser = async () => {
+  try {
+    const res = await api.get("/auth/current-user/");
+    setAccountRole(res.data.user?.role || null);
+    setOrgRole(res.data.organization_user?.role || null);
+    console.log("Current User Data:", res.data.organization_user);
+  } catch (err) {
+    console.error("Failed to fetch current user");
+  }
+};
+
 
   /* ---------------- Fetch Employees ---------------- */
   const fetchEmployees = async () => {
@@ -62,24 +71,28 @@ export default function EmployeeList() {
   };
 
   useEffect(() => {
-    fetchEmployees();
     fetchCurrentUser();
+    fetchEmployees();
   }, []);
 
+  /* ---------------- Permissions ---------------- */
+  const canEditEmployee =
+    accountRole === "sub_org_admin" ||
+    orgRole === "HR" ||
+    orgRole === "HR Manager";
+
+  /* ---------------- Helpers ---------------- */
   const toggleRow = (id) => {
     setExpandedRows((prev) => {
-      const set = new Set(prev);
-      set.has(id) ? set.delete(id) : set.add(id);
-      return set;
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
   };
 
-  const canEditEmployee =
-    currentUserRole === "HR Manager" || currentUserRole === "sub_org_admin";
-
-  const formatDate = (d) =>
-    d
-      ? new Date(d).toLocaleDateString("en-GB", {
+  const formatDate = (date) =>
+    date
+      ? new Date(date).toLocaleDateString("en-GB", {
           day: "numeric",
           month: "short",
           year: "numeric",
@@ -89,6 +102,9 @@ export default function EmployeeList() {
   const formatCTC = (ctc) =>
     ctc ? `₹${Number(ctc).toLocaleString("en-IN")}` : "—";
 
+  /* ===========================
+     Render
+  =========================== */
   return (
     <div className="min-h-screen bg-gray-950 p-6 text-cyan-300 font-mono">
       <div className="max-w-7xl mx-auto">
@@ -124,7 +140,7 @@ export default function EmployeeList() {
 
         {/* Error */}
         {error && (
-          <div className="bg-red-900/40 p-4 rounded-lg text-red-300">
+          <div className="bg-red-900/40 p-4 rounded-lg text-red-300 mb-4">
             {error}
           </div>
         )}
@@ -135,14 +151,16 @@ export default function EmployeeList() {
             <thead className="bg-cyan-900/40">
               <tr>
                 <th className="px-6 py-4 text-left">Employee</th>
-                <th className="px-6 py-4 text-left">Role</th>
+                <th className="px-6 py-4 text-left">Designation</th>
                 <th className="px-6 py-4 text-left">Department</th>
                 <th className="px-6 py-4 text-center">Details</th>
               </tr>
             </thead>
+
             <tbody>
               {employees.map((emp) => {
                 const expanded = expandedRows.has(emp.id);
+
                 return (
                   <React.Fragment key={emp.id}>
                     <tr
@@ -195,7 +213,7 @@ export default function EmployeeList() {
                               label="Reports To"
                               value={
                                 emp.reporting_to?.full_name ||
-                                emp.reporting_to ||
+                                emp.reporting_to_name ||
                                 "—"
                               }
                             />
@@ -208,10 +226,17 @@ export default function EmployeeList() {
               })}
             </tbody>
           </table>
+
+          {loading && (
+            <div className="p-6 text-center text-gray-400">
+              Loading employees...
+            </div>
+          )}
         </div>
       </div>
 
-      {showEditModal && (
+      {/* Edit Modal */}
+      {showEditModal && selectedEmployee && (
         <EditEmployeeModal
           employee={selectedEmployee}
           onClose={() => setShowEditModal(false)}
@@ -222,7 +247,9 @@ export default function EmployeeList() {
   );
 }
 
-/* Info Card */
+/* ===========================
+   Info Card Component
+=========================== */
 const Info = ({ icon, label, value }) => (
   <div className="flex gap-3 items-center">
     <div className="p-2 bg-cyan-900 rounded">{icon}</div>

@@ -59,17 +59,41 @@ class OrganizationRegistrationView(APIView):
             return Response({"error": str(e)}, status=400)
 
 class CurrentOrganizationView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    def get(self, request):
-        if not hasattr(request.user, 'organization') or not request.user.organization:
-            return Response({
-                'success': False,
-                'error': 'User has no organization'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        organization = request.user.organization
-        serializer = OrganizationSerializer(organization)
-        return Response(serializer.data)
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        user = request.user
+        organization = get_user_organization(user)
+        if not organization:
+            return Response({"success": False, "error": "User has no organization"}, status=400)
+
+        org_user = OrganizationUser.objects.filter(
+            user=user,
+            organization=organization,
+            is_active=True
+        ).first()
+
+        return Response({
+            "success": True,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+                "is_verified": getattr(user, "is_verified", True)
+            },
+            "organization": {
+                "id": organization.id,
+                "name": organization.name,
+                "subdomain": organization.subdomain,
+                "type": organization.organization_type,
+                "plan_tier": organization.plan_tier
+            },
+            "organization_user": {
+                "role": org_user.role if org_user else None
+            }
+        })
 class SubOrganizationCreationView(generics.CreateAPIView):
     """Create sub-organization with module access"""
     permission_classes = [permissions.IsAuthenticated]
@@ -629,7 +653,7 @@ def get_user_organization(user):
 
     return None
 
-    
+
 
 
 class TrainingVideoUploadView(CreateAPIView):
@@ -857,3 +881,61 @@ class SubOrgUserModulesView(APIView):
         org_access = UserOrganizationAccess.objects.filter(user=user).first()
         modules = org_access.modules if org_access else []
         return Response({"modules": modules})
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from apps.organizations.models import OrganizationUser
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from apps.organizations.models import OrganizationUser
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        org_user = OrganizationUser.objects.filter(
+            user=user,
+            is_active=True
+        ).select_related("organization").first()
+
+        return Response({
+            "success": True,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+            },
+            "organization": {
+                "id": org_user.organization.id if org_user else None,
+                "name": org_user.organization.name if org_user else None,
+                "type": org_user.organization.organization_type if org_user else None,
+            },
+            "organization_user": {   # ✅ FIXED KEY
+                "role": org_user.role if org_user else None
+            }
+        })
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from apps.organizations.models import OrganizationUser
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_suborg_user_role(request):
+    """
+    Return the role of the logged-in user for their organization
+    """
+    try:
+        org_user = OrganizationUser.objects.filter(user=request.user).first()
+        if not org_user:
+            return Response({"role": None, "message": "User is not linked to any organization."})
+        return Response({"role": org_user.role})
+    except Exception as e:
+        return Response({"role": None, "error": str(e)}, status=500)

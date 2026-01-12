@@ -1,12 +1,13 @@
 // App.jsx – UPDATED: HR, Manager, TL now have full HR module access
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+import api from "./services/api";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -35,12 +36,19 @@ import JobOpeningUpdate from "./pages/modules/hr/pages/JobOpeningUpdate";
 import TaskDashboard from "./pages/dashboard/TaskDashboard";
 import ChatPage from "./pages/modules/hr/ChatPage";
 import DepartmentDesignationManagement from "./pages/modules/hr/pages/DepartmentDesignationManagement";
+import MonthlyBudgetDashboard from "./pages/modules/finance/MonthlyBudgetDashboard";
+import FinanceDashboard from "./pages/modules/finance/FinanaceDashboard";
 
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
@@ -48,66 +56,99 @@ const ProtectedRoute = ({ children }) => {
 const HRProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, user } = useAuth();
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
 
   const userRole = user?.org_role || user?.role; // Prefer org_role (HR Manager, Admin, etc.)
 
   const hasHRAccess = [
-    'HR Manager',
-    'Manager',
-    'Team Lead',
-    'Admin',                    // From OrganizationUser
-    'main_org_admin',
-    'sub_org_admin',
-    'super_admin'
+    "HR Manager",
+    "Manager",
+    "Team Lead",
+    "Admin", // From OrganizationUser
+    "main_org_admin",
+    "sub_org_admin",
+    "super_admin",
+    "MD",
   ].includes(userRole);
 
-  return isAuthenticated && hasHRAccess ? children : <Navigate to="/dashboard" replace />;
+  return isAuthenticated && hasHRAccess ? (
+    children
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
 };
 
 // Payroll Access: Similar roles + Accountant
 const PayrollProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, user } = useAuth();
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
 
   const userRole = user?.org_role || user?.role;
 
   const hasPayrollAccess = [
-    'HR Manager',
-    'Manager',
-    'Team Lead',
-    'Admin',
-    'main_org_admin',
-    'sub_org_admin',
-    'super_admin',
-    'accountant'  // if you have this role
+    "HR Manager",
+    "Manager",
+    "Team Lead",
+    "Admin",
+    "main_org_admin",
+    "sub_org_admin",
+    "super_admin",
+    "MD",
+    "accountant", // if you have this role
   ].includes(userRole);
 
-  return isAuthenticated && hasPayrollAccess ? children : <Navigate to="/dashboard" replace />;
+  return isAuthenticated && hasPayrollAccess ? (
+    children
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
 };
 
 /* -------------------- DASHBOARD ROUTER -------------------- */
 
+
 const DashboardRouter = () => {
   const { user, loading } = useAuth();
-
+  const [orgUser, setOrgUser]=useState()
+ useEffect(() => {
+    api
+      .get("/organizations/suborg-user/role/")
+      .then(res => setOrgUser(res.data?.role))
+      .catch(() => {});
+  }, []);
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
   }
 
+   if(orgUser==="Accounts Manager"){
+    return <FinanceDashboard/>
+   }
   // Super Admin → Main Dashboard
-  if (user?.role === "super_admin") {
+  else if (user?.role === "super_admin") {
     return <Dashboard />;
   }
 
-  // Sub Org Admin → Full HR Tools Dashboard
-  if (user?.role === "sub_org_admin") {
+  else if (user?.role === "sub_org_admin" ) {
     return <SubOrganizationDashboard />;
   }
-
+ 
   // Regular Employee → Simple Portal
-  if (user?.role === "employee" || user?.role === "user") {
+ else if (user?.role === "employee" || user?.role === "user") {
     return <SubOrgUserDashboard />;
   }
 
@@ -127,7 +168,6 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/employee_login" element={<EmployeeLogin />} />
           <Route path="/suborglogin" element={<SubOrgLogin />} />
-
           {/* -------- DASHBOARD -------- */}
           <Route
             path="/dashboard"
@@ -137,7 +177,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/profile"
             element={
@@ -146,33 +185,146 @@ function App() {
               </ProtectedRoute>
             }
           />
-
           {/* -------- HR MODULE (Now accessible by HR, Manager, TL) -------- */}
-          <Route path="/hr/dashboard" element={<HRProtectedRoute><HRDashboard /></HRProtectedRoute>} />
-          <Route path="/hr/employees" element={<HRProtectedRoute><EmployeeList /></HRProtectedRoute>} />
-          <Route path="/hr/employees/add" element={<HRProtectedRoute><AddEmployee /></HRProtectedRoute>} />
-          <Route path="/hr/attendance" element={<HRProtectedRoute><HRAttendance /></HRProtectedRoute>} />
-          <Route path="/hr/leaves" element={<HRProtectedRoute><LeaveManagement /></HRProtectedRoute>} />
-          <Route path="/hr/reimbursements" element={<HRProtectedRoute><Reimbursement /></HRProtectedRoute>} />
-          <Route path="/hr/org-tree" element={<HRProtectedRoute><OrgTree /></HRProtectedRoute>} />
-          <Route path="/hr/jobreferrals" element={<HRProtectedRoute><JobReferral /></HRProtectedRoute>} />
-          <Route path="/hr/jobopenings" element={<HRProtectedRoute><JobOpeningUpdate /></HRProtectedRoute>} />
-          <Route path="/hr/departments" element={<HRProtectedRoute><DepartmentDesignationManagement /></HRProtectedRoute>} />
-
+          <Route
+            path="/hr/dashboard"
+            element={
+              <HRProtectedRoute>
+                <HRDashboard />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/employees"
+            element={
+              <HRProtectedRoute>
+                <EmployeeList />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/employees/add"
+            element={
+              <HRProtectedRoute>
+                <AddEmployee />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/attendance"
+            element={
+              <HRProtectedRoute>
+                <HRAttendance />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/leaves"
+            element={
+              <HRProtectedRoute>
+                <LeaveManagement />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/reimbursements"
+            element={
+              <HRProtectedRoute>
+                <Reimbursement />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/org-tree"
+            element={
+              <HRProtectedRoute>
+                <OrgTree />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/jobreferrals"
+            element={
+              <HRProtectedRoute>
+                <JobReferral />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/jobopenings"
+            element={
+              <HRProtectedRoute>
+                <JobOpeningUpdate />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/departments"
+            element={
+              <HRProtectedRoute>
+                <DepartmentDesignationManagement />
+              </HRProtectedRoute>
+            }
+          />
           {/* -------- PAYROLL -------- */}
-          <Route path="/hr/payroll" element={<HRProtectedRoute><PayrollPage /></HRProtectedRoute>} />
-          <Route path="/payroll/dashboard" element={<PayrollProtectedRoute><PayrollDashboard /></PayrollProtectedRoute>} />
-          <Route path="/payroll/salary-setup" element={<PayrollProtectedRoute><SalarySetupWithESIPF /></PayrollProtectedRoute>} />
-          <Route path="/payroll/invoice-generation" element={<PayrollProtectedRoute><InvoiceGeneration /></PayrollProtectedRoute>} />
-
+          <Route
+            path="/hr/payroll"
+            element={
+              <HRProtectedRoute>
+                <PayrollPage />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/payroll/dashboard"
+            element={
+              <PayrollProtectedRoute>
+                <PayrollDashboard />
+              </PayrollProtectedRoute>
+            }
+          />
+          <Route
+            path="/payroll/salary-setup"
+            element={
+              <PayrollProtectedRoute>
+                <SalarySetupWithESIPF />
+              </PayrollProtectedRoute>
+            }
+          />
+          <Route
+            path="/payroll/invoice-generation"
+            element={
+              <PayrollProtectedRoute>
+                <InvoiceGeneration />
+              </PayrollProtectedRoute>
+            }
+          />
           {/* -------- OTHER HR FEATURES -------- */}
-          <Route path="/hr/tasks" element={<HRProtectedRoute><TaskDashboard /></HRProtectedRoute>} />
-          <Route path="/hr/chat" element={<HRProtectedRoute><ChatPage /></HRProtectedRoute>} />
-
+          <Route
+            path="/hr/tasks"
+            element={
+              <HRProtectedRoute>
+                <TaskDashboard />
+              </HRProtectedRoute>
+            }
+          />
+          <Route
+            path="/hr/chat"
+            element={
+              <HRProtectedRoute>
+                <ChatPage />
+              </HRProtectedRoute>
+            }
+          />
           {/* -------- REDIRECTS -------- */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/payroll" element={<Navigate to="/hr/payroll" replace />} />
+          <Route
+            path="/payroll"
+            element={<Navigate to="/hr/payroll" replace />}
+          />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          
+          <Route path="/finance/budgets" element={<MonthlyBudgetDashboard/>} />
         </Routes>
       </Router>
     </AuthProvider>
