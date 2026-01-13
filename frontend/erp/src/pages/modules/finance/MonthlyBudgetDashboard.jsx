@@ -37,23 +37,24 @@ const MonthlyBudgetDashboard = () => {
 
   /* ================= CREATE BUDGET ================= */
   const handleCreateBudget = async () => {
-    if (!amount || !monthYear) return;
+  if (!amount || !monthYear) return;
 
-    const [year, month] = monthYear.split("-");
+  const [year, month] = monthYear.split("-");
 
-    try {
-      await api.post("/finance/monthly-budgets/", {
-        year,
-        month,
-        amount,
-      });
-      setAmount("");
-      setMonthYear("");
-      fetchBudgets();
-    } catch (error) {
-      alert("Budget already exists for this month.");
-    }
-  };
+  const monthDate = `${year}-${month}-01`; // ✅ REQUIRED
+
+  try {
+    await api.post("/finance/monthly-budgets/", {
+      month: monthDate,   // backend DateField
+      amount,
+    });
+    setAmount("");
+    setMonthYear("");
+    fetchBudgets();
+  } catch (error) {
+    alert("Budget already exists for this month.");
+  }
+};
 
   /* ================= RELEASE BUDGET ================= */
   const releaseBudget = async (id) => {

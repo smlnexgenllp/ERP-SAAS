@@ -3,7 +3,7 @@ from apps.finance.models.department_budget import DepartmentBudget
 
 class DepartmentBudgetSerializer(serializers.ModelSerializer):
     remaining_amount = serializers.DecimalField(
-        max_digits=14,
+        max_digits=12,
         decimal_places=2,
         read_only=True
     )
@@ -12,10 +12,8 @@ class DepartmentBudgetSerializer(serializers.ModelSerializer):
         model = DepartmentBudget
         fields = [
             "id",
-            "monthly_budget",
             "department",
             "allocated_amount",
             "used_amount",
-            "remaining_amount",
+            "remaining_amount"
         ]
-        read_only_fields = ("used_amount",)

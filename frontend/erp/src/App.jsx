@@ -121,13 +121,15 @@ const PayrollProtectedRoute = ({ children }) => {
 
 const DashboardRouter = () => {
   const { user, loading } = useAuth();
-  const [orgUser, setOrgUser]=useState()
- useEffect(() => {
+  const [orgUserRole, setOrgUserRole] = useState(null);
+
+  useEffect(() => {
     api
       .get("/organizations/suborg-user/role/")
-      .then(res => setOrgUser(res.data?.role))
+      .then(res => setOrgUserRole(res.data?.role))
       .catch(() => {});
   }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -136,26 +138,31 @@ const DashboardRouter = () => {
     );
   }
 
-   if(orgUser==="Accounts Manager"){
-    return <FinanceDashboard/>
-   }
   // Super Admin → Main Dashboard
-  else if (user?.role === "super_admin") {
-    return <Dashboard />;
-  }
+  if (user?.role === "super_admin") return <Dashboard />;
 
-  else if (user?.role === "sub_org_admin" ) {
-    return <SubOrganizationDashboard />;
-  }
- 
-  // Regular Employee → Simple Portal
- else if (user?.role === "employee" || user?.role === "user") {
+  // Main Org Admin → Main Dashboard
+  if (user?.role === "main_org_admin") return <Dashboard />;
+
+  // Sub Org Admin → Sub Organization Dashboard
+  if (user?.role === "sub_org_admin") return <SubOrganizationDashboard />;
+
+  // Accounts Manager → Finance Dashboard
+  if (orgUserRole === "Accounts Manager") return <FinanceDashboard />;
+
+  // HR Roles → HR Dashboard (even if user role is "user" or "employee")
+  const hrRoles = ["HR Manager", "Manager", "Team Lead", "Admin"];
+  if (orgUserRole && hrRoles.includes(orgUserRole)) return <HRDashboard />;
+
+  // Regular Employee → Simple SubOrgUser Dashboard
+  if (user?.role === "employee" || user?.role === "user") {
     return <SubOrgUserDashboard />;
   }
 
-  // Fallback
+  // Fallback → Login
   return <Navigate to="/login" replace />;
 };
+
 
 /* -------------------- APP -------------------- */
 

@@ -8,10 +8,11 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('finance', '0004_alter_voucher_options_remove_voucher_date_and_more'),
-        ('organizations', '0019_alter_organizationuser_role'),
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-    ]
+    ('finance', '0001_initial'),
+    ('organizations', '0019_alter_organizationuser_role'),
+    migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+]
+
 
     operations = [
         migrations.CreateModel(
