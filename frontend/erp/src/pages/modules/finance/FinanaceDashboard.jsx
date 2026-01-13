@@ -1,225 +1,322 @@
-// src/pages/Finance/FinanceDashboard.jsx
-import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import api from "../../../services/api";
-import { FiLogOut, FiPlus, FiDollarSign, FiCheckCircle, FiBarChart2 } from "react-icons/fi";
+import {
+  FiDollarSign,
+  FiEdit,
+  FiSave,
+  FiLock,
+  FiAlertCircle,
+  FiCheckCircle,
+  FiArrowLeft,
+} from "react-icons/fi";
 
 const DEPARTMENTS = ["HR", "Inventory", "Warehouse", "Sales"];
 
 const FinanceDashboard = () => {
-  const { user, organization, logout } = useAuth();
+  const { organization } = useAuth();
   const navigate = useNavigate();
-  const [releasedBudget, setReleasedBudget] = useState(null);
-  const [budgetSplit, setBudgetSplit] = useState({});
-  const [budgetUsed, setBudgetUsed] = useState({});
+
+  const [budget, setBudget] = useState(null);
+  const [allocation, setAllocation] = useState({});
+  const [editMode, setEditMode] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("info");
   const [loading, setLoading] = useState(true);
-  const [command, setCommand] = useState("");
-  const [alertMessage, setAlertMessage] = useState("");
-  const [showAlert, setShowAlert] = useState(false);
-  const inputRef = useRef(null);
 
-  // Fetch current month's released budget
-  const fetchBudget = async () => {
+  /* =========================
+     LOAD BUDGET + ALLOCATION
+  ========================= */
+  const loadBudget = async () => {
+    setLoading(true);
+    setMessage("");
+
     try {
-      setLoading(true);
       const res = await api.get("/finance/monthly-budgets/");
-      const budgetData = res.data?.find(b => b.released) || null;
-      if (budgetData) {
-        setReleasedBudget(budgetData.amount);
+      const released = res.data.find((b) => b.released);
 
-        // Initialize department allocation with zeros for manual entry
-        const split = {};
-        const used = {};
-        DEPARTMENTS.forEach((dept) => {
-          split[dept] = ""; // empty for manual input
-          used[dept] = 0; // initially nothing used
-        });
-        setBudgetSplit(split);
-        setBudgetUsed(used);
+      if (!released) {
+        setMessage("No released budget found");
+        setMessageType("error");
+        setBudget(null);
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching budget:", error);
+
+      setBudget(released);
+
+      const init = {};
+      DEPARTMENTS.forEach((dep) => {
+        init[dep] =
+          released.department_allocations?.[dep.toUpperCase()] || "0";
+      });
+
+      setAllocation(init);
+      setEditMode(false);
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to load finance data");
+      setMessageType("error");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBudget();
+    loadBudget();
   }, []);
 
-  const handleAllocationChange = (dept, value) => {
-    const val = value.replace(/[^0-9.]/g, ""); // allow only numbers
-    setBudgetSplit((prev) => ({ ...prev, [dept]: val }));
-  };
+  /* =========================
+     CALCULATIONS
+  ========================= */
+  const releasedAmount = Number(budget?.amount || 0);
+  const totalAllocated = Object.values(allocation).reduce(
+    (sum, val) => sum + Number(val || 0),
+    0
+  );
+  const remaining = releasedAmount - totalAllocated;
 
-  const handleAllocateBudget = async () => {
-    // Validate total allocation <= releasedBudget
-    const totalAllocated = Object.values(budgetSplit).reduce((acc, v) => acc + parseFloat(v || 0), 0);
-    if (totalAllocated > releasedBudget) {
-      setAlertMessage("Total allocation exceeds released budget!");
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
+  /* =========================
+     SAVE ALLOCATION
+  ========================= */
+  const saveAllocation = async () => {
+    if (totalAllocated > releasedAmount) {
+      setMessage("Allocated amount exceeds released budget");
+      setMessageType("error");
       return;
     }
 
     try {
-      // Call backend API to save allocations per department
-      await api.post("/finance/monthly-budgets/allocate/", { allocation: budgetSplit });
-      setAlertMessage("Budget allocated successfully!");
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
+      setLoading(true);
+      await api.post(
+        `/finance/monthly-budgets/${budget.id}/allocate/`,
+        { allocation }
+      );
+      setMessage("Budget allocated successfully");
+      setMessageType("success");
+      setEditMode(false);
+      loadBudget();
     } catch (err) {
       console.error(err);
-      setAlertMessage("Failed to allocate budget.");
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
+      setMessage("Allocation failed");
+      setMessageType("error");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Terminal commands
-  const handleCommand = (e) => {
-    if (e.key !== "Enter") return;
-    const cmd = command.trim().toLowerCase();
-    setCommand("");
-
-    const notify = (msg) => {
-      setAlertMessage(msg);
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 3000);
-    };
-
-    if (cmd === "logout") return logout();
-    if (cmd === "help") return notify("Commands: vouchers, budget, departments, reports, allocate, logout");
-    if (cmd === "vouchers") return navigate("/accounts/vouchers");
-    if (cmd === "budget") return navigate("/finance/monthly-budgets");
-    if (cmd === "departments") return notify(`Departments: ${DEPARTMENTS.join(", ")}`);
-    if (cmd === "reports") return navigate("/finance/reports");
-    notify(`Unknown command: ${cmd}`);
+  /* =========================
+     CLOSE MONTH (LOCK)
+  ========================= */
+  const closeMonth = async () => {
+    try {
+      await api.post(`/finance/monthly-budgets/${budget.id}/close_month/`);
+      setMessage("Month closed successfully. Budget locked.");
+      setMessageType("success");
+      loadBudget();
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to close month");
+      setMessageType("error");
+    }
   };
 
-  const handleCommandBarClick = () => inputRef.current?.focus();
-
-  if (loading) {
+  /* =========================
+     RENDER
+  ========================= */
+  if (loading && !budget) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-cyan-300 text-center text-lg font-mono">Loading Finance Dashboard...</div>
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center text-cyan-300">
+        Loading Finance Dashboard...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono flex flex-col relative">
-      {/* Header */}
-      <div className="bg-gray-900 border-b border-cyan-800 px-6 py-4 flex justify-between items-center">
+    <div className="min-h-screen bg-gray-950 text-cyan-300 p-6">
+
+      {/* HEADER */}
+      <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-blue-300">{organization?.name} - Finance</h1>
-          <p className="text-cyan-400 text-sm mt-1">Welcome, {user?.first_name}</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-cyan-400 hover:text-blue-400 mb-2"
+          >
+            <FiArrowLeft /> Back
+          </button>
+          <h1 className="text-3xl font-bold text-blue-300">
+            Finance Control Panel
+          </h1>
+          <p className="text-cyan-400 text-sm">
+            {organization?.name} • Monthly Budget Allocation
+          </p>
         </div>
-        <button
-          onClick={logout}
-          className="flex items-center gap-2 bg-red-600 px-4 py-2 rounded hover:bg-red-700 transition"
-        >
-          <FiLogOut /> Logout
-        </button>
+
+        <div className="flex items-center gap-4">
+          <StatusBadge budget={budget} />
+          {!budget?.is_closed && (
+            <button
+              onClick={closeMonth}
+              className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg flex items-center gap-2 font-semibold"
+            >
+              <FiLock /> Close Month
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Main Dashboard */}
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gray-900/40 border border-cyan-800 rounded-xl p-6 flex flex-col items-center">
-            <FiDollarSign className="text-blue-300 text-4xl mb-2" />
-            <p className="text-cyan-400 text-sm">Released Budget</p>
-            <p className="text-blue-300 font-bold text-2xl mt-1">₹ {releasedBudget || 0}</p>
-          </div>
+      {/* MESSAGE */}
+      {message && (
+        <div
+          className={`mb-6 p-4 rounded border flex items-center gap-2 ${
+            messageType === "success"
+              ? "border-green-700 text-green-300"
+              : "border-red-700 text-red-300"
+          }`}
+        >
+          {messageType === "success" ? <FiCheckCircle /> : <FiAlertCircle />}
+          {message}
         </div>
+      )}
 
-        {/* Department-wise Budget Manual Allocation */}
-        <div className="bg-gray-900/40 border border-cyan-800 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-blue-300 mb-4">Department-wise Budget Allocation</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {DEPARTMENTS.map((dept) => (
-              <div key={dept} className="bg-gray-900/30 border border-cyan-700 rounded-lg p-4 flex flex-col items-center">
-                <p className="text-cyan-400 font-semibold">{dept}</p>
-                <input
-                  type="text"
-                  value={budgetSplit[dept]}
-                  onChange={(e) => handleAllocationChange(dept, e.target.value)}
-                  className="mt-2 w-full bg-gray-800 text-cyan-300 text-center rounded px-2 py-1 outline-none"
-                  placeholder="Enter amount"
-                />
-                <button
-                  onClick={() => releaseDeptBudget(dept)}
-                  className="mt-2 bg-blue-600 hover:bg-blue-700 text-gray-950 px-3 py-1 rounded font-semibold text-sm"
-                >
-                  Release
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={handleAllocateBudget}
-              className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2"
-            >
-              Allocate Budget
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-gray-900/40 border border-cyan-800 rounded-xl p-6 flex flex-wrap gap-4">
-          <button
-            onClick={() => navigate("/accounts/vouchers")}
-            className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold flex items-center gap-2"
-          >
-            <FiPlus /> Create Voucher
-          </button>
-
-          <button
-            onClick={() => navigate("/finance/monthly-budgets")}
-            className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-bold flex items-center gap-2"
-          >
-            <FiDollarSign /> Manage Budgets
-          </button>
-
-          <button
-            onClick={() => navigate("/finance/reports")}
-            className="bg-yellow-600 hover:bg-yellow-700 px-6 py-3 rounded-lg font-bold flex items-center gap-2"
-          >
-            <FiBarChart2 /> Reports
-          </button>
-        </div>
-      </main>
-
-      {/* Terminal Command Bar */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t-2 border-cyan-500 px-6 py-4 flex items-center cursor-text"
-        onClick={handleCommandBarClick}
-      >
-        <span className="text-green-400 font-bold mr-3">&gt;</span>
-        <input
-          ref={inputRef}
-          type="text"
-          value={command}
-          onChange={(e) => setCommand(e.target.value)}
-          onKeyDown={handleCommand}
-          placeholder="Type command: help, vouchers, budget, allocate..."
-          className="flex-1 bg-transparent text-green-400 outline-none font-mono text-base"
-          spellCheck={false}
+      {/* KPI SUMMARY */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <KpiCard title="Released Budget" value={releasedAmount} />
+        <KpiCard title="Allocated Amount" value={totalAllocated} />
+        <KpiCard
+          title="Remaining Balance"
+          value={remaining}
+          highlight={remaining < 0 ? "danger" : "normal"}
         />
       </div>
 
-      {showAlert && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800/90 border border-cyan-500 text-cyan-200 px-6 py-3 rounded-lg shadow-xl text-sm font-mono">
-          {alertMessage}
+      {/* ALLOCATION PROGRESS */}
+      <div className="mb-8">
+        <div className="flex justify-between text-sm text-cyan-400 mb-2">
+          <span>Allocation Progress</span>
+          <span>
+            {Math.min(100, (totalAllocated / releasedAmount) * 100).toFixed(1)}%
+          </span>
         </div>
-      )}
+        <div className="w-full bg-gray-800 rounded-full h-3">
+          <div
+            className={`h-3 rounded-full ${
+              totalAllocated > releasedAmount ? "bg-red-600" : "bg-green-600"
+            }`}
+            style={{
+              width: `${Math.min(100, (totalAllocated / releasedAmount) * 100)}%`,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* DEPARTMENT ALLOCATION TABLE */}
+      <div className="bg-gray-900 border border-cyan-800 rounded-xl p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-blue-300">
+            Department Budget Allocation
+          </h2>
+          {!budget?.is_closed && (
+            editMode ? (
+              <button
+                onClick={saveAllocation}
+                className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg flex items-center gap-2"
+              >
+                <FiSave /> Save Allocation
+              </button>
+            ) : (
+              <button
+                onClick={() => setEditMode(true)}
+                className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg flex items-center gap-2"
+              >
+                <FiEdit /> Edit Allocation
+              </button>
+            )
+          )}
+        </div>
+
+        <table className="w-full">
+          <thead className="border-b border-cyan-800 text-cyan-400 text-sm">
+            <tr>
+              <th className="py-3 text-left">Department</th>
+              <th className="py-3 text-right">Allocated Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {DEPARTMENTS.map((dep) => (
+              <tr key={dep} className="border-b border-cyan-800/40">
+                <td className="py-4 font-medium">{dep}</td>
+                <td className="py-4 text-right">
+                  {editMode ? (
+                    <input
+                      type="number"
+                      value={allocation[dep]}
+                      onChange={(e) =>
+                        setAllocation({ ...allocation, [dep]: e.target.value })
+                      }
+                      className="bg-gray-800 px-4 py-2 rounded text-right w-40"
+                    />
+                  ) : (
+                    `₹ ${Number(allocation[dep] || 0).toLocaleString()}`
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {budget?.is_closed && (
+          <div className="mt-4 text-red-400 flex items-center gap-2">
+            <FiLock /> This month is closed. Budget is locked.
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+
+/* =========================
+   STATUS BADGE COMPONENT
+========================= */
+const StatusBadge = ({ budget }) => {
+  if (!budget) return null;
+
+  if (budget.is_closed) {
+    return (
+      <span className="px-4 py-2 rounded bg-red-900 text-red-300 font-bold">
+        CLOSED
+      </span>
+    );
+  }
+  if (budget.released) {
+    return (
+      <span className="px-4 py-2 rounded bg-green-900 text-green-300 font-bold">
+        RELEASED
+      </span>
+    );
+  }
+  return (
+    <span className="px-4 py-2 rounded bg-yellow-900 text-yellow-300 font-bold">
+      DRAFT
+    </span>
+  );
+};
+
+/* =========================
+   KPI CARD COMPONENT
+========================= */
+const KpiCard = ({ title, value, highlight = "normal" }) => (
+  <div
+    className={`rounded-xl p-6 border ${
+      highlight === "danger"
+        ? "border-red-700 bg-red-950 text-red-300"
+        : "border-cyan-800 bg-gray-900 text-blue-300"
+    } text-center`}
+  >
+    <FiDollarSign className="text-3xl mx-auto mb-2 text-blue-300" />
+    <p className="text-cyan-400">{title}</p>
+    <p className="text-2xl font-bold mt-2">₹ {Number(value).toLocaleString()}</p>
+  </div>
+);
 
 export default FinanceDashboard;
