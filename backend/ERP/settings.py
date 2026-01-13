@@ -76,6 +76,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
+    'ERP.middleware.CurrentOrganizationMiddleware',
 ]
 
 ROOT_URLCONF = 'ERP.urls'
