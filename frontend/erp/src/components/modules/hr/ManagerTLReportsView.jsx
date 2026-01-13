@@ -15,7 +15,7 @@ const ManagerTLReportsView = () => {
 
   const fetchReports = async () => {
     try {
-      const res = await api.get('/api/hr/daily-tl-reports/');
+      const res = await api.get('/hr/daily-tl-reports/');
       // Backend filters to only reports where manager = current user
       setReports(res.data.sort((a, b) => new Date(b.date) - new Date(a.date)));
     } catch (err) {
