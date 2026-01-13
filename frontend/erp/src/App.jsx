@@ -38,6 +38,7 @@ import ChatPage from "./pages/modules/hr/ChatPage";
 import DepartmentDesignationManagement from "./pages/modules/hr/pages/DepartmentDesignationManagement";
 import MonthlyBudgetDashboard from "./pages/modules/finance/MonthlyBudgetDashboard";
 import FinanceDashboard from "./pages/modules/finance/FinanaceDashboard";
+import VendorList from './components/modules/finanace/vendor/VendorList';
 
 /* -------------------- ROUTE GUARDS -------------------- */
 
@@ -316,6 +317,7 @@ function App() {
               </HRProtectedRoute>
             }
           />
+          <Route path="/finance/vendors" element={<VendorList />} />
           {/* -------- REDIRECTS -------- */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route
