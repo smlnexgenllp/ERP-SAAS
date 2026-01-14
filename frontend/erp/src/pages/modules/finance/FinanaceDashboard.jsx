@@ -315,6 +315,12 @@ const FinanceDashboard = () => {
         >
           <FiBarChart2 /> Reports
         </button>
+        <button
+          onClick={() => navigate("/items/create")}
+          className="bg-purple-700 hover:bg-purple-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
+        >
+          <FiUsers /> Manage Items
+        </button>
       </div>
 
       {/* TERMINAL INPUT */}

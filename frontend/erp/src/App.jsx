@@ -39,6 +39,8 @@ import DepartmentDesignationManagement from "./pages/modules/hr/pages/Department
 import MonthlyBudgetDashboard from "./pages/modules/finance/MonthlyBudgetDashboard";
 import FinanceDashboard from "./pages/modules/finance/FinanaceDashboard";
 import VendorList from './components/modules/finanace/vendor/VendorList';
+import ItemCreate from "./pages/modules/inventory/ItemCreate";
+import PurchaseOrderCreate from "./pages/modules/finance/PurchaseOrderCreate";
 
 /* -------------------- ROUTE GUARDS -------------------- */
 
@@ -334,6 +336,8 @@ function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
           
           <Route path="/finance/budgets" element={<MonthlyBudgetDashboard/>} />
+          <Route path="/items/create" element={<ItemCreate />} />
+          <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
         </Routes>
       </Router>
     </AuthProvider>
