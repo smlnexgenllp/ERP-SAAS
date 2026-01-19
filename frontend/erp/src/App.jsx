@@ -43,6 +43,13 @@ import ItemCreate from "./pages/modules/inventory/ItemCreate";
 import PurchaseOrderCreate from "./pages/modules/finance/PurchaseOrderCreate";
 import InventoryDashboard from "./pages/dashboard/InventoryDashboard";
 
+import QualityInspectionCreate from "./pages/modules/purchase/QualityInspectionCreate";
+import GateEntryCreate from "./pages/modules/purchase/GateEntryCreate";
+import VendorPaymentCreate from "./pages/modules/purchase/VendorPaymentCreate";
+import VendorInvoiceCreate from "./pages/modules/purchase/VendorInvoiceCreate";
+import GRNCreate from "./pages/modules/purchase/GRNCreate";
+import PurchaseOrdersLists from "./pages/modules/finance/PurchaseOrdersLists";
+import PurchaseOrderApproval from "./pages/modules/finance/PurchaseOrderApproval";
 
 /* -------------------- ROUTE GUARDS -------------------- */
 
@@ -343,6 +350,13 @@ function App() {
           <Route path="/inventory" element={<InventoryDashboard />} />
 
           
+          <Route path="/vendor-payments/create" element={<VendorPaymentCreate/>} />
+          <Route path="/vendor-invoices/create" element={<VendorInvoiceCreate/>} />
+          <Route path="/grns/create" element={<GRNCreate/>} />
+          <Route path="/QC" element={<QualityInspectionCreate/>}/>
+          <Route path="/gate-entry" element={<GateEntryCreate/>}/>
+          <Route path="/purchase-orders-list" element={<PurchaseOrdersLists/>}/>
+          <Route path="/pending-PO" element={<PurchaseOrderApproval/>}/>
         </Routes>
       </Router>
     </AuthProvider>
