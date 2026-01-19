@@ -41,6 +41,8 @@ import FinanceDashboard from "./pages/modules/finance/FinanaceDashboard";
 import VendorList from './components/modules/finanace/vendor/VendorList';
 import ItemCreate from "./pages/modules/inventory/ItemCreate";
 import PurchaseOrderCreate from "./pages/modules/finance/PurchaseOrderCreate";
+import InventoryDashboard from "./pages/dashboard/InventoryDashboard";
+
 import QualityInspectionCreate from "./pages/modules/purchase/QualityInspectionCreate";
 import GateEntryCreate from "./pages/modules/purchase/GateEntryCreate";
 import VendorPaymentCreate from "./pages/modules/purchase/VendorPaymentCreate";
@@ -345,6 +347,9 @@ function App() {
           <Route path="/finance/budgets" element={<MonthlyBudgetDashboard/>} />
           <Route path="/items/create" element={<ItemCreate />} />
           <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
+          <Route path="/inventory" element={<InventoryDashboard />} />
+
+          
           <Route path="/vendor-payments/create" element={<VendorPaymentCreate/>} />
           <Route path="/vendor-invoices/create" element={<VendorInvoiceCreate/>} />
           <Route path="/grns/create" element={<GRNCreate/>} />
