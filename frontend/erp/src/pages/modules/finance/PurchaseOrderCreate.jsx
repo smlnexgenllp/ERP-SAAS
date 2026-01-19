@@ -1,302 +1,389 @@
 import React, { useEffect, useState } from "react";
-import {
-  FiFileText,
-  FiPlus,
-  FiTrash2,
-  FiShoppingCart,
-} from "react-icons/fi";
+import { FiPlus, FiTrash2, FiSave, FiX } from "react-icons/fi";
 import api from "../../../services/api";
-import { useAuth } from "../../../context/AuthContext";
 
-const DEPARTMENTS = ["HR", "Inventory", "Warehouse", "Sales"];
-
-const PurchaseOrderCreate = () => {
-  const { organization } = useAuth(); // get current org
-  const [vendors, setVendors] = useState([]);
-  const [items, setItems] = useState([]);
-  const [budget, setBudget] = useState(0);
+export default function PurchaseOrderCreate() {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [itemsList, setItemsList] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   const [form, setForm] = useState({
-    department: "",
     vendor: "",
-    items: [{ item: "", qty: 1, price: 0 }],
+    department: "",
+    tax_percentage: 0,
+    items: [],
   });
 
-  /* ---------------- LOAD MASTER DATA ---------------- */
+  const [errors, setErrors] = useState({});
+
+  // ── Data Fetching ──────────────────────────────────────────────
   useEffect(() => {
-    loadData();
+    const fetchData = async () => {
+      try {
+        const [itemsRes, vendorsRes, deptRes] = await Promise.all([
+          api.get("/inventory/items/"),
+          api.get("/finance/vendors/"),
+          api.get("/hr/departments/"),
+        ]);
+
+        setItemsList(itemsRes.data);
+        setVendors(vendorsRes.data.filter((v) => v.is_approved === true));
+        setDepartments(deptRes.data);
+      } catch (err) {
+        console.error("Failed to load data:", err);
+      }
+    };
+    fetchData();
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [vendorRes, itemRes] = await Promise.all([
-        api.get("/finance/vendors/"),
-        api.get("/inventory/items/"),
-      ]);
-
-      const vendorData = Array.isArray(vendorRes.data)
-        ? vendorRes.data
-        : vendorRes.data.results || [];
-
-      const itemData = Array.isArray(itemRes.data)
-        ? itemRes.data
-        : itemRes.data.results || [];
-
-      setVendors(vendorData);
-      setItems(itemData);
-
-      // fallback budget until API ready
-      setBudget(999999);
-
-      console.log("VENDORS:", vendorData);
-      console.log("ITEMS:", itemData);
-    } catch (err) {
-      console.error("Load error:", err);
-    }
+  // ── Form Handlers ──────────────────────────────────────────────
+  const addItem = () => {
+    setForm((prev) => ({
+      ...prev,
+      items: [...prev.items, { item: "", quantity: 1, unit_price: 0 }],
+    }));
   };
 
-  /* ---------------- CALCULATIONS ---------------- */
-  const totalAmount = form.items.reduce(
-    (sum, row) => sum + Number(row.qty) * Number(row.price),
-    0
-  );
-
-  const budgetExceeded = totalAmount > budget;
-
-  /* ---------------- HANDLERS ---------------- */
-  const updateItemRow = (index, field, value) => {
-    const updated = [...form.items];
-    updated[index][field] = value;
-    setForm({ ...form, items: updated });
+  const removeItem = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
   };
 
-  const addRow = () => {
-    setForm({
-      ...form,
-      items: [...form.items, { item: "", qty: 1, price: 0 }],
+  const updateItem = (index, field, value) => {
+    setForm((prev) => {
+      const newItems = [...prev.items];
+
+      if (field === "item") {
+        const itemId = Number(value);
+        const selected = itemsList.find((it) => it.id === itemId);
+        newItems[index] = {
+          ...newItems[index],
+          item: itemId,
+          unit_price: selected?.standard_price ?? 0,
+        };
+      } else {
+        newItems[index][field] = 
+          (field === "quantity" || field === "unit_price")
+            ? Number(value) || 0
+            : value;
+      }
+
+      return { ...prev, items: newItems };
     });
   };
 
-  const removeRow = (index) => {
-    const updated = form.items.filter((_, i) => i !== index);
-    setForm({ ...form, items: updated });
+  const handleTaxChange = (e) => {
+    let val = e.target.value === "" ? 0 : Number(e.target.value);
+    val = Math.max(0, Math.min(100, val));
+    setForm((prev) => ({ ...prev, tax_percentage: val }));
   };
 
-  const submitPO = async () => {
-    if (budgetExceeded) {
-      setMessage("PO amount exceeds department budget");
-      return;
-    }
+  // ── Calculations ───────────────────────────────────────────────
+  const getItemTotal = (item) => (item.quantity * item.unit_price) || 0;
 
-    if (!organization) {
-      setMessage("Organization not set. Cannot submit PO.");
-      return;
-    }
+  const subtotal = form.items.reduce((sum, item) => sum + getItemTotal(item), 0);
+  const taxAmount = (subtotal * form.tax_percentage) / 100;
+  const grandTotal = subtotal + taxAmount;
+
+  // ── Validation & Submit ────────────────────────────────────────
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!form.department) newErrors.department = "Department is required";
+    if (!form.vendor) newErrors.vendor = "Vendor is required";
+    if (form.items.length === 0) newErrors.items = "Add at least one item";
+
+    form.items.forEach((item, idx) => {
+      if (!item.item) newErrors[`item_${idx}`] = "Select an item";
+      if (item.quantity <= 0) newErrors[`quantity_${idx}`] = "Quantity must be > 0";
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
 
     try {
-      setLoading(true);
-
       const payload = {
-  organization: organization.id,
-  department: form.department,
-  vendor: form.vendor,
-  items: form.items.map((row) => ({
-    item: row.item,           // row.item must be the ID, not object
-    quantity: Number(row.qty),
-    unit_price: Number(row.price),
-    total_price: Number(row.qty) * Number(row.price),
-  })),
-};
-
-
-      console.log("Submitting PO payload:", payload);
+        vendor: form.vendor,
+        department: form.department,
+        tax_percentage: form.tax_percentage,
+        items: form.items.map(item => ({
+          item: item.item,
+          ordered_qty: item.quantity,
+          unit_price: item.unit_price,
+        })),
+      };
 
       await api.post("/inventory/purchase-orders/", payload);
-      setMessage("Purchase Order created successfully");
-
-      // reset form
-      setForm({
-        department: "",
-        vendor: "",
-        items: [{ item: "", qty: 1, price: 0 }],
-      });
+      
+      alert("Purchase Order created successfully!");
+      setForm({ vendor: "", department: "", tax_percentage: 0, items: [] });
+      setErrors({});
     } catch (err) {
-      console.error(err);
-      setMessage("Failed to create PO");
+      console.error("PO creation error:", err?.response?.data || err);
+      alert("Failed to create Purchase Order. Please check the form.");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------------- RENDER ---------------- */
+  // ── Render ─────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 p-6">
-      {/* HEADER */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-blue-300 flex items-center gap-3">
-          <FiFileText /> Create Purchase Order
+    <div className="min-h-screen bg-gray-950 text-cyan-50 px-4 py-6 md:px-8 md:py-10">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl md:text-4xl font-bold text-cyan-300 mb-10">
+          Create Purchase Order
         </h1>
-        <p className="text-cyan-400 text-sm">
-          Inventory • Budget Controlled Purchase
-        </p>
-      </div>
 
-      {message && (
-        <div className="mb-6 border border-cyan-700 p-4 rounded text-cyan-200">
-          {message}
-        </div>
-      )}
-
-      {/* FORM CARD */}
-      <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6">
-        {/* TOP ROW */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          {/* Department */}
-          <Select
-            label="Department"
-            value={form.department}
-            onChange={(e) => setForm({ ...form, department: e.target.value })}
-            options={DEPARTMENTS}
-          />
-
-          {/* Vendor */}
-          <Select
-            label="Vendor"
-            value={form.vendor}
-            onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-            options={vendors.map((v) => ({ value: v.id, label: v.name }))}
-          />
-
-          {/* Budget */}
-          <div className="border border-cyan-800 rounded p-4 text-center">
-            <p className="text-cyan-400 text-sm">Available Budget</p>
-            <p className="text-2xl font-bold text-green-400">
-              ₹ {budget.toLocaleString()}
-            </p>
+        {/* Main Card */}
+        <div className="bg-gray-900/90 border border-cyan-900/60 rounded-xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-gray-900 to-gray-800 px-6 py-5 border-b border-cyan-900/50">
+            <h2 className="text-xl md:text-2xl font-semibold text-cyan-300 flex items-center gap-3">
+              <FiPlus className="text-cyan-400" /> New Purchase Order
+            </h2>
           </div>
-        </div>
 
-        {/* ITEMS TABLE */}
-        <div className="overflow-x-auto">
-          <table className="w-full border border-cyan-900/50 rounded">
-            <thead className="bg-gray-950 text-cyan-400">
-              <tr>
-                <th className="p-3">Item</th>
-                <th className="p-3">Qty</th>
-                <th className="p-3">Price</th>
-                <th className="p-3">Total</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {form.items.map((row, i) => (
-                <tr key={i} className="border-t border-cyan-900/40">
-                  <td className="p-3">
-                    <select
-                      className="w-full bg-gray-900 border border-cyan-800 rounded px-2 py-1"
-                      onChange={(e) => updateItemRow(i, "item", e.target.value)}
-                    >
-                      <option value="">Select Item</option>
-                      {items.map((it) => (
-                        <option key={it.id} value={it.id}>
-                          {it.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="p-3">
-                    <input
-                      type="number"
-                      min="1"
-                      value={row.qty}
-                      onChange={(e) => updateItemRow(i, "qty", e.target.value)}
-                      className="w-20 bg-gray-900 border border-cyan-800 rounded px-2 py-1"
-                    />
-                  </td>
-                  <td className="p-3">
-                    <input
-                      type="number"
-                      value={row.price}
-                      onChange={(e) => updateItemRow(i, "price", e.target.value)}
-                      className="w-28 bg-gray-900 border border-cyan-800 rounded px-2 py-1"
-                    />
-                  </td>
-                  <td className="p-3 text-right">
-                    ₹ {(row.qty * row.price).toFixed(2)}
-                  </td>
-                  <td className="p-3">
-                    <button
-                      onClick={() => removeRow(i)}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <div className="p-6 md:p-8">
+            {/* Basic Info */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              <div>
+                <label className="block text-sm text-cyan-400/90 font-medium mb-2">
+                  Department <span className="text-red-400">*</span>
+                </label>
+                <select
+                  value={form.department}
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  className={`w-full bg-gray-800 border rounded-lg px-4 py-3 text-cyan-50 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600/40 transition-all ${
+                    errors.department ? 'border-red-500' : 'border-gray-700'
+                  }`}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                {errors.department && (
+                  <p className="mt-1 text-sm text-red-400">{errors.department}</p>
+                )}
+              </div>
 
-        {/* ACTIONS */}
-        <div className="flex justify-between items-center mt-6">
-          <button
-            onClick={addRow}
-            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300"
-          >
-            <FiPlus /> Add Item
-          </button>
+              <div>
+                <label className="block text-sm text-cyan-400/90 font-medium mb-2">
+                  Vendor <span className="text-red-400">*</span>
+                </label>
+                <select
+                  value={form.vendor}
+                  onChange={(e) => setForm({ ...form, vendor: e.target.value })}
+                  className={`w-full bg-gray-800 border rounded-lg px-4 py-3 text-cyan-50 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600/40 transition-all ${
+                    errors.vendor ? 'border-red-500' : 'border-gray-700'
+                  }`}
+                >
+                  <option value="">Select Vendor</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+                {errors.vendor && (
+                  <p className="mt-1 text-sm text-red-400">{errors.vendor}</p>
+                )}
+              </div>
 
-          <div className="text-right">
-            <p className="text-cyan-400">PO Total</p>
-            <p
-              className={`text-2xl font-bold ${
-                budgetExceeded ? "text-red-400" : "text-green-400"
-              }`}
-            >
-              ₹ {totalAmount.toLocaleString()}
-            </p>
+              <div>
+                <label className="block text-sm text-cyan-400/90 font-medium mb-2">
+                  Tax Percentage (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={form.tax_percentage}
+                  onChange={handleTaxChange}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-right text-cyan-50 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600/40 transition-all"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
 
-            <button
-              onClick={submitPO}
-              disabled={loading || budgetExceeded}
-              className="mt-4 bg-gradient-to-r from-green-600 to-green-700 px-8 py-3 rounded-lg font-bold flex items-center gap-2"
-            >
-              <FiShoppingCart />
-              Create PO
-            </button>
+            {/* Items Section */}
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-semibold text-cyan-300">Order Items</h3>
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="flex items-center gap-2 bg-cyan-700 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-lg transition-colors shadow-sm"
+                >
+                  <FiPlus /> Add Item
+                </button>
+              </div>
+
+              {errors.items && (
+                <p className="mb-4 text-red-400 text-sm">{errors.items}</p>
+              )}
+
+              <div className="overflow-x-auto rounded-lg border border-cyan-900/40">
+                <table className="w-full min-w-[700px]">
+                  <thead className="bg-gray-800/70">
+                    <tr className="text-cyan-300/90 text-sm uppercase tracking-wider">
+                      <th className="px-6 py-4 text-left font-medium">Item</th>
+                      <th className="px-6 py-4 text-center font-medium w-28">Quantity</th>
+                      <th className="px-6 py-4 text-right font-medium w-40">Unit Price</th>
+                      <th className="px-6 py-4 text-right font-medium w-40">Total</th>
+                      <th className="w-16"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-cyan-900/30">
+                    {form.items.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-800/40 transition-colors">
+                        <td className="px-6 py-4">
+                          <select
+                            value={item.item}
+                            onChange={(e) => updateItem(idx, "item", e.target.value)}
+                            className={`w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-cyan-50 focus:outline-none focus:border-cyan-600 ${
+                              errors[`item_${idx}`] ? 'border-red-500' : 'border-gray-700'
+                            }`}
+                          >
+                            <option value="">Select item...</option>
+                            {itemsList.map((it) => (
+                              <option key={it.id} value={it.id}>
+                                {it.name} ({it.code})
+                              </option>
+                            ))}
+                          </select>
+                          {errors[`item_${idx}`] && (
+                            <p className="mt-1 text-xs text-red-400">{errors[`item_${idx}`]}</p>
+                          )}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateItem(idx, "quantity", e.target.value)}
+                            className={`w-full bg-gray-800 border rounded-lg px-3 py-2 text-center text-cyan-50 focus:outline-none focus:border-cyan-600 ${
+                              errors[`quantity_${idx}`] ? 'border-red-500' : 'border-gray-700'
+                            }`}
+                          />
+                          {errors[`quantity_${idx}`] && (
+                            <p className="mt-1 text-xs text-red-400">{errors[`quantity_${idx}`]}</p>
+                          )}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.unit_price}
+                            onChange={(e) => updateItem(idx, "unit_price", e.target.value)}
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-right text-cyan-50 focus:outline-none focus:border-cyan-600"
+                          />
+                        </td>
+
+                        <td className="px-6 py-4 text-right font-medium text-cyan-200">
+                          ₹ {getItemTotal(item).toFixed(2)}
+                        </td>
+
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={() => removeItem(idx)}
+                            className="text-red-400 hover:text-red-300 transition-colors p-1"
+                            title="Remove item"
+                          >
+                            <FiTrash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {form.items.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-gray-500 italic">
+                          No items added yet. Click "Add Item" to begin.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+
+                  {form.items.length > 0 && (
+                    <tfoot className="bg-gray-800/60">
+                      <tr>
+                        <td colSpan={3} className="px-6 py-4 text-right text-cyan-200">
+                          Subtotal
+                        </td>
+                        <td className="px-6 py-4 text-right text-cyan-200">
+                          ₹ {subtotal.toFixed(2)}
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr>
+                        <td colSpan={3} className="px-6 py-4 text-right text-cyan-200">
+                          Tax ({form.tax_percentage}%)
+                        </td>
+                        <td className="px-6 py-4 text-right text-cyan-200">
+                          ₹ {taxAmount.toFixed(2)}
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr className="border-t border-cyan-800">
+                        <td colSpan={3} className="px-6 py-5 text-right text-lg font-semibold text-cyan-100">
+                          Grand Total
+                        </td>
+                        <td className="px-6 py-5 text-right text-xl font-bold text-cyan-300">
+                          ₹ {grandTotal.toFixed(2)}
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-4 mt-10">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Discard changes and go back?")) {
+                    window.history.back();
+                  }
+                }}
+                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-cyan-100 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <FiX /> Cancel
+              </button>
+
+              <button
+                onClick={handleSubmit}
+                disabled={loading || !form.vendor || !form.department || form.items.length === 0}
+                className={`px-8 py-3 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-green-900/30 ${
+                  loading || !form.vendor || !form.department || form.items.length === 0
+                    ? "opacity-60 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                {loading ? "Creating..." : (
+                  <>
+                    <FiSave /> Create Purchase Order
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
-};
-
-/* ----------- SELECT COMPONENT ----------- */
-const Select = ({ label, options, value, onChange }) => (
-  <div>
-    <label className="text-cyan-400 text-sm mb-1 block">{label}</label>
-    <select
-      value={value}
-      onChange={onChange}
-      className="w-full bg-gray-900 border border-cyan-800 rounded px-3 py-2 text-cyan-200"
-    >
-      <option value="">Select</option>
-      {options.map((opt, i) =>
-        typeof opt === "string" ? (
-          <option key={i} value={opt}>
-            {opt}
-          </option>
-        ) : (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        )
-      )}
-    </select>
-  </div>
-);
-
-export default PurchaseOrderCreate;
+}
