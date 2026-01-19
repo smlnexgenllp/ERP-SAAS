@@ -255,62 +255,47 @@ class SubOrgUserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         modules = validated_data.pop('modules', [])
         password = validated_data.pop('password')
-        role_display = validated_data.pop('role')  # "HR Manager", "Employee", etc.
+        role = validated_data.pop('role')           # ← now correctly taken from input
 
-        # Map display role to actual role if needed (optional)
-        role_map = {
-            "Admin": "Admin",
-            "HR Manager": "HR Manager",
-            "Employee": "Employee"
-        }
-        role = role_map.get(role_display, "Employee")
-
-        # Generate unique username
-        base_username = validated_data['email'].split("@")[0].lower()
-        username = base_username
+        # Generate unique username from email prefix
+        email_prefix = validated_data['email'].split('@')[0].lower()
+        username = email_prefix
         counter = 1
         while User.objects.filter(username=username).exists():
-            username = f"{base_username}{counter}"
+            username = f"{email_prefix}{counter}"
             counter += 1
 
-        # Create user
+        # Create the auth user
         user = User.objects.create(
             username=username,
             email=validated_data['email'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name'],
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
             is_active=True,
         )
         user.set_password(password)
         user.save()
 
-        # Get organization from context (passed in view)
+        # Get organization from view context
         organization = self.context['organization']
 
-        # Link via OrganizationUser
+        # Create organization-user relationship with correct role
         OrganizationUser.objects.create(
             user=user,
             organization=organization,
-            role=role,
+            role=role,                      # ← fixed: uses selected role
             is_active=True
         )
 
-        # Critical: Save per-user module access
-        if modules:
-            UserOrganizationAccess.objects.create(
-                user=user,
-                organization=organization,
-                modules=modules  # e.g., ["dashboard", "training", "hr"]
-            )
-        else:
-            # Optional: give no access by default
-            UserOrganizationAccess.objects.create(
-                user=user,
-                organization=organization,
-                modules=[]
-            )
+        # Save module access
+        UserOrganizationAccess.objects.create(
+            user=user,
+            organization=organization,
+            modules=modules
+        )
 
         return user
+
 from rest_framework import serializers
 from .models import TrainingVideo
 class TrainingVideoSerializer(serializers.ModelSerializer):
@@ -318,3 +303,9 @@ class TrainingVideoSerializer(serializers.ModelSerializer):
         model = TrainingVideo
         fields = "__all__"
         read_only_fields = ("organization", "uploaded_by")
+
+
+
+
+
+

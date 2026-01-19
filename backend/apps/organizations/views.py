@@ -455,35 +455,53 @@ def debug_modules_data(request):
 User = get_user_model()
 
 class CreateSubOrgUserView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny]   # ← ← ← WARNING: change this in production!
 
     def post(self, request, org_id):
         try:
             organization = Organization.objects.get(id=org_id)
         except Organization.DoesNotExist:
-            return Response({"success": False, "error": "Organization not found"}, status=404)
+            return Response(
+                {"success": False, "error": "Organization not found"},
+                status=404
+            )
 
-        # Ensure only admins of this org can create users
+        # ────────────────────────────────────────────────
+        # TODO: Uncomment and improve permission check later
+        # if not request.user.is_authenticated:
+        #     return Response({"success": False, "error": "Authentication required"}, status=401)
+        #
         # try:
-        #     org_user = OrganizationUser.objects.get(user=request.user, organization=organization)
-        #     if org_user.role != "Admin":
+        #     org_user = OrganizationUser.objects.get(
+        #         user=request.user,
+        #         organization=organization
+        #     )
+        #     if org_user.role not in ["Admin", "MD"]:   # or whatever roles are allowed
         #         return Response({"success": False, "error": "Permission denied"}, status=403)
         # except OrganizationUser.DoesNotExist:
-        #     return Response({"success": False, "error": "Not authorized"}, status=403)
+        #     return Response({"success": False, "error": "Not a member of this organization"}, status=403)
+        # ────────────────────────────────────────────────
 
         serializer = SubOrgUserCreateSerializer(
             data=request.data,
             context={'organization': organization}
         )
+
         if serializer.is_valid():
             user = serializer.save()
             return Response({
                 "success": True,
                 "message": "User created successfully",
                 "user_id": user.id,
-                "email": user.email
+                "email": user.email,
+                "username": user.username,
+                "role": serializer.validated_data['role']   # optional: return selected role
             }, status=201)
-        return Response({"success": False, "errors": serializer.errors}, status=400)
+
+        return Response({
+            "success": False,
+            "errors": serializer.errors
+        }, status=400)
 from apps.organizations.models import UserOrganizationAccess
 from apps.subscriptions.models import Module, ModulePage
 # In your views.py
