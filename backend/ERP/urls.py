@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/auth/", include("apps.authentication.urls")),
     path("api/finance/", include("apps.finance.urls")),
     path("api/inventory/", include("apps.inventory.urls")),
+    path('api/stock/', include('apps.stocks.urls')),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

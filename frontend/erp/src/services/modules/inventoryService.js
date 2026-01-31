@@ -5,5 +5,5 @@ export const fetchVendors = () => {
 };
 
 export const createItem = (data) => {
-  return api.post("/items/", data);
+  return api.post("/inventory/items/", data);
 };
