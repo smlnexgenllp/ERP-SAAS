@@ -177,7 +177,9 @@ REST_FRAMEWORK = {
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    ".onrender.com",
+    'erp.33threads.in',             # Your main subdomain
+    'www.erp.33threads.in',         # Optional – if you want www to work too
+    '.33threads.in',
 ]
 
 # CORS settings
