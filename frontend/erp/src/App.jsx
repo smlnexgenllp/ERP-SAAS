@@ -50,6 +50,8 @@ import VendorInvoiceCreate from "./pages/modules/purchase/VendorInvoiceCreate";
 import GRNCreate from "./pages/modules/purchase/GRNCreate";
 import PurchaseOrdersLists from "./pages/modules/finance/PurchaseOrdersLists";
 import PurchaseOrderApproval from "./pages/modules/finance/PurchaseOrderApproval";
+import StockDashboard from "./pages/modules/stocks/StockDashboard";
+import GRNApprovalList from "./pages/modules/purchase/GRNApprovalList"
 
 /* -------------------- ROUTE GUARDS -------------------- */
 
@@ -138,7 +140,7 @@ const DashboardRouter = () => {
     api
       .get("/organizations/suborg-user/role/")
       .then(res => setOrgUserRole(res.data?.role))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   if (loading) {
@@ -343,20 +345,24 @@ function App() {
             element={<Navigate to="/hr/payroll" replace />}
           />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          
-          <Route path="/finance/budgets" element={<MonthlyBudgetDashboard/>} />
+
+          <Route path="/finance/budgets" element={<MonthlyBudgetDashboard />} />
           <Route path="/items/create" element={<ItemCreate />} />
           <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
           <Route path="/inventory" element={<InventoryDashboard />} />
 
-          
-          <Route path="/vendor-payments/create" element={<VendorPaymentCreate/>} />
-          <Route path="/vendor-invoices/create" element={<VendorInvoiceCreate/>} />
-          <Route path="/grns/create" element={<GRNCreate/>} />
-          <Route path="/QC" element={<QualityInspectionCreate/>}/>
-          <Route path="/gate-entry" element={<GateEntryCreate/>}/>
-          <Route path="/purchase-orders-list" element={<PurchaseOrdersLists/>}/>
-          <Route path="/pending-PO" element={<PurchaseOrderApproval/>}/>
+
+          <Route path="/vendor-payments/create" element={<VendorPaymentCreate />} />
+          <Route path="/vendor-invoices/create" element={<VendorInvoiceCreate />} />
+          <Route path="/grns/create" element={<GRNCreate />} />
+          <Route path="/QC" element={<QualityInspectionCreate />} />
+          <Route path="/gate-entry" element={<GateEntryCreate />} />
+          <Route path="/purchase-orders-list" element={<PurchaseOrdersLists />} />
+          <Route path="/pending-PO" element={<PurchaseOrderApproval />} />
+
+          <Route path="/stockdash" element={<StockDashboard />} />
+          <Route path="/grn/pending-approval"element={<GRNApprovalList />}/>
+
         </Routes>
       </Router>
     </AuthProvider>
