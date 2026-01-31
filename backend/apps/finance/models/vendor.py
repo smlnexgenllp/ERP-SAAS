@@ -4,7 +4,8 @@ from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from apps.organizations.models import Organization 
-
+from django.db import transaction
+from django.db.models import Max
 
 class Vendor(models.Model):
     organization = models.ForeignKey(
@@ -75,21 +76,22 @@ class Vendor(models.Model):
             raise ValidationError("GSTIN must be exactly 15 characters.")
 
     def save(self, *args, **kwargs):
-        # Auto-generate vendor_code only on creation
         if not self.vendor_code:
-            prefix = self.organization.code or self.organization.subdomain.upper()[:6]
-            last_vendor = Vendor.objects.filter(
-                organization=self.organization
-            ).order_by('-id').first()
+            with transaction.atomic():
+                prefix = self.organization.code or self.organization.subdomain.upper()[:6]
 
-            if last_vendor and last_vendor.vendor_code.startswith(prefix):
-                try:
-                    num = int(last_vendor.vendor_code.split('-')[-1]) + 1
-                except:
+                last_code = Vendor.objects.filter(
+                    organization=self.organization,
+                    vendor_code__startswith=f"{prefix}-V"
+                ).aggregate(
+                    max_code=Max('vendor_code')
+                )['max_code']
+
+                if last_code:
+                    num = int(last_code.split('-V')[-1]) + 1
+                else:
                     num = 1
-            else:
-                num = 1
 
-            self.vendor_code = f"{prefix}-V{num:04d}"  # e.g., SKMT-V0001
+                self.vendor_code = f"{prefix}-V{num:04d}"
 
         super().save(*args, **kwargs)
