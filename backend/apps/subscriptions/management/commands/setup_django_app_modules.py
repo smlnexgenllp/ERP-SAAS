@@ -45,6 +45,16 @@ class Command(BaseCommand):
                 'app_name': 'transport', 
                 'base_url': '/transport/',
                 'is_active': True
+            },
+            {
+                'name': 'Finance Management',
+                'code': 'finance',
+                'description': 'Finance, accounting, billing and expense management',
+                'icon': 'dollar-sign',
+                'available_in_plans': ['basic', 'advance', 'enterprise'],
+                'app_name': 'finance',
+                'base_url': '/accounting/',
+                'is_active': True
             }
         ]
 
