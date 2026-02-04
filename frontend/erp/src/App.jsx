@@ -349,7 +349,7 @@ function App() {
           <Route path="/finance/budgets" element={<MonthlyBudgetDashboard />} />
           <Route path="/items/create" element={<ItemCreate />} />
           <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
-          <Route path="/inventory" element={<InventoryDashboard />} />
+          <Route path="/inventory" element={< InventoryDashboard/>} />
 
 
           <Route path="/vendor-payments/create" element={<VendorPaymentCreate />} />
@@ -362,6 +362,8 @@ function App() {
 
           <Route path="/stockdash" element={<StockDashboard />} />
           <Route path="/grn/pending-approval"element={<GRNApprovalList />}/>
+          <Route path="/accounting/dashboard"element={<FinanceDashboard />}/>
+
 
         </Routes>
       </Router>

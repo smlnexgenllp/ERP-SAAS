@@ -193,7 +193,7 @@ const FinanceDashboard = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
+        {/* <div className="flex items-center gap-4">
           <StatusBadge budget={budget} />
           {!budget?.is_closed && (
             <button
@@ -203,7 +203,7 @@ const FinanceDashboard = () => {
               <FiLock /> Close Month
             </button>
           )}
-        </div>
+        </div> */}
       </div>
 
       {/* ALERT MESSAGE */}

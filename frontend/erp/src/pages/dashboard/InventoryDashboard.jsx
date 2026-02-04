@@ -57,6 +57,7 @@ const InventoryDashboard = () => {
       icon: Settings,
       path: "/settings",
     },
+    
   ];
 
   // Simple way to decide if we show full page content or child route content
