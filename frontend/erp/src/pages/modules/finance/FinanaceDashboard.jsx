@@ -289,7 +289,7 @@ const FinanceDashboard = () => {
       {/* QUICK ACTIONS */}
       <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6 flex flex-wrap gap-4 justify-center md:justify-start mb-8">
         <button
-          onClick={() => navigate("/accounts/vouchers")}
+          onClick={() => navigate("/vendor-payments/create")}
           className="bg-blue-700 hover:bg-blue-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
         >
           <FiPlus /> Create Voucher
