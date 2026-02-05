@@ -349,7 +349,7 @@ function App() {
           <Route path="/finance/budgets" element={<MonthlyBudgetDashboard />} />
           <Route path="/items/create" element={<ItemCreate />} />
           <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
-          <Route path="/inventory" element={< InventoryDashboard/>} />
+          <Route path="/inventory/dashboard" element={<InventoryDashboard />} />
 
 
           <Route path="/vendor-payments/create" element={<VendorPaymentCreate />} />
