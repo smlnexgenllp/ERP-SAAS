@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 import {
   fetchMyProfile,
   fetchManagers,
@@ -97,7 +98,7 @@ export default function MyProfile() {
   const inputRef = useRef(null);
 
   const BACKEND_URL =
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+    import.meta.env.VITE_API_BASE_URL || `${API_BASE_URL}`;
 
   useEffect(() => {
     loadData();
