@@ -288,35 +288,35 @@ const FinanceDashboard = () => {
 
       {/* QUICK ACTIONS */}
       <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6 flex flex-wrap gap-4 justify-center md:justify-start mb-8">
-        <button
+        {/* <button
           onClick={() => navigate("/accounts/vouchers")}
           className="bg-blue-700 hover:bg-blue-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
         >
           <FiPlus /> Create Voucher
-        </button>
+        </button> */}
 
         <button
-          onClick={() => navigate("/finance/monthly-budgets")}
+          onClick={() => navigate("/finance/budgets")}
           className="bg-green-700 hover:bg-green-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
         >
           <FiDollarSign /> Manage Budgets
         </button>
 
         <button
-          onClick={() => navigate("/finance/vendors")}
+          onClick={() => navigate("/vendors")}
           className="bg-purple-700 hover:bg-purple-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
         >
           <FiUsers /> Manage Vendors
         </button>
 
-        <button
+        {/* <button
           onClick={() => navigate("/finance/reports")}
           className="bg-yellow-700 hover:bg-yellow-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
         >
           <FiBarChart2 /> Reports
-        </button>
+        </button> */}
         <button
-          onClick={() => navigate("/items/create")}
+          onClick={() => navigate("/inventory/create-item")}
           className="bg-purple-700 hover:bg-purple-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
         >
           <FiUsers /> Manage Items

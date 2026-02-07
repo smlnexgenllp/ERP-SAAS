@@ -52,7 +52,6 @@ import PurchaseOrdersLists from "./pages/modules/finance/PurchaseOrdersLists";
 import PurchaseOrderApproval from "./pages/modules/finance/PurchaseOrderApproval";
 import StockDashboard from "./pages/modules/stocks/StockDashboard";
 import GRNApprovalList from "./pages/modules/purchase/GRNApprovalList"
-
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -337,7 +336,7 @@ function App() {
               </HRProtectedRoute>
             }
           />
-          <Route path="/finance/vendors" element={<VendorList />} />
+          <Route path="/vendors" element={<VendorList />} />
           {/* -------- REDIRECTS -------- */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route
@@ -347,8 +346,8 @@ function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
 
           <Route path="/finance/budgets" element={<MonthlyBudgetDashboard />} />
-          <Route path="/items/create" element={<ItemCreate />} />
-          <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
+          <Route path="/inventory/create-item" element={<ItemCreate />} />
+          <Route path="/purchase/create-po" element={<PurchaseOrderCreate />} />
           <Route path="/inventory" element={< InventoryDashboard/>} />
 
 
@@ -357,14 +356,13 @@ function App() {
           <Route path="/grns/create" element={<GRNCreate />} />
           <Route path="/QC" element={<QualityInspectionCreate />} />
           <Route path="/gate-entry" element={<GateEntryCreate />} />
-          <Route path="/purchase-orders-list" element={<PurchaseOrdersLists />} />
+          <Route path="/purchase/orders" element={<PurchaseOrdersLists />} />
           <Route path="/pending-PO" element={<PurchaseOrderApproval />} />
 
-          <Route path="/stockdash" element={<StockDashboard />} />
+          <Route path="/inventory/items" element={<StockDashboard />} />
           <Route path="/grn/pending-approval"element={<GRNApprovalList />}/>
           <Route path="/accounting/dashboard"element={<FinanceDashboard />}/>
-
-
+          
         </Routes>
       </Router>
     </AuthProvider>

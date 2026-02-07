@@ -25,7 +25,7 @@ const InventoryDashboard = () => {
     {
       label: "Overview",
       icon: LayoutDashboard,
-      path: "/inventory/dashboard",
+      path: "/inventory",
     },
     {
       label: "Create Item",

@@ -9,6 +9,7 @@ export const useAuth = () => {
   }
   return context;
 };
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }) => {
   const getCsrfToken = async () => {
     try {
       const response = await fetch(
-        "http://localhost:8000/api/auth/csrf-token/",
+        `${API_BASE_URL}/api/auth/csrf-token/`,
         {
           method: "GET",
           credentials: "include",
@@ -78,7 +79,7 @@ export const AuthProvider = ({ children }) => {
       const token = getCsrfTokenFromCookie();
 
       const response = await fetch(
-        "http://localhost:8000/api/auth/current-user/",
+        `${API_BASE_URL}/api/auth/current-user/`,
         {
           method: "GET",
           headers: {
@@ -113,7 +114,7 @@ export const AuthProvider = ({ children }) => {
       // Get CSRF token from cookie as fallback
       const token = getCsrfTokenFromCookie();
 
-      const response = await fetch("http://localhost:8000/api/auth/login/", {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -160,7 +161,7 @@ export const AuthProvider = ({ children }) => {
       const token = getCsrfTokenFromCookie();
 
 
-      await fetch("http://localhost:8000/api/auth/logout/", {
+      await fetch(`${API_BASE_URL}/api/auth/logout/`, {
         method: "POST",
         headers: {
           ...(token && { "X-CSRFToken": token }),

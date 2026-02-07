@@ -119,3 +119,4 @@ class MonthlyBudget(models.Model):
 
     def remaining_amount(self):
         return float(self.amount) - self.total_allocated()
+  

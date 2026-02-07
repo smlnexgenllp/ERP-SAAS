@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff, UserPlus, Building, Check, X } from "lucide-react";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -111,7 +112,7 @@ const Register = () => {
     console.log("Sending data:", payload);
 
     const response = await fetch(
-      "http://localhost:8000/api/organizations/register/",
+      `${API_BASE_URL}/api/organizations/register/`,
       {
         method: "POST",
         headers: {

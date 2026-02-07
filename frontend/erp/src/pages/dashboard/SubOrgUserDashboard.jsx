@@ -146,9 +146,10 @@ const SubOrgUserDashboard = () => {
         </h2>
 
         <ModuleGrid
-          modules={modules}
-          onModuleClick={(m) => navigate(`/${m.code}/dashboard`)}
-        />
+  modules={modules}
+  onModuleClick={(m) => navigate(`/${m.code}/dashboard`)}
+/>
+
       </div>
 
       {/* ================= MD BUDGET ACCESS ================= */}
