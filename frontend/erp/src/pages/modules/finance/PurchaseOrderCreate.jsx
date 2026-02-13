@@ -90,20 +90,27 @@ export default function PurchaseOrderCreate() {
 
   // ── Validation & Submit ────────────────────────────────────────
   const validateForm = () => {
-    const newErrors = {};
+  const newErrors = {};
 
-    if (!form.department) newErrors.department = "Department is required";
-    if (!form.vendor) newErrors.vendor = "Vendor is required";
-    if (form.items.length === 0) newErrors.items = "Add at least one item";
+  if (!form.department) newErrors.department = "Department is required";
+  if (!form.vendor) newErrors.vendor = "Vendor is required";
+  if (form.items.length === 0) newErrors.items = "Add at least one item";
 
-    form.items.forEach((item, idx) => {
-      if (!item.item) newErrors[`item_${idx}`] = "Select an item";
-      if (item.quantity <= 0) newErrors[`quantity_${idx}`] = "Quantity must be > 0";
-    });
+  form.items.forEach((item, idx) => {
+    if (!item.item || item.item === "" || isNaN(Number(item.item))) {
+      newErrors[`item_${idx}`] = "Select a valid item";
+    }
+    if (!item.quantity || item.quantity <= 0) {
+      newErrors[`quantity_${idx}`] = "Quantity must be > 0";
+    }
+    if (!item.unit_price || item.unit_price < 0) {
+      newErrors[`unit_price_${idx}`] = "Unit price cannot be negative";
+    }
+  });
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
   const handleSubmit = async () => {
     if (!validateForm()) return;

@@ -1,4 +1,4 @@
-import api from "./api"; // Import is now correct relative to its new location
+import api from "../api"; // Import is now correct relative to its new location
 
 const TOKEN_ACCESS = "access_token";
 const TOKEN_REFRESH = "refresh_token";

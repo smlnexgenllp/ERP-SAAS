@@ -9,6 +9,10 @@ from django.urls import reverse_lazy
 from django.http import Http404
 from apps.finance.models.vendor import Vendor
 from apps.finance.serializers.vendor import VendorSerializer 
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+
 
 
 # ── DRF API ViewSet (this handles GET/POST/PUT/DELETE for React) ────────
@@ -33,7 +37,24 @@ class VendorViewSet(viewsets.ModelViewSet):
         if not org or serializer.instance.organization != org:
             raise PermissionDenied("Cannot update vendor from different organization")
         serializer.save()
+    @action(detail=False, methods=['get'], url_path='stats')
+    def stats(self, request):
+        org = getattr(request, 'user_current_organization', None)
+        
+        if not org:
+            return Response(
+                {"error": "No organization context available"},
+                status=400
+            )
 
+        qs = Vendor.objects.filter(organization=org)
+
+        data = {
+            "total": qs.count(),
+            "active": qs.filter(is_active=True).count() if hasattr(Vendor, 'is_active') else 0,
+            "approved": qs.filter(is_approved=True).count() if hasattr(Vendor, 'is_approved') else 0,
+        }
+        return Response(data)
 class VendorListView(LoginRequiredMixin, ListView):
     model = Vendor
     template_name = 'finance/vendor_list.html'  # ← updated path

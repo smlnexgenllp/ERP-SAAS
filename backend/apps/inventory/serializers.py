@@ -16,6 +16,8 @@ from .models import (
     VendorPayment
 )
 from apps.finance.serializers.vendor import VendorSerializer
+from apps.finance.models.vendor import Vendor
+
 
 # ========================= ITEM =========================
 class ItemSerializer(serializers.ModelSerializer):
@@ -78,81 +80,131 @@ class ItemSerializer(serializers.ModelSerializer):
         return max(current_stock, Decimal('0.00'))
 # ========================= PURCHASE ORDER =========================
 class PurchaseOrderItemSerializer(serializers.ModelSerializer):
-    item = ItemSerializer(read_only=True)
+    # For GET responses → show full item details
+    item_details = ItemSerializer(source='item', read_only=True)
+    
+    # For writing (POST/PUT) → accept only the ID
+    item = serializers.PrimaryKeyRelatedField(
+        queryset=Item.objects.all(),
+        required=True,
+        write_only=True              # only used for input
+    )
+    
+    # Optional: nice read-only alias for frontend
     rate = serializers.DecimalField(
-        source='unit_price',           # or 'standard_price' – use your actual model field
+        source='unit_price',
         max_digits=12,
         decimal_places=2,
         read_only=True
     )
+
     class Meta:
         model = PurchaseOrderItem
-        exclude = ("purchase_order",)
+        fields = [
+            'id',
+            'item',           # write-only: ID
+            'item_details',   # read-only: full object
+            'ordered_qty',
+            'unit_price',
+            'rate',
+            'total_price',
+            'received_qty',
+        ]
+        read_only_fields = [
+            'id',
+            'total_price',
+            'received_qty',
+            'item_details',
+            'rate',
+        ]
+
 
 class PurchaseOrderSerializer(serializers.ModelSerializer):
+    # Nested items – now properly writable
     items = PurchaseOrderItemSerializer(many=True)
-    vendor     = VendorSerializer(read_only=True)
+    
+    # Same pattern for vendor
+    vendor_details = VendorSerializer(source='vendor', read_only=True)
+    vendor = serializers.PrimaryKeyRelatedField(
+        queryset=Vendor.objects.all(),
+        required=True,
+        write_only=True
+    )
 
     class Meta:
         model = PurchaseOrder
-        fields = "__all__"
-        read_only_fields = (
-            "total_amount",
-            "created_at",
-            "po_number",
-            "organization",
-            "created_by",
-        )
+        fields = [
+            'id',
+            'organization',
+            'department',
+            'vendor',           # write: ID
+            'vendor_details',   # read: full object
+            'po_number',
+            'status',
+            'total_amount',
+            'created_by',
+            'created_at',
+            'items',
+        ]
+        read_only_fields = [
+            'id',
+            'po_number',
+            'total_amount',
+            'created_at',
+            'created_by',
+            'organization',
+            'status',           # if status is changed elsewhere
+            'vendor_details',
+        ]
 
     @transaction.atomic
     def create(self, validated_data):
         request = self.context["request"]
-        items_data = validated_data.pop("items")
-
-        validated_data["organization"] = request.user.organization
-        validated_data["created_by"] = request.user
-
+        
+        # items is now already validated by the nested serializer
+        items_data = validated_data.pop('items')
+        
+        # Set automatic fields
+        validated_data['organization'] = request.user.organization
+        validated_data['created_by'] = request.user
+        
+        # vendor is already a Vendor instance (from PrimaryKeyRelatedField)
         po = PurchaseOrder.objects.create(**validated_data)
 
-        for item in items_data:
+        # Create items – item is already a Item instance
+        for item_data in items_data:
             PurchaseOrderItem.objects.create(
                 purchase_order=po,
-                **item
+                **item_data
             )
 
         po.update_total()
         return po
+
+
+    # Optional: if you want to keep this method (for list/retrieve)
     def get_remaining_qty(self, obj):
-        # Total ordered
         total_ordered = sum(item.ordered_qty for item in obj.items.all())
         
-        # Total received from all gate entries
         total_received = sum(
-            gei.delivered_qty for ge in obj.gateentry_set.all() 
+            gei.delivered_qty 
+            for ge in obj.gateentry_set.all() 
             for gei in ge.items.all()
         )
-
+        
+        return total_ordered - total_received   # ← probably what you want
 # ========================= GATE ENTRY =========================
 class GateEntryItemSerializer(serializers.ModelSerializer):
-    # Make item writable
     item = serializers.PrimaryKeyRelatedField(
         queryset=Item.objects.all(),
         write_only=True
     )
-
-    # Keep these for response / display
     item_id = serializers.IntegerField(source='item.id', read_only=True)
     item_name = serializers.CharField(source='item.name', read_only=True)
 
     class Meta:
         model = GateEntryItem
-        fields = [
-            'id',
-            'item',          # ← client sends this (id)
-            'item_id',       # ← returned in GET
-            'item_name',
-            'delivered_qty',
-        ]
+        fields = ['id', 'item', 'item_id', 'item_name', 'delivered_qty']
 
 
 class GateEntrySerializer(serializers.ModelSerializer):
@@ -163,139 +215,115 @@ class GateEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = GateEntry
         fields = [
-            'id',
-            'po',
-            'po_details',
+            'id', 'po', 'po_details',
             'gate_entry_number',
             'dc_number',
             'vehicle_number',
-            'challan_number',
-            'status',
-            'entry_time',
-            'organization',
-            'items',
+            'challan_number',   # ✅ REQUIRED — ADD BACK
+            'status', 'entry_time', 'organization', 'items'
         ]
         read_only_fields = (
-            'organization',
-            'entry_time',
-            'gate_entry_number',
-            'status',           # ← very important now: controlled by backend
+            'organization', 'entry_time', 'gate_entry_number', 'status'
         )
 
     def get_po_details(self, obj):
         return {
             "id": obj.po.id,
             "po_number": obj.po.po_number,
-            "vendor": {
-                "id": obj.po.vendor.id,
-                "name": obj.po.vendor.name
-            },
-            "total_amount": obj.po.total_amount,
+            "vendor": {"id": obj.po.vendor.id, "name": obj.po.vendor.name},
+            "total_amount": str(obj.po.total_amount),  # avoid Decimal issues
         }
 
     def validate(self, data):
         po = data.get("po")
-        if not po:
-            raise serializers.ValidationError({"po": "This field is required."})
 
-        if po.status != "approved":
+        if po.status.lower() != "approved":
             raise serializers.ValidationError(
                 {"po": "Purchase Order must be approved before creating Gate Entry"}
             )
 
-        # Validate items
-        items_data = self.initial_data.get("items", [])
+        items_data = data.get("items", [])
         if not items_data:
-            raise serializers.ValidationError({"items": "At least one item is required."})
+            raise serializers.ValidationError({"items": "At least one item required."})
 
-        po_items_map = {
-            pi.item_id: pi for pi in po.items.all()
-        }
+        po_items_map = {pi.item_id: pi for pi in po.items.all()}
 
-        for item_data in items_data:
-            item_id = item_data.get("item")
+        for idx, item_data in enumerate(items_data):
+            item_obj = item_data.get("item")   # ← THIS IS OBJECT
             delivered_qty = item_data.get("delivered_qty")
 
-            if not item_id:
-                raise serializers.ValidationError("Each item must have an 'item' field.")
+            item_id = item_obj.id   # ✅ FIX
 
             if item_id not in po_items_map:
-                try:
-                    item = Item.objects.get(id=item_id)
-                    raise serializers.ValidationError(
-                        f"Item '{item.name}' (id: {item_id}) is not part of this Purchase Order."
-                    )
-                except Item.DoesNotExist:
-                    raise serializers.ValidationError(f"Invalid item id: {item_id}")
+                raise serializers.ValidationError({
+                    f"items[{idx}].item": f"Item ID {item_id} not in this PO."
+                })
 
             po_item = po_items_map[item_id]
             remaining = po_item.ordered_qty - po_item.received_qty
 
-            if delivered_qty is None or delivered_qty < 0:
-                raise serializers.ValidationError(
-                    f"Delivered quantity for item {item_id} must be a positive number."
-                )
+            if delivered_qty <= 0:
+                raise serializers.ValidationError({
+                    f"items[{idx}].delivered_qty": "Must be positive number."
+                })
 
             if delivered_qty > remaining:
-                raise serializers.ValidationError(
-                    f"Delivered qty ({delivered_qty}) for item {po_item.item.name} "
-                    f"exceeds remaining quantity ({remaining})"
-                )
-
-        # Prevent client from setting status manually on creation
-        if self.instance is None and "status" in data:
-            raise serializers.ValidationError(
-                {"status": "Status cannot be set manually on creation."}
-            )
+                raise serializers.ValidationError({
+                    f"items[{idx}].delivered_qty":
+                        f"Cannot exceed remaining ({remaining})"
+                })
 
         return data
+
 
     @transaction.atomic
     def create(self, validated_data):
         request = self.context["request"]
         items_data = validated_data.pop("items")
 
-        # Force organization from authenticated user
         validated_data["organization"] = request.user.organization
-
-        # Status is always set to pending_qc on creation
-        validated_data["status"] = "pending_qc"
 
         gate_entry = GateEntry.objects.create(**validated_data)
 
         for item_data in items_data:
             GateEntryItem.objects.create(
                 gate_entry=gate_entry,
-                **item_data
+                item=item_data["item"],  # ✅ PASS OBJECT NOT ID
+                delivered_qty=item_data["delivered_qty"]
             )
 
         return gate_entry
 
+
     @transaction.atomic
     def update(self, instance, validated_data):
-        # For updates, allow only certain fields if needed
-        # But typically Gate Entry should not be updated after creation
-        # → you may want to block update completely or restrict heavily
-
         items_data = validated_data.pop("items", None)
 
-        # Update basic fields (if allowed)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         instance.save()
 
         if items_data is not None:
-            # Optional: allow updating items (but usually not recommended)
-            # Clear old items and recreate (or implement diff logic)
             instance.items.all().delete()
+
             for item_data in items_data:
                 GateEntryItem.objects.create(
                     gate_entry=instance,
-                    **item_data
+                    item=item_data["item"],
+                    delivered_qty=item_data["delivered_qty"]
                 )
 
         return instance
+
+    def to_internal_value(self, data):
+        item_value = data.get('item')
+        if item_value is not None:
+            if not isinstance(item_value, (int, str)) or (isinstance(item_value, str) and not item_value.isdigit()):
+                raise serializers.ValidationError({
+                    'item': f"Expected integer ID, received: {type(item_value).__name__} → {item_value}"
+                })
+        return super().to_internal_value(data)    
 
 # ========================= GRN =========================
 # apps/inventory/serializers.py

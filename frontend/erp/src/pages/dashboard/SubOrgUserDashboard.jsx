@@ -28,7 +28,7 @@ const SubOrgUserDashboard = () => {
   const moduleNameMap = {
     hr_management: "HR Management",
     inventory: "Inventory",
-    accounting: "Accounting",
+    finance: "Finance",
     crm: "CRM",
     project_management: "Project Management",
     sales: "Sales",
@@ -64,7 +64,7 @@ const SubOrgUserDashboard = () => {
     api
       .get("/organizations/suborg-user/role/")
       .then(res => setUserRole(res.data?.role))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   /* ================= TERMINAL ================= */
@@ -81,13 +81,13 @@ const SubOrgUserDashboard = () => {
 
     if (cmd === "logout") return logout();
     if (cmd === "help")
-      return notify("Commands: hr, inventory, sales, accounting, crm, projects, logout");
+      return notify("Commands: hr, inventory, sales, finance, crm, projects, logout");
 
     const routes = {
       hr: "/hr/dashboard",
       inventory: "/inventory/dashboard",
       sales: "/sales/dashboard",
-      accounting: "/accounting/dashboard",
+      finance: "/accounting/dashboard",
       crm: "/crm/dashboard",
       projects: "/projects/dashboard",
     };
@@ -108,7 +108,7 @@ const SubOrgUserDashboard = () => {
   /* ================= UI ================= */
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono pb-24">
-      
+
       {/* ================= NAV BAR ================= */}
       <div className="bg-gray-900 border-b border-cyan-800 px-8 py-4 flex justify-between items-center">
         <div>
@@ -146,10 +146,13 @@ const SubOrgUserDashboard = () => {
         </h2>
 
         <ModuleGrid
-  modules={modules}
-  onModuleClick={(m) => navigate(`/${m.code}/dashboard`)}
-/>
-
+          modules={modules}
+          onModuleClick={(m) => {
+            const target = `/${m.code}/dashboard`;
+            console.log("Clicked module:", m.code, "→ navigating to:", target);
+            navigate(target);
+          }}
+        />
       </div>
 
       {/* ================= MD BUDGET ACCESS ================= */}

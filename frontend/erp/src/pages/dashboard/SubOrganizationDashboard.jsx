@@ -135,7 +135,7 @@ const SubOrganizationDashboard = () => {
       hr: "/hr/dashboard",
       hrmanagement: "/hr/dashboard",
       inventory: "/inventory/dashboard",
-      stock: "/inventory/dashboard",
+      stock: "/stock/dashboard",
       sales: "/sales/dashboard",
       transport: "/transport/dashboard",
       accounting: "/accounting/dashboard",
