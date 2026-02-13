@@ -92,7 +92,7 @@ class Item(models.Model):
         # unique_together = ('organization', 'code')
 
     def __str__(self):
-        return f"{self.name} ({self.code}) - {self.organization.name}"
+         return f"{self.name} ({self.code})" + (f" - {self.organization.name}" if self.organization else "")
 
     # ────────────────────── STOCK CALCULATION (from GRN) ──────────────────────
     @property
