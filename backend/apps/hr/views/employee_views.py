@@ -60,6 +60,7 @@ from django.contrib.auth import get_user_model
 from apps.hr.models import Employee
 from apps.hr.serializers import SimpleUserSerializer
 from django.db.models import Count, Sum, Q, F  
+from rest_framework.exceptions import PermissionDenied
 
 logger = logging.getLogger(__name__)
 from apps.organizations.models import OrganizationUser
@@ -96,17 +97,19 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             return Department.objects.none()
     def perform_create(self, serializer):
         user = self.request.user
-
-        # Admin / Sub-org Admin
+        print(f"User: {user}, is_authenticated: {user.is_authenticated}")
+        
         if hasattr(user, "organization") and user.organization:
+            print("Using user.organization")
             serializer.save(organization=user.organization)
             return
 
-        # Employee (HR creating department)
         try:
             employee = Employee.objects.get(user=user)
+            print(f"Found employee, org: {employee.organization}")
             serializer.save(organization=employee.organization)
         except Employee.DoesNotExist:
+            print("No employee record → denying")
             raise PermissionDenied("Organization not found for this user")
 
 class DesignationViewSet(viewsets.ModelViewSet):
