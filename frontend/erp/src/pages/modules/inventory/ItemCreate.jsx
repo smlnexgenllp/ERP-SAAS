@@ -291,7 +291,7 @@ const ItemCreate = () => {
 // Reusable Input
 const Input = ({ label, icon, ...props }) => (
   <div>
-    <label className="block text-cyan-400 text-sm mb-2 flex items-center gap-2">
+    <label className="mb-2 flex items-center gap-2 text-sm text-cyan-400">
       {icon} {label}
     </label>
     <input
