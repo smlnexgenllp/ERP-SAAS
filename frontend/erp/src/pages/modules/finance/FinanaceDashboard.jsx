@@ -4,13 +4,9 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import {
   FiDollarSign,
-  FiEdit,
-  FiSave,
-  FiLock,
   FiAlertCircle,
   FiCheckCircle,
   FiArrowLeft,
-  FiLogOut,
   FiPlus,
   FiBarChart2,
   FiUsers,
@@ -20,7 +16,7 @@ import {
 const DEPARTMENTS = ["HR", "Inventory", "Warehouse", "Sales"];
 
 const FinanceDashboard = () => {
-  const { organization, user, logout } = useAuth();
+  const { organization, logout } = useAuth();
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
@@ -31,7 +27,6 @@ const FinanceDashboard = () => {
   const [vendorStats, setVendorStats] = useState({ total: 0, active: 0, approved: 0 });
 
   const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("info");
 
@@ -39,49 +34,73 @@ const FinanceDashboard = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
 
-  /* -------------------- LOAD BUDGET + VENDOR STATS -------------------- */
-  const loadBudget = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/finance/monthly-budgets/");
-      const released = res.data.find((b) => b.released);
+  /* -------------------- LOAD CURRENT MONTH BUDGET -------------------- */
+  const loadCurrentMonthBudget = async () => {
+  setLoading(true);
+  setMessage("");
+  setMessageType("info");
 
-      if (!released) {
-        setMessage("No released budget found");
-        setMessageType("error");
-        setBudget(null);
-        return;
-      }
+  try {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthNum = now.getMonth() + 1;
+    const currentMonthPadded = String(currentMonthNum).padStart(2, "0");
 
-      setBudget(released);
-      setReleasedBudget(released.amount || 0);
+    console.log(`[BUDGET REQ] year=${currentYear}, month=${currentMonthPadded}`);
 
-      const initAlloc = {};
-      DEPARTMENTS.forEach((dep) => {
-        initAlloc[dep] = released.department_allocations?.[dep.toUpperCase()] || 0;
-      });
-      setAllocation(initAlloc);
-      setBudgetSplit({ ...initAlloc });
-      setEditMode(false);
+    const res = await api.get("/finance/monthly-budgets/", {
+      params: {
+        year: currentYear,
+        month: currentMonthPadded,
+      },
+    });
 
-      // Fetch vendor stats
-      try {
-        const vendorRes = await api.get("/finance/vendors/stats/");
-        setVendorStats(vendorRes.data || { total: 0, active: 0, approved: 0 });
-      } catch (vendorErr) {
-        console.warn("Vendor stats not available", vendorErr);
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage("Failed to load finance data");
-      setMessageType("error");
-    } finally {
-      setLoading(false);
+    console.log("[BUDGET RES]", res.data);
+
+    let currentBudget = null;
+
+    // Prefer released budget
+    currentBudget = res.data.find(
+      (b) => b.released === true
+    );
+
+    // Fallback to any budget for this month
+    if (!currentBudget && res.data.length > 0) {
+      currentBudget = res.data[0];
+      console.warn("[BUDGET] No released budget found, using first available");
     }
-  };
+
+    if (!currentBudget) {
+      const monthName = now.toLocaleString("default", { month: "long" });
+      setMessage(`No budget found for ${monthName} ${currentYear}`);
+      setMessageType("warning");
+      setBudget(null);
+      setReleasedBudget(0);
+      return;
+    }
+
+    console.log("[BUDGET SELECTED]", currentBudget);
+
+    setBudget(currentBudget);
+    setReleasedBudget(Number(currentBudget.amount) || 0);
+
+    const initAlloc = {};
+    DEPARTMENTS.forEach((dep) => {
+      initAlloc[dep] = currentBudget.department_allocations?.[dep] || "0";
+    });
+    setAllocation(initAlloc);
+    setBudgetSplit({ ...initAlloc });
+  } catch (err) {
+    console.error("[BUDGET ERROR]", err);
+    setMessage("Failed to load budget for current month");
+    setMessageType("error");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
-    loadBudget();
+    loadCurrentMonthBudget();
   }, []);
 
   /* -------------------- CALCULATIONS -------------------- */
@@ -106,20 +125,15 @@ const FinanceDashboard = () => {
     }
 
     try {
-      setLoading(true);
       await api.post(`/finance/monthly-budgets/${budget.id}/allocate/`, {
         allocation: budgetSplit,
       });
       setMessage("Budget allocated successfully");
       setMessageType("success");
-      setEditMode(false);
-      loadBudget();
+      loadCurrentMonthBudget();
     } catch (err) {
-      console.error(err);
-      setMessage("Allocation failed");
+      setMessage(err.response?.data?.detail || "Allocation failed");
       setMessageType("error");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -129,9 +143,8 @@ const FinanceDashboard = () => {
       await api.post(`/finance/monthly-budgets/${budget.id}/close_month/`);
       setMessage("Month closed successfully. Budget locked.");
       setMessageType("success");
-      loadBudget();
+      loadCurrentMonthBudget();
     } catch (err) {
-      console.error(err);
       setMessage("Failed to close month");
       setMessageType("error");
     }
@@ -163,19 +176,21 @@ const FinanceDashboard = () => {
     inputRef.current?.focus();
   };
 
-  /* -------------------- LOADING -------------------- */
-  if (loading && !budget) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center text-cyan-300">
-        Loading Finance Dashboard...
+        Loading current month budget...
       </div>
     );
   }
 
-  /* -------------------- RENDER -------------------- */
+  const currentMonthName = new Date().toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-300 p-6">
-
       {/* HEADER */}
       <div className="flex justify-between items-start mb-8">
         <div>
@@ -189,29 +204,37 @@ const FinanceDashboard = () => {
             Finance Control Panel
           </h1>
           <p className="text-cyan-400 text-sm">
-            {organization?.name} • Monthly Budget Allocation
+            {organization?.name} • {currentMonthName}
           </p>
         </div>
-
-        {/* <div className="flex items-center gap-4">
-          <StatusBadge budget={budget} />
-          {!budget?.is_closed && (
-            <button
-              onClick={closeMonth}
-              className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg flex items-center gap-2 font-semibold"
-            >
-              <FiLock /> Close Month
-            </button>
-          )}
-        </div> */}
       </div>
 
-      {/* ALERT MESSAGE */}
+      {/* CURRENT MONTH INDICATOR */}
+      {budget ? (
+        <div className="mb-6 p-4 bg-gray-800/60 rounded-lg border border-cyan-700/40">
+          <p className="text-xl font-bold text-blue-300">
+            Budget – {currentMonthName}
+          </p>
+          {budget.is_closed && (
+            <p className="text-sm text-yellow-400 mt-1">
+              Month closed • allocations locked
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="mb-6 p-4 bg-gray-900/80 border border-yellow-700/50 rounded-lg text-yellow-300">
+          No released budget found for {currentMonthName}
+        </div>
+      )}
+
+      {/* MESSAGES */}
       {message && (
         <div
           className={`mb-6 p-4 rounded border flex items-center gap-2 ${
             messageType === "success"
               ? "border-green-700 text-green-300"
+              : messageType === "warning"
+              ? "border-yellow-700 text-yellow-300"
               : "border-red-700 text-red-300"
           }`}
         >
@@ -224,7 +247,11 @@ const FinanceDashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KpiCard title="Released Budget" value={releasedBudget} />
         <KpiCard title="Allocated Amount" value={totalAllocated} />
-        <KpiCard title="Remaining Balance" value={remaining} highlight={remaining < 0 ? "danger" : "normal"} />
+        <KpiCard
+          title="Remaining Balance"
+          value={remaining}
+          highlight={remaining < 0 ? "danger" : "normal"}
+        />
         <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6 flex flex-col items-center relative">
           <FiUsers className="text-purple-400 text-6xl mb-3 opacity-20 absolute top-3 right-4" />
           <p className="text-cyan-400 text-sm mb-1">Vendors</p>
@@ -242,49 +269,49 @@ const FinanceDashboard = () => {
           <button
             onClick={() => navigate("/finance/vendors")}
             className="mt-5 text-sm bg-purple-900/40 hover:bg-purple-800/60 px-5 py-2 rounded flex items-center gap-2 transition"
-            aria-label="View all vendors"
           >
             <FiEye size={16} /> View Vendors
           </button>
         </div>
       </div>
 
-      {/* DEPARTMENT BUDGET ALLOCATION */}
-      <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6 mb-8">
-        <h2 className="text-xl font-bold text-blue-300 mb-5">
-          Department-wise Budget Allocation
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {DEPARTMENTS.map((dept) => (
-            <div
-              key={dept}
-              className="bg-gray-950/50 border border-cyan-900/40 rounded-lg p-5 flex flex-col items-center"
-            >
-              <p className="text-cyan-300 font-semibold mb-3">{dept}</p>
-              <input
-                type="text"
-                value={budgetSplit[dept] || ""}
-                onChange={(e) => handleAllocationChange(dept, e.target.value)}
-                className="w-full bg-gray-900 text-cyan-200 text-center rounded px-3 py-2 outline-none border border-cyan-800/50 focus:border-cyan-400"
-                placeholder="0.00"
-                disabled={budget?.is_closed}
-              />
-            </div>
-          ))}
-        </div>
-
-        {!budget?.is_closed && (
-          <div className="mt-8 flex justify-end">
-            <button
-              onClick={handleAllocateBudget}
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg transition"
-              disabled={loading}
-            >
-              <FiDollarSign /> Allocate Budget
-            </button>
+      {/* DEPARTMENT ALLOCATION SECTION */}
+      {budget && (
+        <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6 mb-8">
+          <h2 className="text-xl font-bold text-blue-300 mb-5">
+            Department-wise Budget Allocation
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {DEPARTMENTS.map((dept) => (
+              <div
+                key={dept}
+                className="bg-gray-950/50 border border-cyan-900/40 rounded-lg p-5 flex flex-col items-center"
+              >
+                <p className="text-cyan-300 font-semibold mb-3">{dept}</p>
+                <input
+                  type="text"
+                  value={budgetSplit[dept] || ""}
+                  onChange={(e) => handleAllocationChange(dept, e.target.value)}
+                  className="w-full bg-gray-900 text-cyan-200 text-center rounded px-3 py-2 outline-none border border-cyan-800/50 focus:border-cyan-400"
+                  placeholder="0.00"
+                  disabled={budget?.is_closed}
+                />
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+
+          {!budget?.is_closed && (
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={handleAllocateBudget}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg transition"
+              >
+                <FiDollarSign /> Allocate Budget
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* QUICK ACTIONS */}
       <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6 flex flex-wrap gap-4 justify-center md:justify-start mb-8">
@@ -323,10 +350,10 @@ const FinanceDashboard = () => {
         </button>
       </div>
 
-      {/* TERMINAL INPUT */}
+      {/* COMMAND BAR */}
       <div
         className="fixed bottom-0 left-0 right-0 bg-gray-950/95 backdrop-blur-md border-t-2 border-cyan-600 px-6 py-4 flex items-center cursor-text z-50"
-        onClick={handleCommandBarClick}
+        onClick={() => inputRef.current?.focus()}
       >
         <span className="text-green-400 font-bold mr-4 text-xl">&gt;</span>
         <input
@@ -352,19 +379,13 @@ const FinanceDashboard = () => {
   );
 };
 
-/* -------------------- STATUS BADGE -------------------- */
-const StatusBadge = ({ budget }) => {
-  if (!budget) return null;
-  if (budget.is_closed) return <span className="px-4 py-2 rounded bg-red-900 text-red-300 font-bold">CLOSED</span>;
-  if (budget.released) return <span className="px-4 py-2 rounded bg-green-900 text-green-300 font-bold">RELEASED</span>;
-  return <span className="px-4 py-2 rounded bg-yellow-900 text-yellow-300 font-bold">DRAFT</span>;
-};
-
-/* -------------------- KPI CARD -------------------- */
+/* KPI CARD COMPONENT */
 const KpiCard = ({ title, value, highlight = "normal" }) => (
   <div
     className={`rounded-xl p-6 border ${
-      highlight === "danger" ? "border-red-700 bg-red-950 text-red-300" : "border-cyan-800 bg-gray-900 text-blue-300"
+      highlight === "danger"
+        ? "border-red-700 bg-red-950 text-red-300"
+        : "border-cyan-800 bg-gray-900 text-blue-300"
     } text-center`}
   >
     <FiDollarSign className="text-3xl mx-auto mb-2 text-blue-300" />
