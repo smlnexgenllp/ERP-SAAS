@@ -29,14 +29,17 @@ const InventoryDashboard = () => {
 
   const navItems = [
     { label: "Overview",        icon: LayoutDashboard,    path: "/inventory/dashboard" },
-    { label: "Create Item",     icon: Package,            path: "/inventory/items/create" },
-    { label: "Items List",      icon: ClipboardList,      path: "/inventory/items" },
+    { label: "Create Item",     icon: Package,            path: "/items/create" },
+    // { label: "Items List",      icon: ClipboardList,      path: "/items" },
     { label: "Stock",           icon: Boxes,           path: "/stockdash" },
-    { label: "Create PO",       icon: ShoppingCart,       path: "/inventory/purchase-orders/create" },
-    { label: "Purchase Orders", icon: FileText,           path: "/inventory/purchase-orders" },
-    { label: "Gate Entry",      icon: Box,                path: "/inventory/gate-entry" },
-    { label: "GRN",             icon: ClipboardList,      path: "/inventory/grns/create" },
-    { label: "Settings",        icon: Settings,           path: "/inventory/settings" },
+    { label: "Create PO",       icon: ShoppingCart,       path: "/purchase-orders" },
+    { label: "Purchase Orders", icon: FileText,           path: "/purchase-orders-list" },
+    { label: "Gate Entry",      icon: Box,                path: "/gate-entry" },
+    { label: "Quality Check",      icon: Box,                path: "/QC" },
+    { label: "PO Approval",      icon: Box,                path: "/pending-PO" },
+    { label: "GRN",             icon: ClipboardList,      path: "/grns/create" },
+    { label: "GRN Approval",      icon: ClipboardList,                path: "/grn/pending-approval" },
+    { label: "Settings",        icon: Settings,           path: "/settings" },
   ];
 
   const isOverviewPage = location.pathname === "/inventory/dashboard";
