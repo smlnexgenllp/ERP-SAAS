@@ -16,7 +16,7 @@ const ModuleGrid = ({ modules, onModuleClick }) => {
         navigate("/hr/dashboard");
         break;
       case "inventory":
-        navigate("/inventory/dashboard");
+        navigate("/inventory");
         break;
       case "finance":
         navigate("/accounting/dashboard");
