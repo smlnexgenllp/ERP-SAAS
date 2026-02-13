@@ -32,7 +32,26 @@ class MonthlyBudgetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         org = self.get_organization_user().organization
-        return MonthlyBudget.objects.filter(organization=org)
+        qs = MonthlyBudget.objects.filter(organization=org)
+
+        year_str = self.request.query_params.get('year')
+        month_str = self.request.query_params.get('month')
+
+        if year_str and month_str:
+            try:
+                year = int(year_str)
+                month = int(month_str)
+
+                # Use Django's built-in date lookups — very reliable for DateField
+                qs = qs.filter(
+                    month__year=year,
+                    month__month=month
+                )
+            except ValueError:
+                # Invalid params → return all (or raise 400, your choice)
+                pass
+
+        return qs.order_by('-month')
 
     def perform_create(self, serializer):
         serializer.save(
