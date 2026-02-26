@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.hr.apps.HrConfig',
     'apps.inventory',
+    'apps.crm',
     'apps.sales',
     'apps.modules',
     'apps.transport',
@@ -186,9 +187,7 @@ ALLOWED_HOSTS = [
     "erp.33threads.in",
     "www.erp.33threads.in",
 ]
-
-
-# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -196,26 +195,19 @@ CORS_ALLOWED_ORIGINS = [
     "https://erp.33threads.in",
     "https://www.erp.33threads.in",
 ]
-
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_HEADERS = True
-
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-
     "https://erp.33threads.in",
     "https://www.erp.33threads.in",
 ]
-
-# Authentication settings
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
@@ -223,7 +215,6 @@ EMAIL_USE_TLS = True  # Important for port 587
 EMAIL_HOST_USER = 'mohanapriya14102001@gmail.com'  
 EMAIL_HOST_PASSWORD = 'xxtt sepy ffzw bows'  
 DEFAULT_FROM_EMAIL = 'mohanapriya14102001@gmail.com'
-
 COMPANY_NAME = "SMLNEXGENLLP Pvt Ltd"
 COMPANY_EMAIL = "hr@yourcompany.com"
 DEFAULT_FROM_EMAIL = "hr@yourcompany.com"
@@ -233,13 +224,9 @@ SESSION_COOKIE_HTTPONLY = True  # Keep True
 SESSION_COOKIE_PATH = '/'
 CSRF_COOKIE_SAMESITE = 'None'
 CSRF_COOKIE_SECURE = True
-SECURE_SSL_REDIRECT = True
-SECURE_PROXY_SSL_HEADER=('HTTP+X_FORWARDED_PROTO','https')
-# ASGI
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO','https')
 ASGI_APPLICATION = "ERP.asgi.application"
-
-# Channel Layers (required for group_send, group_add)
-# Channel Layers - Use InMemory for development (no Redis needed)
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer",

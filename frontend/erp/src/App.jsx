@@ -52,6 +52,10 @@ import PurchaseOrdersLists from "./pages/modules/finance/PurchaseOrdersLists";
 import PurchaseOrderApproval from "./pages/modules/finance/PurchaseOrderApproval";
 import StockDashboard from "./pages/modules/stocks/StockDashboard";
 import GRNApprovalList from "./pages/modules/purchase/GRNApprovalList"
+import CRMDashboard from "./pages/modules/crm/components/CRM Dashboard";
+import ContactDetail from "./pages/modules/crm/components/ContactDetail";
+import ContactForm from "./pages/modules/crm/components/ContactForm";
+import ContactsList from "./pages/modules/crm/components/ContactsList";
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -362,7 +366,11 @@ function App() {
           <Route path="/inventory/items" element={<StockDashboard />} />
           <Route path="/grn/pending-approval"element={<GRNApprovalList />}/>
           <Route path="/accounting/dashboard"element={<FinanceDashboard />}/>
-          
+          <Route path="/crm/dashboard" element={<CRMDashboard />} />
+          <Route path="/crm/contacts" element={<ContactsList />} />
+<Route path="/crm/contacts/new" element={<ContactForm />} />
+<Route path="/crm/contacts/:id" element={<ContactDetail />} />
+<Route path="/crm/contacts/:id/edit" element={<ContactForm />} />
         </Routes>
       </Router>
     </AuthProvider>

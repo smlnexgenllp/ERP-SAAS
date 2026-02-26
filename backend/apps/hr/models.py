@@ -733,13 +733,21 @@ class ChatGroup(models.Model):
         return list(self.get_members().values_list('id', flat=True))
 
     def user_is_member(self, user):
-        """Check if the given user is a member of this chat group"""
+        if user.role in ["org_admin", "sub_org_admin"]:
+            return self.organization_id == user.organization_id
         if self.group_type == 'custom':
             return self.manual_members.filter(id=user.id).exists()
+
         elif self.group_type == 'project' and self.project:
-            return self.project.members.filter(user=user).exists()
+            return self.project.members.filter(user=user).exists() \
+                if hasattr(self.project.members.model, 'user') \
+                else self.project.members.filter(id=getattr(user, 'employee', None)).exists()
+
         elif self.group_type == 'organization' and self.organization:
-            return self.organization.employees.filter(user=user).exists()
+            return hasattr(user, 'employee') and \
+                user.employee and \
+                user.employee.organization_id == self.organization_id
+
         return False
 
 
