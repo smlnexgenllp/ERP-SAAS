@@ -9,7 +9,10 @@ export const useAuth = () => {
   }
   return context;
 };
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// Hardcoded for local development only
+// Change this to your production URL when deploying
+const API_BASE_URL = "http://localhost:8000";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -18,22 +21,19 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
 
-  // Get CSRF token on app start
+  // Debug: show what URL we're using
+  console.log("[Auth] Using backend URL:", API_BASE_URL);
+
   useEffect(() => {
     const init = async () => {
-      // Step 1: Get CSRF token
       await getCsrfToken();
-
-      // Step 2: Now check auth
       await checkAuthStatus();
-
       setLoading(false);
     };
 
     init();
   }, []);
 
-  // Function to get CSRF token
   const getCsrfToken = async () => {
     try {
       const response = await fetch(
@@ -49,14 +49,13 @@ export const AuthProvider = ({ children }) => {
         setCsrfToken(data.csrfToken);
         console.log("CSRF token obtained:", data.csrfToken);
       } else {
-        console.error("Failed to get CSRF token");
+        console.warn("CSRF endpoint failed:", response.status);
       }
     } catch (error) {
       console.error("Error getting CSRF token:", error);
     }
   };
 
-  // Function to get CSRF token from cookies (fallback)
   const getCsrfTokenFromCookie = () => {
     const name = "csrftoken";
     let cookieValue = null;
@@ -75,7 +74,6 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      // Get CSRF token from cookie as fallback
       const token = getCsrfTokenFromCookie();
 
       const response = await fetch(
@@ -106,12 +104,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // In your login function in AuthContext.jsx
   const login = async (credentials) => {
     try {
       console.log("Attempting login with:", credentials);
 
-      // Get CSRF token from cookie as fallback
       const token = getCsrfTokenFromCookie();
 
       const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
@@ -133,8 +129,6 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
         setOrganization(data.organization);
         setIsAuthenticated(true);
-
-        // Return user role for redirection
         return {
           success: true,
           user: data.user,
@@ -157,9 +151,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Get CSRF token from cookie as fallback
       const token = getCsrfTokenFromCookie();
-
 
       await fetch(`${API_BASE_URL}/api/auth/logout/`, {
         method: "POST",
