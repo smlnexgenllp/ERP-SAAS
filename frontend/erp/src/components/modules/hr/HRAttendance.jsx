@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import api from "../../../services/api";
-import { Clock, Calendar, AlertCircle, CheckCircle, FileText } from "lucide-react";
+import { Clock, Calendar, AlertCircle, CheckCircle, FileText, Download } from "lucide-react";
 
 // Format time to "9:00 AM" or "5:30 PM"
 const formatTime = (timeString) => {
@@ -43,7 +43,7 @@ export default function HRAttendance() {
   const [alertMessage, setAlertMessage] = useState("");
   const [showAlerts, setShowAlerts] = useState(false);
   const [command, setCommand] = useState("");
-  const inputRef = useRef(null);        
+  const inputRef = useRef(null);
 
   const fetchAttendance = async () => {
     try {
@@ -103,6 +103,45 @@ export default function HRAttendance() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // New: Download Monthly Report as CSV
+  const downloadMonthlyReport = () => {
+    if (monthlyReport.length === 0) {
+      showAlert("No report data to download");
+      return;
+    }
+
+    // CSV Header
+    const headers = ["Employee", "Present Days", "Late Days", "Leave Days", "Total Days"];
+    
+    // CSV Rows
+    const rows = monthlyReport.map((r) => [
+      r.employee_name,
+      r.present || 0,
+      r.late || 0,
+      r.leave || 0,
+      (r.present || 0) + (r.late || 0) + (r.leave || 0),
+    ]);
+
+    // Build CSV string
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.join(","))
+    ].join("\n");
+
+    // Create Blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `attendance-report-${month}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showAlert("Monthly report downloaded as CSV");
   };
 
   const showAlert = (msg) => {
@@ -328,11 +367,11 @@ export default function HRAttendance() {
               </div>
             )}
 
-            {/* Monthly Report - Now Properly Displays Present, Late, Leave */}
+            {/* Monthly Report with Download Button */}
             {activeTab === "monthly" && (
               <div className="bg-gray-900/30 border border-cyan-900 rounded-xl shadow-xl p-6">
                 <h3 className="text-xl font-bold text-blue-300 mb-6">Monthly Attendance Summary</h3>
-                <div className="flex gap-4 mb-8 items-center">
+                <div className="flex gap-4 mb-8 items-center flex-wrap">
                   <input
                     type="month"
                     value={month}
@@ -345,6 +384,17 @@ export default function HRAttendance() {
                   >
                     Load Report
                   </button>
+
+                  {/* New Download Button */}
+                  {monthlyReport.length > 0 && (
+                    <button
+                      onClick={downloadMonthlyReport}
+                      className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg font-bold hover:opacity-90 transition shadow-lg flex items-center gap-2"
+                    >
+                      <Download size={18} />
+                      Download CSV
+                    </button>
+                  )}
                 </div>
 
                 {monthlyReport.length === 0 ? (

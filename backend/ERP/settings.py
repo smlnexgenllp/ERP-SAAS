@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.hr.apps.HrConfig',
     'apps.inventory',
+    'apps.crm',
     'apps.sales',
     'apps.modules',
     'apps.transport',
@@ -197,8 +198,6 @@ AUTHENTICATION_BACKENDS = [
 ]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
@@ -219,9 +218,6 @@ CSRF_COOKIE_SECURE = False
 
 # ASGI
 ASGI_APPLICATION = "ERP.asgi.application"
-
-# Channel Layers (required for group_send, group_add)
-# Channel Layers - Use InMemory for development (no Redis needed)
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
