@@ -6,7 +6,7 @@ import React, {
   createContext,
   useContext,
 } from "react";
-import axios from "axios";
+import api from "../../../../services/api";
 import {
   UserPlus,
   Save,
@@ -81,8 +81,8 @@ const AddEmployee = () => {
     setError(null);
     try {
       const [deptRes, desigRes] = await Promise.all([
-        axios.get('/api/hr/departments/'),
-        axios.get('/api/hr/designations/')
+        api.get('/hr/departments/'),
+        api.get('/hr/designations/')
       ]);
 
       setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
@@ -138,8 +138,8 @@ const AddEmployee = () => {
       user_email: formData.user_email,
       phone: formData.phone || null,
       role: formData.role,
-      department_id: formData.department_id || null,
-      designation_id: formData.designation_id || null,
+      department_id: formData.department_id ? Number(formData.department_id) : null,
+      designation_id: formData.designation_id ? Number(formData.designation_id) : null,
       date_of_joining: formData.date_of_joining || null,
       is_probation: formData.is_probation,
       ctc: formData.ctc ? parseFloat(formData.ctc) : null,
@@ -157,8 +157,8 @@ const AddEmployee = () => {
         return null;
       };
 
-      const response = await axios.post(
-        "/api/hr/employees/create_with_invite/",
+      const response = await api.post(
+        "/hr/employees/create_with_invite/",
         payload,
         {
           headers: {
@@ -258,7 +258,7 @@ const AddEmployee = () => {
           onClick={() => navigate("/hr/dashboard")}
           className="flex items-center text-sm font-medium text-cyan-300 hover:text-pink-400 transition-colors"
         >
-          <ArrowLeft  className="w-4 h-4 mr-1" />
+          <ArrowLeft className="w-4 h-4 mr-1" />
           Back to Dashboard
         </button>
       </div>
@@ -420,10 +420,9 @@ const AddEmployee = () => {
             type="submit"
             disabled={isSubmitting || loadingData}
             className={`inline-flex items-center px-8 py-3 text-base font-semibold rounded-xl shadow-lg transition-all duration-200 w-full md:w-auto
-              ${
-                isSubmitting || loadingData
-                  ? "bg-gray-800 cursor-not-allowed text-gray-500"
-                  : "bg-gradient-to-r from-cyan-400 to-pink-400 text-gray-900 hover:from-cyan-300 hover:to-pink-300"
+              ${isSubmitting || loadingData
+                ? "bg-gray-800 cursor-not-allowed text-gray-500"
+                : "bg-gradient-to-r from-cyan-400 to-pink-400 text-gray-900 hover:from-cyan-300 hover:to-pink-300"
               }`}
           >
             {isSubmitting ? (

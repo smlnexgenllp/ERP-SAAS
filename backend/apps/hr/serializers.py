@@ -56,6 +56,10 @@ class EmployeeSerializer(serializers.ModelSerializer):
     subordinates = serializers.SerializerMethodField()
 
     def get_subordinates(self, obj):
+        # Prevent crash when object is not Employee
+        if not hasattr(obj, "subordinates"):
+            return []
+
         return [
             {
                 'id': sub.id,
