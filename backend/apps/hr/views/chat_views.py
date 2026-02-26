@@ -13,60 +13,55 @@ class ChatGroupViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def list(self, request):
-        user = request.user
-        
-        # Get user's organization
-        organization = None
-        
-        # Try different ways to get organization
-        if hasattr(user, 'organization') and user.organization:
-            organization = user.organization
-        elif hasattr(user, 'employee') and user.employee:
-            if user.employee.organization:
-                organization = user.employee.organization
-        
-        if not organization:
-            return Response(
-                {"detail": "Unable to determine your organization."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         try:
-            # Get all groups in the organization
+            user = request.user
+
+            organization = getattr(user, 'organization', None)
+            employee = getattr(user, 'employee', None)
+
+            if not organization and employee:
+                organization = employee.organization
+
+            if not organization:
+                return Response(
+                    {"detail": "Unable to determine your organization."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             groups = ChatGroup.objects.filter(
                 organization=organization
             ).select_related('project', 'organization').prefetch_related('manual_members')
-            
-            # Filter groups where user is a member
+
             user_groups = []
+
             for group in groups:
                 try:
                     if group.user_is_member(user):
-                        # Add unread count to group data
                         unread_count = UnreadMessage.objects.filter(
-                            user=user, 
+                            user=user,
                             group=group
                         ).count()
+
                         group.unread_count = unread_count
                         user_groups.append(group)
                 except Exception as e:
-                    print(f"[Chat] Error checking membership for group {group.id}: {e}")
+                    print(f"[Chat] Membership check failed for group {group.id}: {e}")
                     continue
-            
+
             serializer = ChatGroupSerializer(
                 user_groups,
                 many=True,
                 context={'request': request}
             )
+
             return Response(serializer.data, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
-            print(f"[Chat] Error loading groups: {e}")
+            print(f"[Chat] Error in list(): {e}")
             return Response(
-                {"error": "Failed to load chat groups."},
+                {"error": "Failed to load chat groups"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
     def retrieve(self, request, pk=None):
         group = get_object_or_404(ChatGroup, pk=pk)
         

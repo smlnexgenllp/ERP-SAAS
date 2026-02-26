@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import api from "../../../../services/api";
+import { Search, X } from "lucide-react"; // Make sure lucide-react is installed
 
 function TreeNode({ node, onSelect }) {
   const [expanded, setExpanded] = useState(true);
@@ -25,6 +26,10 @@ function TreeNode({ node, onSelect }) {
             src={node.photo}
             alt={node.name}
             className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border-4 border-cyan-600"
+            onError={(e) => {
+              e.target.src = "/fallback-avatar.png"; // optional fallback
+              e.target.onerror = null;
+            }}
           />
         ) : (
           <div className="w-20 h-20 rounded-full mx-auto mb-3 bg-gradient-to-br from-cyan-500 to-pink-500 flex items-center justify-center text-white text-3xl font-bold">
@@ -60,13 +65,15 @@ function TreeNode({ node, onSelect }) {
 export default function OrgTree() {
   const [fullTreeData, setFullTreeData] = useState([]);
   const [filteredTreeData, setFilteredTreeData] = useState([]);
+  const [displayedTreeData, setDisplayedTreeData] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const [searchName, setSearchName] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("All");
-  const [selectedManager, setSelectedManager] = useState("All");
+  // Only name search
+  const [searchInput, setSearchInput] = useState(""); // What user types
+  const [appliedSearch, setAppliedSearch] = useState(""); // What is applied after Search button
 
+  // Fetch tree data once
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -81,6 +88,7 @@ export default function OrgTree() {
         const tree = response.data.tree || [];
         setFullTreeData(tree);
         setFilteredTreeData(tree);
+        setDisplayedTreeData(tree); // Show full tree initially
       } catch (err) {
         console.error("Failed to load org tree:", err);
       } finally {
@@ -90,57 +98,62 @@ export default function OrgTree() {
     fetchData();
   }, []);
 
-  const { departments, managers } = useMemo(() => {
-    const depts = new Set(["All"]);
-    const mgrs = [{ id: "All", name: "All Managers" }];
+  // Apply name filter when Search is clicked
+  const applySearch = () => {
+    const lowerSearch = appliedSearch.toLowerCase().trim();
 
-    const traverse = (node) => {
-      if (node.department) depts.add(node.department);
-      if (node.children?.length > 0 && node.id && node.name) {
-        mgrs.push({ id: node.id, name: node.name });
-      }
-      node.children?.forEach(traverse);
-    };
-
-    fullTreeData.forEach(traverse);
-    return {
-      departments: Array.from(depts).sort(),
-      managers: mgrs.sort((a, b) => (a.id === "All" ? -1 : b.id === "All" ? 1 : a.name.localeCompare(b.name))),
-    };
-  }, [fullTreeData]);
-
-  // Fixed recursive filter
-  useEffect(() => {
-    const lowerSearch = searchName.toLowerCase().trim();
-
-    const filterNode = (node) => {
-      const nodeMatchesSearch = !lowerSearch || node.name?.toLowerCase().includes(lowerSearch);
-      const nodeMatchesDept = selectedDepartment === "All" || node.department === selectedDepartment;
-      const nodeMatchesManager = selectedManager === "All" || String(node.id) === String(selectedManager);
-
-      const filteredChildren = node.children ? node.children.map(filterNode).filter(Boolean) : [];
-      const hasMatchingChild = filteredChildren.length > 0;
-
-      const shouldInclude = nodeMatchesSearch || nodeMatchesDept || nodeMatchesManager || hasMatchingChild;
-
-      if (shouldInclude) {
-        return {
-          ...node,
-          children: filteredChildren.length > 0 ? filteredChildren : (hasMatchingChild ? node.children : []),
-        };
-      }
-      return null;
-    };
-
-    let filtered = fullTreeData.map(filterNode).filter(Boolean);
-
-    // If no filters active, show full tree
-    if (!lowerSearch && selectedDepartment === "All" && selectedManager === "All") {
-      filtered = fullTreeData;
+    if (!lowerSearch) {
+      // No search → show full tree
+      setFilteredTreeData(fullTreeData);
+      setDisplayedTreeData(fullTreeData);
+      return;
     }
 
-    setFilteredTreeData(filtered);
-  }, [searchName, selectedDepartment, selectedManager, fullTreeData]);
+    // Check if node or any descendant matches the search name
+    const nodeOrDescendantMatches = (node) => {
+      const nameMatch = node.name?.toLowerCase().includes(lowerSearch);
+      if (nameMatch) return true;
+
+      return node.children?.some(nodeOrDescendantMatches) || false;
+    };
+
+    // Recursive filter: keep node if it or subtree matches
+    const filterNode = (node) => {
+      if (!nodeOrDescendantMatches(node)) return null;
+
+      const filteredChildren = node.children
+        ? node.children.map(filterNode).filter(Boolean)
+        : [];
+
+      return {
+        ...node,
+        children: filteredChildren,
+      };
+    };
+
+    const newFiltered = fullTreeData.map(filterNode).filter(Boolean);
+    setFilteredTreeData(newFiltered);
+    setDisplayedTreeData(newFiltered);
+  };
+
+  // Handle Search button click
+  const handleSearch = () => {
+    setAppliedSearch(searchInput);
+    applySearch();
+  };
+
+  // Handle Clear Search
+  const handleClear = () => {
+    setSearchInput("");
+    setAppliedSearch("");
+    setFilteredTreeData(fullTreeData);
+    setDisplayedTreeData(fullTreeData);
+  };
+
+  // Re-apply when appliedSearch changes (in case needed)
+  useEffect(() => {
+    applySearch();
+  }, [appliedSearch, fullTreeData]);
 
   const formatDate = (dateStr) => (!dateStr ? "—" : new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }));
   const formatCurrency = (amount) => (!amount ? "—" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount));
@@ -162,56 +175,47 @@ export default function OrgTree() {
           </h1>
         </div>
 
-        <div className="flex justify-center gap-6 mb-12 flex-wrap">
-          <div className="w-72">
+        {/* Only Name Search + Buttons */}
+        <div className="flex justify-center gap-6 mb-12 flex-wrap items-end">
+          <div className="w-96">
             <label className="block text-cyan-300 font-medium mb-2">Search by Name</label>
-            <input
-              type="text"
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-              placeholder="e.g. Kavitha, Praveen"
-              className="w-full bg-gray-900 border border-cyan-700 rounded-lg p-3 text-cyan-200 placeholder-gray-500 focus:border-cyan-400 outline-none"
-            />
-          </div>
-
-          <div className="w-64">
-            <label className="block text-cyan-300 font-medium mb-2">Department</label>
-            <select
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="w-full bg-gray-900 border border-cyan-700 rounded-lg p-3 text-cyan-200 focus:border-cyan-400 outline-none"
-            >
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-64">
-            <label className="block text-cyan-300 font-medium mb-2">Manager</label>
-            <select
-              value={selectedManager}
-              onChange={(e) => setSelectedManager(e.target.value)}
-              className="w-full bg-gray-900 border border-cyan-700 rounded-lg p-3 text-cyan-200 focus:border-cyan-400 outline-none"
-            >
-              {managers.map((mgr) => (
-                <option key={mgr.id} value={mgr.id}>
-                  {mgr.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="e.g. Kavitha, Priya, Siva"
+                className="flex-1 bg-gray-900 border border-cyan-700 rounded-lg p-3 text-cyan-200 placeholder-gray-500 focus:border-cyan-400 outline-none"
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              />
+              <button
+                onClick={handleSearch}
+                className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg flex items-center gap-2 transition"
+              >
+                <Search size={20} />
+                Search
+              </button>
+              <button
+                onClick={handleClear}
+                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-cyan-300 rounded-lg flex items-center gap-2 transition"
+              >
+                <X size={20} />
+                Clear
+              </button>
+            </div>
           </div>
         </div>
 
+        {/* Tree Display */}
         <div className="w-full overflow-x-auto overflow-y-visible pb-20">
           <div className="flex justify-center min-w-max">
             <div className="inline-flex gap-22">
-              {filteredTreeData.length === 0 ? (
-                <div className="text-2xl text-gray-400 mt-20">No employees found matching filters.</div>
+              {displayedTreeData.length === 0 ? (
+                <div className="text-2xl text-gray-400 mt-20">
+                  No employees found matching "{appliedSearch}"
+                </div>
               ) : (
-                filteredTreeData.map((root) => (
+                displayedTreeData.map((root) => (
                   <TreeNode key={root.id} node={root} onSelect={setSelectedEmployee} />
                 ))
               )}
@@ -220,6 +224,7 @@ export default function OrgTree() {
         </div>
       </div>
 
+      {/* Employee Details Sidebar */}
       {selectedEmployee && (
         <>
           <div
@@ -237,10 +242,18 @@ export default function OrgTree() {
 
               <div className="flex items-center gap-6 mb-8">
                 {selectedEmployee.photo ? (
-                  <img src={selectedEmployee.photo} alt={selectedEmployee.name} className="w-24 h-24 rounded-full border-4 border-cyan-500 object-cover" />
+                  <img
+                    src={selectedEmployee.photo}
+                    alt={selectedEmployee.name}
+                    className="w-24 h-24 rounded-full border-4 border-cyan-500 object-cover"
+                    onError={(e) => {
+                      e.target.src = "/fallback-avatar.png";
+                      e.target.onerror = null;
+                    }}
+                  />
                 ) : (
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-500 to-pink-500 flex items-center justify-center text-white text-5xl font-bold">
-                    {selectedEmployee.name[0]}
+                    {selectedEmployee.name?.[0] || "?"}
                   </div>
                 )}
                 <div>
@@ -254,28 +267,60 @@ export default function OrgTree() {
                 <div>
                   <h3 className="text-cyan-300 font-semibold mb-3">Employment Details</h3>
                   <div className="grid grid-cols-1 gap-3">
-                    <div className="flex justify-between"><span className="text-gray-400">Department</span><span>{selectedEmployee.department || "—"}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-400">Role</span><span>{selectedEmployee.role || "—"}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-400">Joining Date</span><span>{formatDate(selectedEmployee.date_of_joining)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-400">Probation</span><span>{selectedEmployee.is_probation ? "Yes" : "No"}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-400">CTC</span><span>{formatCurrency(selectedEmployee.ctc)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-400">Status</span><span className={selectedEmployee.is_active ? "text-green-400" : "text-red-400"}>{selectedEmployee.is_active ? "Active" : "Inactive"}</span></div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Department</span>
+                      <span>{selectedEmployee.department || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Role</span>
+                      <span>{selectedEmployee.role || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Joining Date</span>
+                      <span>{formatDate(selectedEmployee.date_of_joining)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Probation</span>
+                      <span>{selectedEmployee.is_probation ? "Yes" : "No"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">CTC</span>
+                      <span>{formatCurrency(selectedEmployee.ctc)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Status</span>
+                      <span className={selectedEmployee.is_active ? "text-green-400" : "text-red-400"}>
+                        {selectedEmployee.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <div>
                   <h3 className="text-cyan-300 font-semibold mb-3">Contact</h3>
                   <div className="grid grid-cols-1 gap-3">
-                    <div className="flex justify-between"><span className="text-gray-400">Email</span><span>{selectedEmployee.email || "—"}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-400">Phone</span><span>{selectedEmployee.phone || "—"}</span></div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Email</span>
+                      <span>{selectedEmployee.email || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Phone</span>
+                      <span>{selectedEmployee.phone || "—"}</span>
+                    </div>
                   </div>
                 </div>
 
                 <div>
                   <h3 className="text-cyan-300 font-semibold mb-3">Personal</h3>
                   <div className="grid grid-cols-1 gap-3">
-                    <div className="flex justify-between"><span className="text-gray-400">Date of Birth</span><span>{formatDate(selectedEmployee.date_of_birth)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-400">Notes</span><span className="text-sm">{selectedEmployee.notes || "—"}</span></div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Date of Birth</span>
+                      <span>{formatDate(selectedEmployee.date_of_birth)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Notes</span>
+                      <span className="text-sm">{selectedEmployee.notes || "—"}</span>
+                    </div>
                   </div>
                 </div>
               </div>

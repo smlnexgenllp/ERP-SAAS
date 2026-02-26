@@ -1,5 +1,4 @@
 from apps.organizations.models import OrganizationUser
-
 class CurrentOrganizationMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
