@@ -139,20 +139,43 @@ class DailyChecklistViewSet(viewsets.ModelViewSet):
 
         rating = request.data.get('rating')
         if not rating or not (1 <= int(rating) <= 5):
-            return Response({"error": "Rating must be an integer between 1 and 5"}, status=400)
+            return Response(
+                {"error": "Rating must be between 1 and 5"},
+                status=400
+            )
 
-        # Optional: Restrict rating to managers/admins
-        if user.role not in ['sub_org_admin', 'main_org_admin', 'super_admin', 'hr_manager']:
-            # You can remove this if employees should rate themselves
-            return Response({"error": "You do not have permission to rate checklists"}, status=403)
+        user = request.user
+        employee = getattr(user, 'employee', None)
 
-        # Save rating
-        checklist.rating = rating
-        checklist.rated_by = getattr(request.user, 'employee', None)
-        checklist.comments = request.data.get('comments', checklist.comments or '')
+        # ✅ Allow SYSTEM ADMINS (even without employee profile)
+        if user.role in ['sub_org_admin', 'main_org_admin', 'super_admin']:
+            allowed = True
+
+        # ✅ Allow HR hierarchy roles (must have employee profile)
+        elif employee and employee.role in ['admin', 'hr', 'team_lead']:
+            allowed = True
+
+        else:
+            allowed = False
+
+        if not allowed:
+            return Response(
+                {"error": "You do not have permission to rate checklists"},
+                status=403
+            )
+
+        # ✅ Save rating
+        checklist.rating = int(rating)
+        checklist.rated_by = employee if employee else None
+        checklist.comments = request.data.get(
+            'comments',
+            checklist.comments or ''
+        )
         checklist.save()
 
         return Response(DailyChecklistSerializer(checklist).data)
+
+
 
 @api_view(['GET'])
 def performance_report(request):
