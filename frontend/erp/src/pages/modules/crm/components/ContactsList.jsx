@@ -50,9 +50,21 @@ const ContactsList = () => {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this contact?')) return;
     try {
+      const getCsrfToken = () => {
+        const name = "csrftoken";
+        const cookies = document.cookie.split("; ");
+        for (let cookie of cookies) {
+          const [key, value] = cookie.split("=");
+          if (key === name) return decodeURIComponent(value);
+        }
+        return null;
+      };
       const res = await fetch(`/api/crm/contacts/${id}/`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        headers: {
+            "X-CSRFToken": getCsrfToken(),
+            "Content-Type": "application/json",
+          },
       });
       if (!res.ok) throw new Error('Delete failed');
       setContacts(prev => prev.filter(c => c.id !== id));

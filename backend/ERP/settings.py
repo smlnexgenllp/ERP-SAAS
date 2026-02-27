@@ -12,6 +12,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import sys
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -70,7 +75,7 @@ AUTH_USER_MODEL = 'accounts.User'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # Add this for CORS
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.common.CommonMiddleware',
     # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -179,13 +184,17 @@ REST_FRAMEWORK = {
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
+    "erp.33threads.in",
+    "www.erp.33threads.in",
 ]
-
-# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
-] 
+
+    "https://erp.33threads.in",
+    "https://www.erp.33threads.in",
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_HEADERS = True
 CSRF_TRUSTED_ORIGINS = [
@@ -203,21 +212,20 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True  # Important for port 587
-EMAIL_HOST_USER = 'smlnexgenllp@gmail.com'  
-EMAIL_HOST_PASSWORD = 'bkkx vgfi fkrw uyrd'  
-DEFAULT_FROM_EMAIL = 'smlnexgenllp@gmail.com'
-
+EMAIL_HOST_USER = 'mohanapriya14102001@gmail.com'  
+EMAIL_HOST_PASSWORD = 'xxtt sepy ffzw bows'  
+DEFAULT_FROM_EMAIL = 'mohanapriya14102001@gmail.com'
 COMPANY_NAME = "SMLNEXGENLLP Pvt Ltd"
 COMPANY_EMAIL = "hr@yourcompany.com"
 DEFAULT_FROM_EMAIL = "hr@yourcompany.com"
-SESSION_COOKIE_SAMESITE = 'Lax'  # or 'None' if frontend/backend different ports
-SESSION_COOKIE_SECURE = False   # True only in production with HTTPS
+SESSION_COOKIE_SAMESITE = 'None'  # or 'None' if frontend/backend different ports
+SESSION_COOKIE_SECURE = True   # True only in production with HTTPS
 SESSION_COOKIE_HTTPONLY = True  # Keep True
 SESSION_COOKIE_PATH = '/'
-CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False
-
-# ASGI
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO','https')
 ASGI_APPLICATION = "ERP.asgi.application"
 CHANNEL_LAYERS = {
     "default": {

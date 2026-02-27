@@ -56,6 +56,7 @@ import CRMDashboard from "./pages/modules/crm/components/CRM Dashboard";
 import ContactDetail from "./pages/modules/crm/components/ContactDetail";
 import ContactForm from "./pages/modules/crm/components/ContactForm";
 import ContactsList from "./pages/modules/crm/components/ContactsList";
+import CallLogs from "./pages/modules/crm/components/CallLogs";
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -371,6 +372,7 @@ function App() {
 <Route path="/crm/contacts/new" element={<ContactForm />} />
 <Route path="/crm/contacts/:id" element={<ContactDetail />} />
 <Route path="/crm/contacts/:id/edit" element={<ContactForm />} />
+<Route path="/call-logs" element={<CallLogs />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -35,26 +35,34 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const getCsrfToken = async () => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/auth/csrf-token/`,
-        {
-          method: "GET",
-          credentials: "include",
-        }
-      );
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/auth/csrf-token/`,
+      { method: "GET", credentials: "include" }
+    );
 
-      if (response.ok) {
-        const data = await response.json();
-        setCsrfToken(data.csrfToken);
-        console.log("CSRF token obtained:", data.csrfToken);
-      } else {
-        console.warn("CSRF endpoint failed:", response.status);
+    console.log("[CSRF] Status:", response.status);
+
+    if (response.ok) {
+      const data = await response.json();
+      setCsrfToken(data.csrfToken);
+      console.log("[CSRF] Token set:", data.csrfToken);
+    } else {
+      console.warn("[CSRF] Endpoint failed with status:", response.status);
+      // Fallback to cookie
+      const cookieToken = getCsrfTokenFromCookie();
+      if (cookieToken) {
+        setCsrfToken(cookieToken);
+        console.log("[CSRF] Fallback from cookie:", cookieToken);
       }
-    } catch (error) {
-      console.error("Error getting CSRF token:", error);
     }
-  };
+  } catch (error) {
+    console.error("[CSRF] Fetch error:", error);
+    // Fallback even on network error
+    const cookieToken = getCsrfTokenFromCookie();
+    if (cookieToken) setCsrfToken(cookieToken);
+  }
+};
 
   const getCsrfTokenFromCookie = () => {
     const name = "csrftoken";
