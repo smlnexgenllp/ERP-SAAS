@@ -23,19 +23,26 @@ class Contact(models.Model):
     mobile = models.CharField(max_length=20, blank=True)
     company = models.CharField(max_length=200, blank=True)
     position = models.CharField(max_length=100, blank=True)
-    
-    class Status(models.TextChoices):
-        LEAD      = 'lead',      _('Lead')
-        CUSTOMER  = 'customer',  _('Customer')
-        INACTIVE  = 'inactive',  _('Inactive')
-        SUPPLIER  = 'supplier',  _('Supplier')     # optional extra
-        PARTNER   = 'partner',   _('Partner')      # optional extra
+     # apps/crm/models.py
+
+    LEAD_STATUS_CHOICES = [
+        ('new', 'New'),
+        ('contacted', 'Contacted'),
+        ('interested', 'Interested'),
+        ('follow_up', 'Follow Up'),
+        ('won', 'Won'),
+        ('lost', 'Lost'),
+        ('customer', 'Customer'),
+    ]
+         # optional extra
 
     status = models.CharField(
-        max_length=30,
-        choices=Status.choices,
-        default=Status.LEAD
+    max_length=20,
+    choices=LEAD_STATUS_CHOICES,
+    default='new'
     )
+
+    next_follow_up = models.DateTimeField(null=True, blank=True)
     
     address = models.TextField(blank=True)
     notes = models.TextField(blank=True)
@@ -135,3 +142,34 @@ class Opportunity(models.Model):
     @property
     def is_open(self):
         return self.stage not in (self.Stage.WON, self.Stage.LOST)
+    
+# apps/crm/models.py
+
+class CallLog(models.Model):
+    contact = models.ForeignKey(
+        Contact,
+        on_delete=models.CASCADE,
+        related_name='call_logs'
+    )
+    called_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+    call_time = models.DateTimeField(auto_now_add=True)
+    duration_seconds = models.IntegerField(null=True, blank=True)
+
+    CALL_RESULT_CHOICES = [
+        ('connected', 'Connected'),
+        ('no_answer', 'No Answer'),
+        ('busy', 'Busy'),
+        ('interested', 'Interested'),
+        ('not_interested', 'Not Interested'),
+        ('callback', 'Call Back Later'),
+    ]
+
+    result = models.CharField(max_length=30, choices=CALL_RESULT_CHOICES)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-call_time']
