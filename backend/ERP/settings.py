@@ -191,8 +191,9 @@ CORS_ALLOW_ALL_HEADERS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://erp.33threads.in",
+    "https://www.erp.33threads.in",
 ]
-# Authentication settings
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
