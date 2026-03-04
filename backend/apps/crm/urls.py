@@ -1,15 +1,27 @@
 # apps/crm/urls.py
-
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CallLogViewSet, ContactViewSet, OpportunityViewSet, CallLogSerializer
+
+from .views import (
+    ContactViewSet, OpportunityViewSet, CallLogViewSet,
+    ProductViewSet, ActivityViewSet, CustomerViewSet,
+    QuotationViewSet, SalesOrderViewSet, InvoiceViewSet,
+    PaymentViewSet,
+)
 
 router = DefaultRouter()
 
-# Explicit basename – safest when using get_queryset()
-router.register(r'contacts',     ContactViewSet,     basename='crm-contacts')
-router.register(r'opportunities', OpportunityViewSet, basename='crm-opportunities')
-router.register(r'call-logs', CallLogViewSet, basename='crm-call-logs')
+router.register(r'contacts',        ContactViewSet,        basename='crm-contact')
+router.register(r'opportunities',   OpportunityViewSet,     basename='crm-opportunity')
+router.register(r'call-logs',       CallLogViewSet,         basename='crm-call-log')
+router.register(r'products',        ProductViewSet,          basename='crm-product')
+router.register(r'activities',      ActivityViewSet,         basename='crm-activity')
+router.register(r'customers',       CustomerViewSet,         basename='crm-customer')
+router.register(r'quotations',      QuotationViewSet,        basename='crm-quotation')
+router.register(r'sales-orders',    SalesOrderViewSet,       basename='crm-sales-order')
+router.register(r'invoices',        InvoiceViewSet,          basename='crm-invoice')
+router.register(r'payments',        PaymentViewSet,          basename='crm-payment')
+
 urlpatterns = [
     path('', include(router.urls)),
 ]
