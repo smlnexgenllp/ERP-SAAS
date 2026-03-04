@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.inventory',
     'apps.sales',
     'apps.modules',
+    'apps.crm.apps.CrmConfig',
     'apps.transport',
     'apps.payroll',
     "apps.finance.apps.FinanceConfig",
