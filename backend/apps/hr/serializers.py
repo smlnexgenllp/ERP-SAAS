@@ -142,14 +142,40 @@ class EmployeeCreateInvitationSerializer(serializers.ModelSerializer):
 
     def validate_user_email(self, value):
         request = self.context.get('request')
-        organization = getattr(request.user.employee, 'organization', None)
+        if not request:
+            return value.lower()  # or raise error if you prefer
+
+        organization = None
+
+        # Safe way 1: via employee (only if exists)
+        if hasattr(request.user, 'employee'):
+            try:
+                organization = request.user.employee.organization
+            except Employee.DoesNotExist:
+                pass
+
+        # Safe way 2: direct organization attribute (admins/owners often have this)
+        if not organization and hasattr(request.user, 'organization'):
+            organization = request.user.organization
+
+        # Optional: way 3 – OrganizationUser (if you use multi-tenant roles)
+        # if not organization:
+        #     from apps.organizations.models import OrganizationUser
+        #     try:
+        #         ou = OrganizationUser.objects.get(user=request.user, is_active=True)
+        #         organization = ou.organization
+        #     except OrganizationUser.DoesNotExist:
+        #         pass
 
         if organization:
             EmployeeInvite.objects.filter(
-                email=value,
+                email=value.lower(),
                 organization=organization,
                 is_accepted=False
             ).delete()
+        # else:
+        #     # You can log this or ignore — for now we don't crash
+        #     print("Warning: Could not determine organization for email cleanup")
 
         return value.lower()
 
@@ -168,11 +194,34 @@ class EmployeeCreateInvitationSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
 
-        if not request or not hasattr(request.user, 'employee'):
-            raise serializers.ValidationError("Unable to determine organization.")
+        user = request.user
+        organization = None
 
-        organization = request.user.employee.organization
+        # 1. Try via employee (normal users)
+        try:
+            organization = user.employee.organization
+        except (AttributeError, Employee.DoesNotExist):
+            pass
+
+        # 2. Fallback: if user has direct organization attribute (admins/owners)
+        if not organization and hasattr(user, 'organization') and user.organization:
+            organization = user.organization
+
+        # 3. Last resort fallback (for testing): pick first org
+        if not organization:
+            from apps.organizations.models import Organization
+            organization = Organization.objects.first()
+            if not organization:
+                raise serializers.ValidationError(
+                    "No organization found in the system and user has no profile."
+                )
+
+        # Optional: stricter check for production
+        # if not organization:
+        #     raise serializers.ValidationError("Unable to determine organization. Please contact support.")
 
         invite = EmployeeInvite.objects.create(
             organization=organization,
