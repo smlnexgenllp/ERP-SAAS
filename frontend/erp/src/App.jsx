@@ -59,6 +59,7 @@ import ContactsList from "./pages/modules/crm/components/ContactsList";
 import CallLogs from "./pages/modules/crm/components/CallLogs";
 import Salesdashboard from "./pages/modules/sales/components/Salesdashboard";
 
+import CustomerDetail from "./pages/modules/crm/components/CustomerDetail";
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -88,7 +89,7 @@ const HRProtectedRoute = ({ children }) => {
   const hasHRAccess = [
     "HR Manager",
     "Manager",
-    "Team Lead",
+    // "Team Lead",
     "Admin", // From OrganizationUser
     "main_org_admin",
     "sub_org_admin",
@@ -119,7 +120,7 @@ const PayrollProtectedRoute = ({ children }) => {
   const hasPayrollAccess = [
     "HR Manager",
     "Manager",
-    "Team Lead",
+    // "Team Lead",
     "Admin",
     "main_org_admin",
     "sub_org_admin",
@@ -376,7 +377,7 @@ function App() {
           <Route path="/crm/contacts/:id/edit" element={<ContactForm />} />
           <Route path="/call-logs" element={<CallLogs />} />
           <Route path="/sales/dashboard" element={<Salesdashboard />} />
-
+          <Route path="/customers/:id" element={<CustomerDetail />} />
         </Routes>
       </Router>
     </AuthProvider>
