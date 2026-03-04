@@ -89,7 +89,7 @@ const SubOrganizationDashboard = () => {
     const routes = {
       hr_management: "/hr/dashboard",
       inventory: "/inventory/dashboard",
-      sales: "/sales/dashboard",
+      sale: "/sales/dashboard",
       transport: "/transport/dashboard",
       finance: "/accounting/dashboard",
       crm: "/crm/dashboard",
