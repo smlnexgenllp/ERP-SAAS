@@ -240,7 +240,7 @@ class SubOrgUserCreateSerializer(serializers.ModelSerializer):
         allow_empty=True,
         help_text="List of module codes this user can access"
     )
-    role = serializers.ChoiceField(choices=["Admin", "HR Manager", "Employee", "MD", "Team Lead", "Manager", "Accounts Manager"])
+    role = serializers.ChoiceField(choices=["Admin", "HR Manager", "Employee", "MD", "Team Lead", "Manager", "Accounts Manager","Sales Head"])
 
     class Meta:
         model = User

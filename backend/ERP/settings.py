@@ -206,7 +206,6 @@ EMAIL_USE_TLS = True  # Important for port 587
 EMAIL_HOST_USER = 'smlnexgenllp@gmail.com'  
 EMAIL_HOST_PASSWORD = 'bkkx vgfi fkrw uyrd'  
 DEFAULT_FROM_EMAIL = 'smlnexgenllp@gmail.com'
-
 COMPANY_NAME = "SMLNEXGENLLP Pvt Ltd"
 COMPANY_EMAIL = "hr@yourcompany.com"
 DEFAULT_FROM_EMAIL = "hr@yourcompany.com"

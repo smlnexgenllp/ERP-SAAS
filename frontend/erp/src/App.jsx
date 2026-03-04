@@ -57,6 +57,8 @@ import ContactDetail from "./pages/modules/crm/components/ContactDetail";
 import ContactForm from "./pages/modules/crm/components/ContactForm";
 import ContactsList from "./pages/modules/crm/components/ContactsList";
 import CallLogs from "./pages/modules/crm/components/CallLogs";
+import Salesdashboard from "./pages/modules/sales/components/Salesdashboard";
+
 import CustomerDetail from "./pages/modules/crm/components/CustomerDetail";
 /* -------------------- ROUTE GUARDS -------------------- */
 
@@ -366,15 +368,16 @@ function App() {
           <Route path="/pending-PO" element={<PurchaseOrderApproval />} />
 
           <Route path="/inventory/items" element={<StockDashboard />} />
-          <Route path="/grn/pending-approval"element={<GRNApprovalList />}/>
-          <Route path="/accounting/dashboard"element={<FinanceDashboard />}/>
+          <Route path="/grn/pending-approval" element={<GRNApprovalList />} />
+          <Route path="/accounting/dashboard" element={<FinanceDashboard />} />
           <Route path="/crm/dashboard" element={<CRMDashboard />} />
           <Route path="/crm/contacts" element={<ContactsList />} />
-<Route path="/crm/contacts/new" element={<ContactForm />} />
-<Route path="/crm/contacts/:id" element={<ContactDetail />} />
-<Route path="/crm/contacts/:id/edit" element={<ContactForm />} />
-<Route path="/call-logs" element={<CallLogs />} />
-<Route path="/customers/:id" element={<CustomerDetail />} />
+          <Route path="/crm/contacts/new" element={<ContactForm />} />
+          <Route path="/crm/contacts/:id" element={<ContactDetail />} />
+          <Route path="/crm/contacts/:id/edit" element={<ContactForm />} />
+          <Route path="/call-logs" element={<CallLogs />} />
+          <Route path="/sales/dashboard" element={<Salesdashboard />} />
+          <Route path="/customers/:id" element={<CustomerDetail />} />
         </Routes>
       </Router>
     </AuthProvider>
