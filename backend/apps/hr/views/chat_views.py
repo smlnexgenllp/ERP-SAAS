@@ -324,3 +324,4 @@ def get_pinned_messages(request, group_id):
     pinned = []  # Replace with actual logic when you add pinning
     
     return Response(pinned)        
+

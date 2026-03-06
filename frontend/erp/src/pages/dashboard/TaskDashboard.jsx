@@ -53,7 +53,7 @@ const TaskDashboard = () => {
     );
   }
 
-  const displayedRole = user?.org_role || user?.role || 'Employee';
+  const displayedRole = user?.org_role || user?.role || 'employee';
   const userRoleLower = displayedRole.toLowerCase();
 
   const isTeamLead = userRoleLower === 'team lead' || userRoleLower === 'team_lead';
@@ -64,7 +64,7 @@ const TaskDashboard = () => {
 
   const canAssignTasks = [
     'hr manager', 'manager', 'team lead', 'team_lead',
-    'admin', 'main_org_admin', 'sub_org_admin', 'super_admin'
+    'admin', 'main_org_admin', 'sub_org_admin', 'super_admin',
   ].includes(userRoleLower);
 
   const hasFullAccess = canAssignTasks;

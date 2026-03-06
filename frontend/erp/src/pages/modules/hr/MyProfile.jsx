@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { LogOut } from "lucide-react";
+import { useAuth } from "../../../context/AuthContext";
 import {
   fetchMyProfile,
   fetchManagers,
@@ -35,6 +37,7 @@ import { useNavigate } from "react-router-dom";
 export default function MyProfile() {
   const [profile, setProfile] = useState(null);
   const [uploadedDocs, setUploadedDocs] = useState([]);
+  const {logout} = useAuth();
   const [newDocs, setNewDocs] = useState({
     resume: null,
     aadhaar: null,
@@ -47,13 +50,12 @@ export default function MyProfile() {
   const [managers, setManagers] = useState([]);
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [permissionHistory, setPermissionHistory] = useState([]);
-  const [leaveBalance] = useState({ sick: 7, casual: 2, earned: 4 });
+  const [leaveBalance, setLeaveBalance] = useState({ sick: 0, casual: 0, earned: 0 });
   const [loading, setLoading] = useState(true);
 
-  // Separate tab states – no more conflicts
   const [activeTab, setActiveTab] = useState("documents");
-  const [statusSubTab, setStatusSubTab] = useState("leaves"); // leaves | permissions
-  const [reimbursementTab, setReimbursementTab] = useState("pending"); // pending | completed
+  const [statusSubTab, setStatusSubTab] = useState("leaves");
+  const [reimbursementTab, setReimbursementTab] = useState("pending");
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -72,7 +74,7 @@ export default function MyProfile() {
   const [attendance, setAttendance] = useState(null);
   const [punchLoading, setPunchLoading] = useState(false);
   const [punchMsg, setPunchMsg] = useState("");
-
+ const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [leave, setLeave] = useState({
     type: "",
     from: "",
@@ -123,6 +125,13 @@ export default function MyProfile() {
     try {
       const res = await fetchMyProfile();
       setProfile(res.data);
+      if (res.data?.leave_balance) {
+        setLeaveBalance({
+          sick: res.data.leave_balance.sick || 0,
+          casual: res.data.leave_balance.casual || 0,
+          earned: res.data.leave_balance.earned || 0,
+        });
+      }
     } catch (err) {
       console.log("Profile error:", err);
     }
@@ -544,30 +553,41 @@ export default function MyProfile() {
     );
   }
 
-  const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const today = new Date();
 
-  // Calendar for December 2025 (current date: December 26, 2025)
-  const monthName = "December 2025";
-  const daysInMonth = 31;
-  const firstDayOfMonth = 1; // December 1, 2025 is a Monday (0=Sun, 1=Mon)
+  const currentMonth = today.toLocaleString("default", { month: "long" });
+  const currentYear = today.getFullYear();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
 
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono flex flex-col relative">
       <div className="flex-1 overflow-y-auto pb-20">
         <div className="p-6">
-          <header className="border-b border-cyan-800 pb-3 mb-6 flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-cyan-400 shadow shadow-cyan-400/50"></div>
-            <h1 className="text-blue-300 text-lg font-bold">
-              ALU-CORE: MY PROFILE
-            </h1>
-            <span className="ml-auto text-gray-400 text-sm">
-              [ {profile.full_name} ]
-            </span>
+        <header className="border-b border-cyan-800 pb-3 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-cyan-400 shadow shadow-cyan-400/50"></div>
+              <h1 className="text-blue-300 text-lg font-bold">
+                ALU-CORE: MY PROFILE
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <span className="text-gray-400 text-sm">
+                [ {profile.full_name} ]
+              </span>
+
+              <button
+                onClick={logout}                    // ← Use context logout
+                disabled={isLoggingOut}
+                className={`flex items-center gap-2 px-4 py-2 bg-red-900/60 hover:bg-red-800/80 border border-red-700 rounded-lg text-red-300 text-sm font-medium transition
+                  ${isLoggingOut ? "opacity-50 cursor-not-allowed" : ""}
+                `}
+              >
+                <LogOut size={18} />
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </button>
+            </div>
           </header>
 
           <div className="mb-6 flex items-center justify-between">
@@ -575,7 +595,12 @@ export default function MyProfile() {
               Hello, {profile.full_name.split(" ")[0]}!
             </h2>
             <div className="text-right">
-              <p className="text-gray-400 text-lg">{today}</p>
+              <p className="text-gray-400 text-lg">{today.toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}</p>
               <button
                 onClick={handlePunch}
                 disabled={punchLoading || attendance?.punch_out}
@@ -604,7 +629,6 @@ export default function MyProfile() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Left Sidebar */}
             <div className="space-y-6">
               <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
                 <h3 className="text-blue-300 text-xl font-bold mb-4">
@@ -682,7 +706,6 @@ export default function MyProfile() {
               </div>
             </div>
 
-            {/* Center Column */}
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
                 <h3 className="text-blue-300 text-xl font-bold mb-6">
@@ -733,7 +756,6 @@ export default function MyProfile() {
                   ))}
                 </div>
 
-                {/* Documents Tab */}
                 {activeTab === "documents" && (
                   <div className="space-y-4">
                     {uploadedDocs.length === 0 ? (
@@ -778,7 +800,6 @@ export default function MyProfile() {
                   </div>
                 )}
 
-                {/* Upload Tab */}
                 {activeTab === "upload" && (
                   <div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -827,7 +848,6 @@ export default function MyProfile() {
                   </div>
                 )}
 
-                {/* Status Tab */}
                 {activeTab === "status" && (
                   <div>
                     <h4 className="font-semibold text-gray-300 mb-6">
@@ -925,7 +945,6 @@ export default function MyProfile() {
                   </div>
                 )}
 
-                {/* Reimbursement Tab */}
                 {activeTab === "reimbursement" && (
                   <div>
                     <div className="flex border-b border-cyan-800 mb-6 text-sm">
@@ -982,12 +1001,13 @@ export default function MyProfile() {
               </div>
             </div>
 
-            {/* Right Sidebar - Calendar */}
             <div>
               <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
                 <h3 className="text-blue-300 font-bold mb-4">Calendar</h3>
                 <div className="text-center">
-                  <p className="text-xl font-bold text-cyan-300">{monthName}</p>
+                  <p className="text-xl font-bold text-cyan-300">
+                    {currentMonth} {currentYear}
+                  </p>
                   <div className="grid grid-cols-7 gap-2 mt-6 text-sm">
                     {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
                       <div key={day} className="text-gray-500 py-2">
@@ -1003,7 +1023,7 @@ export default function MyProfile() {
                       (day) => (
                         <div
                           key={day}
-                          className={`py-3 rounded-lg ${day === 26
+                          className={`py-3 rounded-lg ${day === today.getDate()
                               ? "bg-cyan-600 text-gray-900 font-bold"
                               : "hover:bg-gray-800/40"
                             } transition`}
@@ -1020,7 +1040,6 @@ export default function MyProfile() {
         </div>
       </div>
 
-      {/* Command Bar */}
       <div
         className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t-2 border-cyan-500 px-6 py-4 flex items-center cursor-text shadow-2xl"
         onClick={handleCommandBarClick}
@@ -1043,7 +1062,7 @@ export default function MyProfile() {
           {alertMessage}
         </div>
       )}
-      {/* Leave Modal */}
+
       {showLeaveModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 border border-cyan-700 rounded-2xl shadow-2xl p-8 w-full max-w-lg">
@@ -1171,7 +1190,6 @@ export default function MyProfile() {
         </div>
       )}
 
-      {/* Permission Modal */}
       {showPermissionModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 border border-cyan-700 rounded-2xl shadow-2xl p-8 w-full max-w-lg">
@@ -1288,7 +1306,6 @@ export default function MyProfile() {
         </div>
       )}
 
-      {/* Reimbursement Modal */}
       {showReimbursementModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 border border-cyan-700 rounded-2xl shadow-2xl p-8 w-full max-w-lg">
@@ -1395,7 +1412,6 @@ export default function MyProfile() {
         </div>
       )}
 
-      {/* Training Videos Modal */}
       {showVideosModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-gray-900 border border-cyan-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
