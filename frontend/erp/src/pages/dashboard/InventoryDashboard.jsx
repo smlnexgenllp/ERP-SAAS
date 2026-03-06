@@ -31,7 +31,7 @@ const InventoryDashboard = () => {
     { label: "Overview",        icon: LayoutDashboard,    path: "/inventory/dashboard" },
     { label: "Create Item",     icon: Package,            path: "/items/create" },
     // { label: "Items List",      icon: ClipboardList,      path: "/items" },
-    { label: "Stock",           icon: Boxes,           path: "/stockdash" },
+    { label: "Stock",           icon: Boxes,           path: "/inventory/items" },
     { label: "Create PO",       icon: ShoppingCart,       path: "/purchase-orders" },
     { label: "Purchase Orders", icon: FileText,           path: "/purchase-orders-list" },
     { label: "Gate Entry",      icon: Box,                path: "/gate-entry" },

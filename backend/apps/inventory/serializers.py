@@ -32,11 +32,11 @@ class ItemSerializer(serializers.ModelSerializer):
             'code',
             'category',
             'uom',
-            'vendors',           # ManyToMany → list of PKs
+            'vendors',
             'standard_price',
             'created_at',
-            'current_stock',     # calculated
-            'available_stock',   # calculated, never negative
+            'current_stock',
+            'available_stock',
         ]
         read_only_fields = [
             'id',
@@ -44,6 +44,11 @@ class ItemSerializer(serializers.ModelSerializer):
             'current_stock',
             'available_stock',
         ]
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        validated_data["organization"] = request.user.organization
+        return super().create(validated_data)
 
     def get_current_stock(self, obj):
         """
