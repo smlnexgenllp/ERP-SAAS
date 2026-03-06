@@ -1,7 +1,11 @@
 # apps/hr/serializers.py
 
 from rest_framework import serializers
+<<<<<<< HEAD
 from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice,Task, TaskUpdate, DailyChecklist,Project,ChatGroup, Message,DailyTLReport
+=======
+from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice,Task, TaskUpdate, DailyChecklist,Project,ChatGroup, Message, DailyTLReport
+>>>>>>> f40052f67bae90eacd68689feec1e7c4b6010abc
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from apps.organizations.models import Organization
@@ -770,9 +774,6 @@ class MessageSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.file.url)
         return None
-
-# apps/hr/serializers.py
-
 class DailyTLReportSerializer(serializers.ModelSerializer):
     team_lead_name = serializers.CharField(source='team_lead.full_name', read_only=True)
     team_lead_code = serializers.CharField(source='team_lead.employee_code', read_only=True)
@@ -786,4 +787,3 @@ class DailyTLReportSerializer(serializers.ModelSerializer):
             'manager', 'manager_name', 'manager_code',
             'date', 'report_summary', 'data', 'sent_at', 'is_submitted'
         ]
-        read_only_fields = ['manager', 'sent_at', 'team_lead', 'organization']

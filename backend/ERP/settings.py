@@ -12,6 +12,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import sys
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -56,6 +61,7 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.hr.apps.HrConfig',
     'apps.inventory',
+    'apps.crm',
     'apps.sales',
     'apps.modules',
     'apps.transport',
@@ -71,7 +77,7 @@ AUTH_USER_MODEL = 'accounts.User'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # Add this for CORS
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.common.CommonMiddleware',
     # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -180,18 +186,24 @@ REST_FRAMEWORK = {
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
+    "erp.33threads.in",
+    "www.erp.33threads.in",
 ]
-
-# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
-] 
+
+    "https://erp.33threads.in",
+    "https://www.erp.33threads.in",
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_HEADERS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://erp.33threads.in",
+    "https://www.erp.33threads.in",
 ]
 # Authentication settings
 AUTHENTICATION_BACKENDS = [
