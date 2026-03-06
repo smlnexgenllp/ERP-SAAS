@@ -8,7 +8,7 @@ from .views import (
     GRNViewSet,
     QualityInspectionViewSet,
     VendorInvoiceViewSet,
-    VendorPaymentViewSet,
+    VendorPaymentViewSet,InventoryDashboardStatsAPIView,
 )
 
 router = DefaultRouter()
@@ -23,4 +23,5 @@ router.register(r'vendor-payments', VendorPaymentViewSet, basename='vendor-payme
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('dashboard-stats/', InventoryDashboardStatsAPIView.as_view(), name='inventory-dashboard-stats'),
 ]

@@ -1,12 +1,12 @@
-// src/pages/modules/inventory/InventoryDashboard.tsx
-import React, { useState } from "react";
+// src/pages/modules/inventory/InventoryDashboard.jsx
+
+import React, { useState, useEffect } from "react";
 import { NavLink, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
   ShoppingCart,
   FileText,
-  Users,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -16,8 +16,8 @@ import {
   UserCircle,
   Boxes,
 } from "lucide-react";
-
-import { useAuth } from "../../context/AuthContext"; // Adjust path if your AuthContext is in a different folder
+import { useAuth } from "../../context/AuthContext";
+import api from "../../services/api";
 
 const InventoryDashboard = () => {
   const { user, logout } = useAuth();
@@ -27,43 +27,85 @@ const InventoryDashboard = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  // Dynamic dashboard data
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const navItems = [
-    { label: "Overview",        icon: LayoutDashboard,    path: "/inventory/dashboard" },
-    { label: "Create Item",     icon: Package,            path: "/items/create" },
-    // { label: "Items List",      icon: ClipboardList,      path: "/items" },
-    { label: "Stock",           icon: Boxes,           path: "/stockdash" },
-    { label: "Create PO",       icon: ShoppingCart,       path: "/purchase-orders" },
-    { label: "Purchase Orders", icon: FileText,           path: "/purchase-orders-list" },
-    { label: "Gate Entry",      icon: Box,                path: "/gate-entry" },
-    { label: "Quality Check",      icon: Box,                path: "/QC" },
-    { label: "PO Approval",      icon: Box,                path: "/pending-PO" },
-    { label: "GRN",             icon: ClipboardList,      path: "/grns/create" },
-    { label: "GRN Approval",      icon: ClipboardList,                path: "/grn/pending-approval" },
-    { label: "Settings",        icon: Settings,           path: "/settings" },
+    { label: "Overview", icon: LayoutDashboard, path: "/inventory/dashboard" },
+    { label: "Create Item", icon: Package, path: "/items/create" },
+    { label: "Stock", icon: Boxes, path: "/stockdash" },
+    { label: "Create PO", icon: ShoppingCart, path: "/purchase-orders" },
+    { label: "Purchase Orders", icon: FileText, path: "/purchase-orders-list" },
+    { label: "Gate Entry", icon: Box, path: "/gate-entry" },
+    { label: "Quality Check", icon: Box, path: "/QC" },
+    { label: "PO Approval", icon: Box, path: "/pending-PO" },
+    { label: "GRN", icon: ClipboardList, path: "/grns/create" },
+    { label: "GRN Approval", icon: ClipboardList, path: "/grn/pending-approval" },
+    { label: "Settings", icon: Settings, path: "/settings" },
   ];
 
   const isOverviewPage = location.pathname === "/inventory/dashboard";
 
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      if (!isOverviewPage) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const token = localStorage.getItem("access_token") || localStorage.getItem("token") || "";
+
+        const response = await api.get("/inventory/dashboard-stats/", {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
+
+        setStats(response.data);
+      } catch (err) {
+        console.error("Dashboard fetch error:", err);
+        setError("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, [isOverviewPage]);
+
   const handleLogout = async () => {
     if (isLoggingOut) return;
-
     setIsLoggingOut(true);
-    console.log("Logout initiated...");
 
     try {
-      console.log("Calling backend logout...");
-      await logout();  // This should call the API and clear frontend state
-      console.log("Logout successful – redirecting to login");
+      await logout();
       navigate("/login", { replace: true });
-    } catch (error) {
-      console.error("Logout failed:", error);
-      alert("Logout failed. Please check your connection and try again.");
+    } catch (err) {
+      console.error("Logout failed:", err);
+      alert("Logout failed. Please try again.");
     } finally {
       setIsLoggingOut(false);
     }
   };
 
-  // Safety net: if somehow user is null but page is rendered
+  // Simple number formatting helpers
+  const formatNumber = (value) => {
+    if (value === null || value === undefined) return "0";
+    return Number(value).toLocaleString("en-IN");
+  };
+
+  const formatCurrency = (value) => {
+    if (value === null || value === undefined) return "₹ —";
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950 text-cyan-300">
@@ -74,12 +116,12 @@ const InventoryDashboard = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-950 text-cyan-300">
-      {/* LEFT SIDEBAR */}
+      {/* Sidebar */}
       <aside
-        className={`bg-gray-900 border-r border-cyan-900/50 transition-all duration-300 h-screen overflow-y-auto
-          ${isCollapsed ? "w-20" : "w-64"}`}
+        className={`bg-gray-900 border-r border-cyan-900/50 transition-all duration-300 h-screen overflow-y-auto ${
+          isCollapsed ? "w-20" : "w-64"
+        }`}
       >
-        {/* Logo / Title + Collapse toggle */}
         <div className="p-4 flex items-center justify-between border-b border-cyan-800/40">
           {!isCollapsed && (
             <div className="flex items-center gap-2">
@@ -96,21 +138,20 @@ const InventoryDashboard = () => {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="mt-6 px-3 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
-
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                  ${isActive
-                    ? "bg-cyan-900/50 text-cyan-100 font-medium"
-                    : "text-cyan-400 hover:bg-gray-800 hover:text-cyan-200"}`
+                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    isActive
+                      ? "bg-cyan-900/50 text-cyan-100 font-medium"
+                      : "text-cyan-400 hover:bg-gray-800 hover:text-cyan-200"
+                  }`
                 }
               >
                 <Icon size={20} />
@@ -121,9 +162,8 @@ const InventoryDashboard = () => {
         </nav>
       </aside>
 
-      {/* RIGHT MAIN AREA */}
+      {/* Main content area */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
         <header className="bg-gray-900 border-b border-cyan-900/50 p-4 flex justify-between items-center">
           <h1 className="text-2xl font-semibold">
             {isOverviewPage ? "Inventory Overview" : "Inventory Module"}
@@ -142,23 +182,21 @@ const InventoryDashboard = () => {
               </div>
             </div>
 
-           <button
-  onClick={handleLogout}
-  disabled={isLoggingOut}
-  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all
-    ${isLoggingOut
-      ? "bg-gray-700 cursor-not-allowed opacity-70"
-      : "bg-red-600 hover:bg-red-700 text-white"
-    }`}
->
-  <LogOut size={18} />
-  {isLoggingOut ? "Logging out..." : "Logout"}
-</button>
-
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                isLoggingOut
+                  ? "bg-gray-700 cursor-not-allowed opacity-70"
+                  : "bg-red-600 hover:bg-red-700 text-white"
+              }`}
+            >
+              <LogOut size={18} />
+              {isLoggingOut ? "Logging out..." : "Logout"}
+            </button>
           </div>
         </header>
 
-        {/* Content Area */}
         <main className="flex-1 p-6 md:p-8 overflow-auto">
           {isOverviewPage ? (
             <div className="space-y-10">
@@ -170,35 +208,84 @@ const InventoryDashboard = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 shadow-sm">
                   <p className="text-cyan-500 text-sm font-medium">Total Items</p>
-                  <p className="text-4xl font-bold text-cyan-200 mt-2">248</p>
+                  {loading ? (
+                    <p className="text-4xl font-bold text-cyan-200 mt-2 animate-pulse">...</p>
+                  ) : error ? (
+                    <p className="text-xl text-red-400 mt-2">Error</p>
+                  ) : (
+                    <p className="text-4xl font-bold text-cyan-200 mt-2">
+                      {formatNumber(stats?.totalItems)}
+                    </p>
+                  )}
                 </div>
+
                 <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 shadow-sm">
                   <p className="text-cyan-500 text-sm font-medium">Low Stock</p>
-                  <p className="text-4xl font-bold text-yellow-400 mt-2">17</p>
+                  {loading ? (
+                    <p className="text-4xl font-bold text-yellow-400 mt-2 animate-pulse">...</p>
+                  ) : error ? (
+                    <p className="text-xl text-red-400 mt-2">Error</p>
+                  ) : (
+                    <p className="text-4xl font-bold text-yellow-400 mt-2">
+                      {formatNumber(stats?.lowStock)}
+                    </p>
+                  )}
                 </div>
+
                 <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 shadow-sm">
                   <p className="text-cyan-500 text-sm font-medium">Out of Stock</p>
-                  <p className="text-4xl font-bold text-red-400 mt-2">9</p>
+                  {loading ? (
+                    <p className="text-4xl font-bold text-red-400 mt-2 animate-pulse">...</p>
+                  ) : error ? (
+                    <p className="text-xl text-red-400 mt-2">Error</p>
+                  ) : (
+                    <p className="text-4xl font-bold text-red-400 mt-2">
+                      {formatNumber(stats?.outOfStock)}
+                    </p>
+                  )}
                 </div>
+
                 <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 shadow-sm">
                   <p className="text-cyan-500 text-sm font-medium">Inventory Value</p>
-                  <p className="text-4xl font-bold text-green-400 mt-2">₹ 8.42 Cr</p>
+                  {loading ? (
+                    <p className="text-4xl font-bold text-green-400 mt-2 animate-pulse">...</p>
+                  ) : error ? (
+                    <p className="text-xl text-red-400 mt-2">Error</p>
+                  ) : (
+                    <p className="text-4xl font-bold text-green-400 mt-2">
+                      {formatCurrency(stats?.inventoryValue)}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {/* Charts / Actions placeholder */}
+              {/* Charts / Pending actions section */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 h-96">
                   <h3 className="text-xl font-semibold mb-4 text-cyan-200">Stock Status</h3>
                   <div className="h-80 flex items-center justify-center text-cyan-600">
-                    [Chart / Graph placeholder]
+                    [Chart placeholder]
                   </div>
                 </div>
+
                 <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 h-96">
-                  <h3 className="text-xl font-semibold mb-4 text-cyan-200">Actions Needed</h3>
-                  <div className="h-80 flex items-center justify-center text-cyan-600">
-                    [Pending tasks / Alerts placeholder]
-                  </div>
+                  <h3 className="text-xl font-semibold mb-4 text-cyan-200">Pending Actions</h3>
+                  {loading ? (
+                    <div className="h-80 flex items-center justify-center text-cyan-600 animate-pulse">
+                      Loading...
+                    </div>
+                  ) : (
+                    <div className="space-y-4 mt-4 text-lg">
+                      <p>
+                        Pending POs:{" "}
+                        <strong>{formatNumber(stats?.pendingPOs || 0)}</strong>
+                      </p>
+                      <p>
+                        Pending GRN Approvals:{" "}
+                        <strong>{formatNumber(stats?.pendingGRNs || 0)}</strong>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

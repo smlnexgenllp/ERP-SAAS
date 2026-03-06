@@ -2,13 +2,14 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Sum, F, Value
+from django.db.models import Sum, F, Value ,Q, DecimalField
 from django.db.models.functions import Coalesce
 from decimal import Decimal
 from rest_framework import status,viewsets
 from django.db import transaction
 from datetime import date
 from django.utils import timezone
+from rest_framework.views import APIView
 from .models import (
     Item,
     PurchaseOrder, PurchaseOrderItem,
@@ -289,3 +290,81 @@ class VendorPaymentViewSet(ModelViewSet):
         return VendorPayment.objects.filter(
             invoice__organization=self.request.user.organization
         )
+
+from decimal import Decimal
+from django.db.models import Sum, Q, F, DecimalField
+from django.db.models.functions import Coalesce
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+
+class InventoryDashboardStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Get organization
+        organization = getattr(request.user, 'organization', None)
+
+        if not organization:
+            return Response({"error": "Organization not found"}, status=400)
+
+        # Annotate current stock
+        items = Item.objects.filter(organization=organization).annotate(
+            current_stock=Coalesce(
+                Sum(
+                    'grnitem__received_qty',
+                    filter=Q(grnitem__grn__status='approved'),
+                    output_field=DecimalField(max_digits=20, decimal_places=2)
+                ),
+                Decimal('0.00')
+            )
+        )
+
+        # Total items
+        total_items = items.count()
+
+        # Out of stock
+        out_of_stock = items.filter(current_stock=0).count()
+
+        # Low stock
+        LOW_STOCK_THRESHOLD = Decimal('5.00')
+
+        low_stock = items.filter(
+            current_stock__gt=0,
+            current_stock__lte=LOW_STOCK_THRESHOLD
+        ).count()
+
+        # ✅ FIXED INVENTORY VALUE CALCULATION
+        inventory_value = items.aggregate(
+            total=Coalesce(
+                Sum(
+                    F('current_stock') * F('standard_price'),
+                    output_field=DecimalField(max_digits=20, decimal_places=2)
+                ),
+                Decimal('0.00')
+            )
+        )['total']
+
+        # Pending Purchase Orders
+        pending_pos = PurchaseOrder.objects.filter(
+            organization=organization,
+            status__in=['draft', 'approved']
+        ).count()
+
+        # Pending GRNs
+        pending_grns = GRN.objects.filter(
+            organization=organization,
+            status='pending_approval'
+        ).count()
+
+        data = {
+            "totalItems": total_items,
+            "lowStock": low_stock,
+            "outOfStock": out_of_stock,
+            "inventoryValue": float(inventory_value or 0),
+            "pendingPOs": pending_pos,
+            "pendingGRNs": pending_grns,
+        }
+
+        return Response(data)
