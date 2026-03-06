@@ -1,7 +1,11 @@
 # apps/hr/serializers.py
 
 from rest_framework import serializers
+<<<<<<< HEAD
+from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice,Task, TaskUpdate, DailyChecklist,Project,ChatGroup, Message,DailyTLReport
+=======
 from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice,Task, TaskUpdate, DailyChecklist,Project,ChatGroup, Message, DailyTLReport
+>>>>>>> f40052f67bae90eacd68689feec1e7c4b6010abc
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from apps.organizations.models import Organization
@@ -21,12 +25,14 @@ class DesignationSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'grade']
 
 
+# apps/hr/serializers.py
+
 class EmployeeSerializer(serializers.ModelSerializer):
-    # Send full nested objects instead of just IDs
+    # Nested full objects
     department = DepartmentSerializer(read_only=True)
     designation = DesignationSerializer(read_only=True)
 
-    # Allow creating/updating with IDs (write-only)
+    # Write-only IDs for create/update
     department_id = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.all(),
         source='department',
@@ -42,16 +48,40 @@ class EmployeeSerializer(serializers.ModelSerializer):
         allow_null=True
     )
 
-    # Nice human-readable role (Admin / HR / Employee)
+    # Human-readable role
     role_display = serializers.CharField(source='get_role_display', read_only=True)
-    reporting_to_name = serializers.SerializerMethodField()
+
+    # NEW: Reporting manager details
+    reporting_to_name = serializers.CharField(source='reporting_to.full_name', read_only=True, allow_null=True)
+    reporting_to_code = serializers.CharField(source='reporting_to.employee_code', read_only=True, allow_null=True)
+    reporting_to_id = serializers.IntegerField(source='reporting_to.id', read_only=True, allow_null=True)
+
+    # NEW: Subordinates (team members) - for fetching their tasks
+    subordinates = serializers.SerializerMethodField()
+
+    def get_subordinates(self, obj):
+        # Prevent crash when object is not Employee
+        if not hasattr(obj, "subordinates"):
+            return []
+
+        return [
+            {
+                'id': sub.id,
+                'full_name': sub.full_name,
+                'employee_code': sub.employee_code or '',
+            }
+            for sub in obj.subordinates.select_related().all()
+        ]
+
     class Meta:
         model = Employee
         fields = [
             'id', 'full_name', 'employee_code', 'email', 'phone',
-            'role', 'role_display',                    # ← MUST be in fields!
+            'role', 'role_display',
             'department', 'department_id',
             'designation', 'designation_id',
+            'reporting_to', 'reporting_to_id', 'reporting_to_name', 'reporting_to_code',  # ← ADD THESE
+            'subordinates',  # ← ADD THIS
             'date_of_joining', 'date_of_birth',
             'is_active', 'is_probation', 'ctc', 'photo',
             'notes', 'created_at', 'updated_at', 'reporting_to',"reporting_to_name"
@@ -554,13 +584,16 @@ class TaskSerializer(serializers.ModelSerializer):
             'updates',  # Critical: now included!
         ]
         read_only_fields = [
-            'created_at',
-            'updated_at',
-            'updates',
-            'assigned_by_name',
-            'assigned_to_name',
-            'project_name',
-        ]
+    'created_at',
+    'updated_at',
+    'updates',
+    'assigned_by',
+    'organization',     # 🔥 THIS FIXES YOUR ERROR
+    'assigned_by_name',
+    'assigned_to_name',
+    'project_name',
+]
+
 
 
 
