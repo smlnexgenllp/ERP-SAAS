@@ -59,7 +59,9 @@ import ContactsList from "./pages/modules/crm/components/ContactsList";
 import CallLogs from "./pages/modules/crm/components/CallLogs";
 import Salesdashboard from "./pages/modules/sales/components/Salesdashboard";
 
-import CustomerDetail from "./pages/modules/crm/components/CustomerDetail";
+// import CustomerDetail from "./pages/modules/crm/components/CustomerDetail";
+import QualifiesLeads from "./pages/modules/sales/components/QualifiedLeadsList";
+
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -377,7 +379,9 @@ function App() {
           <Route path="/crm/contacts/:id/edit" element={<ContactForm />} />
           <Route path="/call-logs" element={<CallLogs />} />
           <Route path="/sales/dashboard" element={<Salesdashboard />} />
-          <Route path="/customers/:id" element={<CustomerDetail />} />
+          {/* <Route path="/customers/:id" element={<CustomerDetail />} /> */}
+          <Route path="/sales/qualifiedleads" element={<QualifiesLeads />} />
+
         </Routes>
       </Router>
     </AuthProvider>
