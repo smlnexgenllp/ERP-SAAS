@@ -26,6 +26,9 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ContactSerializer(serializers.ModelSerializer):
+
+    full_name = serializers.ReadOnlyField()
+
     class Meta:
         model = Contact
         fields = '__all__'
