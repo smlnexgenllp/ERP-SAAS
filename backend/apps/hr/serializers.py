@@ -1,5 +1,4 @@
 # apps/hr/serializers.py
-
 from rest_framework import serializers
 from .models import Department, Designation, Employee, EmployeeDocument,Salary,Invoice,Task, TaskUpdate, DailyChecklist,Project,ChatGroup, Message,DailyTLReport
 from django.contrib.auth import get_user_model

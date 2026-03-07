@@ -183,6 +183,47 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                 "employee": EmployeeSerializer(employee).data
             }, status=201)
         return Response({"success": False, "errors": serializer.errors}, status=400)
+   
+        @api_view(['GET'])
+        @permission_classes([IsAuthenticated])
+        def active_employees(request):
+            user = request.user
+            organization = None
+
+            # Try direct user.organization first
+            if hasattr(user, 'organization'):
+                organization = user.organization
+
+            # Fallback to employee if still None
+            if not organization:
+                try:
+                    employee = Employee.objects.get(user=user)
+                    organization = employee.organization
+                except Employee.DoesNotExist:
+                    pass
+                except Exception as e:
+                    print(f"[active_employees] Error fetching employee: {e}")
+
+            if not organization:
+                return Response(
+                    {
+                        "detail": "Cannot determine your organization.",
+                        "debug": {
+                            "user_has_org_field": hasattr(user, 'organization'),
+                            "user_org_value": str(getattr(user, 'organization', 'MISSING')),
+                            "has_employee": Employee.objects.filter(user=user).exists(),
+                        }
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            employees = Employee.objects.filter(
+                organization=organization,
+                is_active=True
+            ).select_related('user', 'department', 'designation').order_by('full_name')
+
+            serializer = EmployeeSerializer(employees, many=True, context={'request': request})
+        return Response(serializer.data)
 class EmployeeDocumentViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeDocumentSerializer
     def get_queryset(self):

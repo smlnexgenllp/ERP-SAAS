@@ -109,6 +109,12 @@ export default function HRDashboardTailwind() {
       action: () => navigate("/hr/tasks"),
     },
     {
+      icon: UserPlus,
+      label: "Add Department/Designation",
+      description: "Manage Department & Designationsr",
+      action: () => navigate("/hr/departments"),
+    },
+    {
       icon: MessageSquare, // ← Chat icon
       label: "Internal Chat",
       description: "Team & project communication",

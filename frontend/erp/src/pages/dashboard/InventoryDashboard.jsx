@@ -33,17 +33,18 @@ const InventoryDashboard = () => {
   const [error, setError] = useState(null);
 
   const navItems = [
-    { label: "Overview", icon: LayoutDashboard, path: "/inventory/dashboard" },
-    { label: "Create Item", icon: Package, path: "/items/create" },
-    { label: "Stock", icon: Boxes, path: "/stockdash" },
-    { label: "Create PO", icon: ShoppingCart, path: "/purchase-orders" },
-    { label: "Purchase Orders", icon: FileText, path: "/purchase-orders-list" },
-    { label: "Gate Entry", icon: Box, path: "/gate-entry" },
-    { label: "Quality Check", icon: Box, path: "/QC" },
-    { label: "PO Approval", icon: Box, path: "/pending-PO" },
-    { label: "GRN", icon: ClipboardList, path: "/grns/create" },
-    { label: "GRN Approval", icon: ClipboardList, path: "/grn/pending-approval" },
-    { label: "Settings", icon: Settings, path: "/settings" },
+    { label: "Overview",        icon: LayoutDashboard,    path: "/inventory/dashboard" },
+    { label: "Create Item",     icon: Package,            path: "/items/create" },
+    // { label: "Items List",      icon: ClipboardList,      path: "/items" },
+    { label: "Stock",           icon: Boxes,           path: "/inventory/items" },
+    { label: "Create PO",       icon: ShoppingCart,       path: "/purchase-orders" },
+    { label: "Purchase Orders", icon: FileText,           path: "/purchase-orders-list" },
+    { label: "Gate Entry",      icon: Box,                path: "/gate-entry" },
+    { label: "Quality Check",      icon: Box,                path: "/QC" },
+    { label: "PO Approval",      icon: Box,                path: "/pending-PO" },
+    { label: "GRN",             icon: ClipboardList,      path: "/grns/create" },
+    { label: "GRN Approval",      icon: ClipboardList,                path: "/grn/pending-approval" },
+    { label: "Settings",        icon: Settings,           path: "/settings" },
   ];
 
   const isOverviewPage = location.pathname === "/inventory/dashboard";

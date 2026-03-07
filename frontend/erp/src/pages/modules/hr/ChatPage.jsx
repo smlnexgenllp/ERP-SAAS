@@ -78,13 +78,13 @@ export default function ChatPage() {
             )}
           </div>
           
-          <button
+          {/* <button
             onClick={() => setShowCreateModal(true)}
             className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-4 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-cyan-500/20"
           >
             <Plus className="w-5 h-5" />
             New Group
-          </button>
+          </button> */}
         </div>
       </header>
 

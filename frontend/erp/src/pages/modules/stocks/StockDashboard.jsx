@@ -219,25 +219,25 @@ export default function StockDashboard() {
           <ActionCard 
             title="New GRN"
             desc="Receive materials from approved QC"
-            onClick={() => navigate('/grn/create')}
+            // onClick={() => navigate('/grn/create')}
             color="cyan"
           />
           <ActionCard 
             title="Stock Items"
             desc="View all items & current levels"
-            onClick={() => navigate('/stock/items')}
+            // onClick={() => navigate('/stock/items')}
             color="blue"
           />
           <ActionCard 
             title="Low Stock"
             desc="Items needing reorder"
-            onClick={() => navigate('/stock/items?low_stock=true')}
+            // onClick={() => navigate('/stock/items?low_stock=true')}
             color="orange"
           />
           <ActionCard 
             title="Full Ledger"
             desc="Complete stock movement history"
-            onClick={() => navigate('/stock/ledger')}
+            // onClick={() => navigate('/stock/ledger')}
             color="purple"
           />
         </div>
