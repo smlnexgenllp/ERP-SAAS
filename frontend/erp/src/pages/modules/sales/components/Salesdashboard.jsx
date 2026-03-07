@@ -107,7 +107,7 @@ const isHead = canAccess;
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             <button
               className="flex items-center gap-3 w-full p-3.5 rounded-xl hover:bg-gray-800/70 transition-all duration-200 text-left group"
-              onClick={() => navigate("/sales/leads")}
+              onClick={() => navigate("/sales/qualifiedleads")}
             >
               <Users className="h-5 w-5 text-cyan-400 group-hover:text-cyan-300" />
               <span className="font-medium">Leads</span>

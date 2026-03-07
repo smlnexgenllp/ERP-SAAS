@@ -1,8 +1,8 @@
 // src/pages/sales/QualifiedLeadsList.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../../services/api"; // your axios instance
-import { Plus, Search, Filter } from "lucide-react";
+import api from "../../../../services/api"; // your axios instance
+import { Plus, Search, Filter,Users } from "lucide-react";
 
 export default function QualifiedLeadsList() {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ export default function QualifiedLeadsList() {
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/sales/qualified-leads/");
+      const res = await api.get("/sale/qualified-leads/");
       setLeads(res.data);
     } catch (err) {
       console.error("Failed to load qualified leads:", err);

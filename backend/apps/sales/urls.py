@@ -1,9 +1,7 @@
-# sales/urls.py
 from django.urls import path
 from .views import (
     QualifiedLeadsListView,
     QualifiedLeadDetailView,
-    CreateSalesLeadView,
 )
 
 urlpatterns = [
