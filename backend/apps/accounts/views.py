@@ -28,8 +28,18 @@ def login_view(request):
     try:
         # Find user by email or username
         try:
-            user = User.objects.get(email=username)
-            print(f"✅ User found by email: {user.email}")
+            # Find user by email or username
+            user = User.objects.filter(email=username).first()
+
+            if not user:
+                user = User.objects.filter(username=username).first()
+
+            if not user:
+                print(f"❌ User not found: {username}")
+                return Response({
+                    'success': False,
+                    'error': 'Invalid credentials'
+                }, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
             try:
                 user = User.objects.get(username=username)

@@ -9,8 +9,7 @@ from .views import (
     CallLogViewSet,
     ProductViewSet,
     ActivityViewSet,
-    CustomerViewSet,
-    QuotationViewSet,
+   
     
 )
 
@@ -24,8 +23,7 @@ router.register(r'opportunities',   OpportunityViewSet,     basename='crm-opport
 router.register(r'call-logs',       CallLogViewSet,         basename='crm-call-log')
 router.register(r'products',        ProductViewSet,          basename='crm-product')
 router.register(r'activities',      ActivityViewSet,         basename='crm-activity')
-router.register(r'customers',       CustomerViewSet,         basename='crm-customer')
-router.register(r'quotations',      QuotationViewSet,        basename='crm-quotation')
+
 
 
 
