@@ -1,33 +1,30 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
-from apps.organizations.models import Organization
 from apps.hr.models import Employee
 
 class EmployeeLoginSerializer(serializers.Serializer):
-    sub_organization = serializers.CharField()
     email = serializers.EmailField()
     password = serializers.CharField()
 
     def validate(self, data):
-        sub_org = data["sub_organization"]
+
         email = data["email"]
         password = data["password"]
 
-        # 1. Check sub-organization
         try:
-            organization = Organization.objects.get(subdomain=sub_org)
-        except Organization.DoesNotExist:
-            raise serializers.ValidationError({"message": "Invalid Sub Organization"})
-
-        # 2. Check employee exists in this organization
-        try:
-            employee = Employee.objects.get(email=email, organization=organization)
+            employee = Employee.objects.select_related("organization","user").get(
+                email=email,
+                is_active=True
+            )
         except Employee.DoesNotExist:
-            raise serializers.ValidationError({"message": "Employee Not Found in this Organization"})
+            raise serializers.ValidationError({"message": "Employee not found"})
 
-        # 3. Validate password
+        if not employee.user:
+            raise serializers.ValidationError({"message": "User account not linked"})
+
         if not employee.user.check_password(password):
-            raise serializers.ValidationError({"message": "Invalid Password"})
+            raise serializers.ValidationError({"message": "Invalid password"})
 
         data["employee"] = employee
+        data["organization"] = employee.organization
+
         return data
