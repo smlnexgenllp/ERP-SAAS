@@ -28,6 +28,13 @@ from .serializers import (
     VendorInvoiceSerializer,
     VendorPaymentSerializer
 )
+
+class ItemListForQuotation(APIView):
+    def get(self, request):
+        items = Item.objects.filter(organization=request.user.organization)
+        serializer = ItemSerializer(items, many=True)
+        return Response(serializer.data)
+    
 from apps.finance.services.voucher_service import create_voucher
 from apps.inventory.models import StockLedger
 

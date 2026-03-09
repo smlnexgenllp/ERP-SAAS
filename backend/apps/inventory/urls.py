@@ -2,6 +2,7 @@ from rest_framework.routers import DefaultRouter
 from django.urls import path, include
 
 from .views import (
+    ItemListForQuotation,
     ItemViewSet,
     PurchaseOrderViewSet,
     GateEntryViewSet,
@@ -21,7 +22,9 @@ router.register(r'quality-inspections', QualityInspectionViewSet, basename='qual
 router.register(r'vendor-invoices', VendorInvoiceViewSet, basename='vendor-invoices')
 router.register(r'vendor-payments', VendorPaymentViewSet, basename='vendor-payments')
 
+
 urlpatterns = [
     path('', include(router.urls)),
+    path('items-for-quotation/', ItemListForQuotation.as_view(), name='items-for-quotation'),
     path('dashboard-stats/', InventoryDashboardStatsAPIView.as_view(), name='inventory-dashboard-stats'),
 ]
