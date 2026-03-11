@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../../services/api';
 import {
   X, Users, Briefcase, Building, Check,
-  Search, UserPlus, AlertCircle, Loader2
+  Search, AlertCircle, Loader2
 } from 'lucide-react';
 
 function CreateGroupModal({ onClose, onSuccess, currentUser }) {
@@ -39,74 +39,135 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
   const loadUsers = async () => {
     try {
       setLoadingUsers(true);
-      const res = await api.get('/hr/employees/active/'); // Adjust endpoint as needed
-      const users = (res.data || []).map(user => ({
-        ...user,
-        selected: user.id === currentUser.id // Auto-select current user
-      }));
-      
-      setAvailableUsers(users);
-      // Auto-add current user to members
+      setError(''); // clear previous errors
+
+      const res = await api.get('/hr/employees/');
+
+      // ────────────────────────────────────────────────
+      // Debug: Log the actual response shape
+      console.log('API Response:', res);
+      console.log('res.data type:', typeof res.data);
+      console.log('res.data content:', res.data);
+      // ────────────────────────────────────────────────
+
+      let rawList = [];
+
+      // Handle common DRF patterns
+      if (Array.isArray(res.data)) {
+        rawList = res.data;
+      } else if (res.data && Array.isArray(res.data.results)) {
+        // Paginated response (very common in DRF)
+        rawList = res.data.results;
+      } else if (res.data && typeof res.data === 'object') {
+        // Single object or error → treat as empty
+        console.warn('Unexpected object response:', res.data);
+        if (res.data.detail || res.data.error) {
+          throw new Error(res.data.detail || res.data.error || 'Server returned an error');
+        }
+      } else {
+        console.warn('Unexpected res.data format:', res.data);
+      }
+
+      // Now safely map
+      const users = rawList.map(item => {
+        const userPart = item.user || item;
+
+        return {
+          id: userPart.id,  // FIXED
+          first_name: userPart.first_name || '',
+          last_name: userPart.last_name || '',
+          email: userPart.email || '',
+          full_name:
+            item.full_name ||
+            `${item.first_name || userPart.first_name || ''} ${item.last_name || userPart.last_name || ''}`.trim() ||
+            userPart.email ||
+            'Unknown',
+          photo: item.photo?.url || item.photo || userPart.photo?.url || null,
+          department: item.department?.name || null,
+          designation: item.designation?.title || null,
+          selected: (item.id || userPart.id) === currentUser.id
+        };
+      });
+
+      // Auto-add current user
       const currentUserObj = users.find(u => u.id === currentUser.id);
       if (currentUserObj) {
         setMembers([currentUserObj]);
       }
+
+      setAvailableUsers(users);
+
+      if (users.length === 0) {
+        setError('No active employees found in your organization.');
+      }
+
     } catch (err) {
-      console.error("Failed to load users:", err);
+      console.error('Failed to load users:', err);
+
+      let errorMsg = 'Failed to load team members. Please try again.';
+      if (err.response) {
+        if (err.response.status === 403) errorMsg = 'Permission denied – you may not have access to this list.';
+        if (err.response.status === 401) errorMsg = 'Please log in again.';
+        if (err.response.data?.detail) errorMsg = err.response.data.detail;
+        if (err.response.data?.error) errorMsg = err.response.data.error;
+      }
+
+      setError(errorMsg);
     } finally {
       setLoadingUsers(false);
     }
   };
 
   const handleUserSelect = (user) => {
-    setAvailableUsers(prev => 
+    // Prevent deselecting yourself
+    if (user.id === currentUser.id) return;
+
+    setAvailableUsers(prev =>
       prev.map(u => u.id === user.id ? { ...u, selected: !u.selected } : u)
     );
-    
-    if (members.find(m => m.id === user.id)) {
-      setMembers(prev => prev.filter(m => m.id !== user.id));
-    } else {
-      setMembers(prev => [...prev, user]);
-    }
+
+    setMembers(prev =>
+      prev.find(m => m.id === user.id)
+        ? prev.filter(m => m.id !== user.id)
+        : [...prev, user]
+    );
   };
 
   const filteredUsers = availableUsers.filter(user => {
-    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+    const term = searchTerm.toLowerCase();
+    const fullName = (user.full_name || `${user.first_name} ${user.last_name}`).toLowerCase();
     const email = user.email?.toLowerCase() || '';
-    const search = searchTerm.toLowerCase();
-    
-    return fullName.includes(search) || email.includes(search);
+    return fullName.includes(term) || email.includes(term);
   });
 
   const handleSubmit = async () => {
     setError('');
     setSuccess('');
-    
-    // Validation
+
     if (!name.trim()) {
       setError('Group name is required');
       return;
     }
-    
+
     if (groupType === 'custom' && members.length < 2) {
       setError('Please select at least 2 members (including yourself)');
       return;
     }
-    
+
     if (groupType === 'project' && !selectedProject) {
       setError('Please select a project');
       return;
     }
-    
+
     setLoading(true);
-    
+
     try {
       let response;
-      
+
       if (groupType === 'custom') {
-        response = await api.post('/hr/chat/groups/create/', {
+        response = await api.post('/hr/chat/custom-groups/create/', {
           name: name.trim(),
-          description: description.trim(),
+          description: description.trim() || undefined,
           members: members.map(m => m.id)
         });
       } else if (groupType === 'project') {
@@ -114,16 +175,20 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
           project_id: selectedProject.id
         });
       }
-      
+
       setSuccess('Group created successfully!');
       setTimeout(() => {
         onSuccess();
         onClose();
       }, 1500);
-      
+
     } catch (err) {
       console.error('Failed to create group:', err);
-      setError(err.response?.data?.error || 'Failed to create group. Please try again.');
+      setError(
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        'Failed to create group. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -138,15 +203,13 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
             onClick={() => setGroupType('custom')}
-            className={`p-4 rounded-xl border-2 transition-all ${
-              groupType === 'custom'
-                ? 'border-purple-500 bg-purple-900/20'
-                : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
-            }`}
+            className={`p-4 rounded-xl border-2 transition-all ${groupType === 'custom'
+              ? 'border-purple-500 bg-purple-900/20'
+              : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
+              }`}
           >
-            <Users className={`w-6 h-6 mb-3 ${
-              groupType === 'custom' ? 'text-purple-400' : 'text-gray-400'
-            }`} />
+            <Users className={`w-6 h-6 mb-3 ${groupType === 'custom' ? 'text-purple-400' : 'text-gray-400'
+              }`} />
             <h4 className="font-medium text-gray-200">Custom Group</h4>
             <p className="text-sm text-gray-400 mt-1">
               Create a team with selected members
@@ -155,18 +218,16 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
               <Check className="w-5 h-5 text-purple-400 absolute top-3 right-3" />
             )}
           </button>
-          
+
           <button
             onClick={() => setGroupType('project')}
-            className={`p-4 rounded-xl border-2 transition-all ${
-              groupType === 'project'
-                ? 'border-emerald-500 bg-emerald-900/20'
-                : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
-            }`}
+            className={`p-4 rounded-xl border-2 transition-all ${groupType === 'project'
+              ? 'border-emerald-500 bg-emerald-900/20'
+              : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
+              }`}
           >
-            <Briefcase className={`w-6 h-6 mb-3 ${
-              groupType === 'project' ? 'text-emerald-400' : 'text-gray-400'
-            }`} />
+            <Briefcase className={`w-6 h-6 mb-3 ${groupType === 'project' ? 'text-emerald-400' : 'text-gray-400'
+              }`} />
             <h4 className="font-medium text-gray-200">Project Chat</h4>
             <p className="text-sm text-gray-400 mt-1">
               Auto-include project team members
@@ -175,20 +236,18 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
               <Check className="w-5 h-5 text-emerald-400 absolute top-3 right-3" />
             )}
           </button>
-          
+
           <button
             onClick={() => setGroupType('organization')}
-            className={`p-4 rounded-xl border-2 transition-all ${
-              groupType === 'organization'
-                ? 'border-blue-500 bg-blue-900/20'
-                : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
-            }`}
+            className={`p-4 rounded-xl border-2 transition-all ${groupType === 'organization'
+              ? 'border-blue-500 bg-blue-900/20'
+              : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
+              }`}
             disabled
             title="Organization chat is automatically created"
           >
-            <Building className={`w-6 h-6 mb-3 ${
-              groupType === 'organization' ? 'text-blue-400' : 'text-gray-400 opacity-50'
-            }`} />
+            <Building className={`w-6 h-6 mb-3 ${groupType === 'organization' ? 'text-blue-400' : 'text-gray-400 opacity-50'
+              }`} />
             <h4 className="font-medium text-gray-200 opacity-70">Organization</h4>
             <p className="text-sm text-gray-500 mt-1">
               Automatically created
@@ -196,7 +255,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
           </button>
         </div>
       </div>
-      
+
       <div className="flex justify-between pt-6 border-t border-gray-800">
         <button
           onClick={onClose}
@@ -206,7 +265,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
         </button>
         <button
           onClick={() => setStep(2)}
-          className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-6 py-2 rounded-lg font-medium transition"
+          className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition"
         >
           Next Step
         </button>
@@ -230,7 +289,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Description (Optional)
@@ -243,7 +302,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
             />
           </div>
-          
+
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="text-sm font-medium text-gray-300">
@@ -253,7 +312,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
                 {members.length} selected
               </span>
             </div>
-            
+
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
@@ -264,45 +323,45 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
-            
+
             {loadingUsers ? (
               <div className="text-center py-8">
                 <Loader2 className="w-6 h-6 text-cyan-500 animate-spin mx-auto mb-3" />
                 <p className="text-gray-400">Loading team members...</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                 {filteredUsers.map(user => (
                   <button
                     key={user.id}
                     onClick={() => handleUserSelect(user)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition ${
-                      user.selected
-                        ? 'bg-purple-900/30 border border-purple-700/50'
-                        : 'hover:bg-gray-800/50'
-                    }`}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition ${user.selected
+                      ? 'bg-purple-900/30 border border-purple-700/50'
+                      : 'hover:bg-gray-800/50'
+                      } ${user.id === currentUser.id ? 'opacity-75 cursor-default' : ''}`}
+                    disabled={user.id === currentUser.id}
                   >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      user.selected ? 'bg-purple-600' : 'bg-gray-700'
-                    }`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${user.selected ? 'bg-purple-600' : 'bg-gray-700'
+                      }`}>
                       <span className="text-white text-sm font-bold">
-                        {user.first_name?.[0]?.toUpperCase() || 'U'}
+                        {user.first_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
                       </span>
                     </div>
                     <div className="flex-1 text-left">
                       <p className="font-medium text-gray-200">
-                        {user.first_name} {user.last_name}
+                        {user.full_name || `${user.first_name} ${user.last_name}`}
+                        {user.id === currentUser.id && ' (You)'}
                       </p>
                       <p className="text-xs text-gray-400">{user.email}</p>
                     </div>
-                    {user.selected && (
+                    {user.selected && user.id !== currentUser.id && (
                       <Check className="w-5 h-5 text-purple-400" />
                     )}
                   </button>
                 ))}
               </div>
             )}
-            
+
             {members.length > 0 && (
               <div className="mt-6 p-4 bg-gray-800/30 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-300 mb-3">
@@ -312,24 +371,28 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
                   {members.map(member => (
                     <div
                       key={member.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-gray-700/50 rounded-full"
+                      className={`flex items-center gap-2 px-3 py-1.5 bg-gray-700/50 rounded-full ${member.id === currentUser.id ? 'opacity-70' : ''
+                        }`}
                     >
                       <span className="text-sm text-gray-200">
-                        {member.first_name} {member.last_name}
+                        {member.full_name || member.email}
+                        {member.id === currentUser.id && ' (You)'}
                       </span>
-                      <button
-                        onClick={() => handleUserSelect(member)}
-                        className="hover:text-red-400 transition"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                      {member.id !== currentUser.id && (
+                        <button
+                          onClick={() => handleUserSelect(member)}
+                          className="hover:text-red-400 transition"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
-          
+
           <div className="flex justify-between pt-6 border-t border-gray-800">
             <button
               onClick={() => setStep(1)}
@@ -349,7 +412,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
         </div>
       );
     }
-    
+
     if (groupType === 'project') {
       return (
         <div className="space-y-6">
@@ -362,15 +425,13 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
                 <button
                   key={project.id}
                   onClick={() => setSelectedProject(project)}
-                  className={`w-full flex items-center gap-3 p-4 rounded-xl border transition ${
-                    selectedProject?.id === project.id
-                      ? 'border-emerald-500 bg-emerald-900/20'
-                      : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
-                  }`}
+                  className={`w-full flex items-center gap-3 p-4 rounded-xl border transition ${selectedProject?.id === project.id
+                    ? 'border-emerald-500 bg-emerald-900/20'
+                    : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
+                    }`}
                 >
-                  <Briefcase className={`w-5 h-5 ${
-                    selectedProject?.id === project.id ? 'text-emerald-400' : 'text-gray-400'
-                  }`} />
+                  <Briefcase className={`w-5 h-5 ${selectedProject?.id === project.id ? 'text-emerald-400' : 'text-gray-400'
+                    }`} />
                   <div className="flex-1 text-left">
                     <p className="font-medium text-gray-200">{project.name}</p>
                     <p className="text-xs text-gray-400 mt-1">
@@ -388,7 +449,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
               ))}
             </div>
           </div>
-          
+
           {selectedProject && (
             <div className="p-4 bg-gray-800/30 rounded-lg">
               <h4 className="text-sm font-medium text-gray-300 mb-3">
@@ -407,7 +468,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
               </p>
             </div>
           )}
-          
+
           <div className="flex justify-between pt-6 border-t border-gray-800">
             <button
               onClick={() => setStep(1)}
@@ -427,6 +488,8 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
         </div>
       );
     }
+
+    return null;
   };
 
   return (
@@ -447,21 +510,18 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
-        
+
         {/* Progress bar */}
         <div className="px-6 pt-4">
           <div className="flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              step >= 1 ? 'bg-cyan-600' : 'bg-gray-800'
-            }`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-cyan-600' : 'bg-gray-800'
+              }`}>
               <span className="text-white font-bold">1</span>
             </div>
-            <div className={`flex-1 h-1 mx-2 ${
-              step >= 2 ? 'bg-cyan-600' : 'bg-gray-800'
-            }`} />
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-              step >= 2 ? 'bg-cyan-600' : 'bg-gray-800'
-            }`}>
+            <div className={`flex-1 h-1 mx-2 ${step >= 2 ? 'bg-cyan-600' : 'bg-gray-800'
+              }`} />
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-cyan-600' : 'bg-gray-800'
+              }`}>
               <span className="text-white font-bold">2</span>
             </div>
           </div>
@@ -470,7 +530,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
             <span>Configure</span>
           </div>
         </div>
-        
+
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
           {error && (
@@ -482,7 +542,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
               </div>
             </div>
           )}
-          
+
           {success && (
             <div className="mb-6 p-4 bg-emerald-900/20 border border-emerald-700/50 rounded-lg flex items-start gap-3">
               <Check className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
@@ -492,7 +552,7 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
               </div>
             </div>
           )}
-          
+
           {step === 1 ? renderStep1() : renderStep2()}
         </div>
       </div>
