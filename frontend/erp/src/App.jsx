@@ -18,7 +18,7 @@ import SubOrganizationDashboard from "./pages/dashboard/SubOrganizationDashboard
 import SubOrgUserDashboard from "./pages/dashboard/SubOrgUserDashboard";
 import SubOrgLogin from "./pages/auth/SubOrgLogin";
 import EmployeeLogin from "./pages/modules/hr/pages/EmployeeLogin";
-
+import QuotationsList from "./pages/modules/sales/components/QuotationsList";
 import HRDashboard from "./pages/modules/hr/HRDashboard";
 import EmployeeList from "./pages/modules/hr/pages/EmployeeList";
 import AddEmployee from "./pages/modules/hr/pages/AddEmployee";
@@ -42,7 +42,6 @@ import VendorList from './components/modules/finanace/vendor/VendorList';
 import ItemCreate from "./pages/modules/inventory/ItemCreate";
 import PurchaseOrderCreate from "./pages/modules/finance/PurchaseOrderCreate";
 import InventoryDashboard from "./pages/dashboard/InventoryDashboard";
-
 import QualityInspectionCreate from "./pages/modules/purchase/QualityInspectionCreate";
 import GateEntryCreate from "./pages/modules/purchase/GateEntryCreate";
 import VendorPaymentCreate from "./pages/modules/purchase/VendorPaymentCreate";
@@ -61,6 +60,12 @@ import Salesdashboard from "./pages/modules/sales/components/Salesdashboard";
 
 // import CustomerDetail from "./pages/modules/crm/components/CustomerDetail";
 import QualifiesLeads from "./pages/modules/sales/components/QualifiedLeadsList";
+import CustomersList from "./pages/modules/sales/components/CustomersList";
+import CustomerCreate from "./pages/modules/sales/components/CustomerCreate";
+import CustomerDetail from "./pages/modules/sales/components/CustomerDetail";
+import CustomerEdit from "./pages/modules/sales/components/CustomerEdit";
+import SalesOrderCreate from "./pages/modules/sales/components/SalesOrderCreate";
+import SalesOrderList from "./pages/modules/sales/components/SalesOrderList";
 
 /* -------------------- ROUTE GUARDS -------------------- */
 
@@ -381,7 +386,18 @@ function App() {
           <Route path="/sales/dashboard" element={<Salesdashboard />} />
           {/* <Route path="/customers/:id" element={<CustomerDetail />} /> */}
           <Route path="/sales/qualifiedleads" element={<QualifiesLeads />} />
+<<<<<<< HEAD
 
+=======
+          <Route path="/sales/leads/:id" element={<LeadDetail />} />
+          <Route path="/sales/quotations" element={<QuotationsList />} />
+          <Route path="/sales/customers" element={<CustomersList />} />
+          <Route path="/crm/customers/create" element={<CustomerCreate />} />
+          <Route path="/sale/customers/:id" element={<CustomerDetail />} />
+          <Route path="/sale/customers/:id/edit" element={<CustomerEdit />} />
+          <Route path="/sale/orders/create" element={<SalesOrderCreate />} />
+          <Route path="/sale/list" element={<SalesOrderList />} />
+>>>>>>> b926693f635c21558203a651408fa16e47b6d447
         </Routes>
       </Router>
     </AuthProvider>
