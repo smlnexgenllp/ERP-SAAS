@@ -5,7 +5,6 @@ import api from "../../../../services/api";
 import {
   ArrowLeft,
   FileText,
-  Users,
   Calculator,
   Trash2,
   Plus,
@@ -30,12 +29,14 @@ export default function LeadDetail() {
     customer_name: "",
     customer_email: "",
     customer_company: "",
-    validity_date: "",
+    validity_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0],
     items: [{ description: "", quantity: 1, unit_price: 0 }],
     notes: "",
   });
 
-  // Fetch lead details
+  // Fetch lead details once on mount
   useEffect(() => {
     const fetchLead = async () => {
       try {
@@ -43,20 +44,13 @@ export default function LeadDetail() {
         setError(null);
         const res = await api.get(`/sale/qualified-leads/${id}/`);
         setLead(res.data);
-
-        setFormData((prev) => ({
-          ...prev,
-          customer_name: res.data.full_name || "",
-          customer_email: res.data.email || "",
-          customer_company: res.data.company || "",
-        }));
       } catch (err) {
         console.error("Failed to load lead:", err);
-        if (err.response?.status === 404) {
-          setError("This lead was not found or you don't have access to it.");
-        } else {
-          setError("Failed to load lead details. Please try again.");
-        }
+        setError(
+          err.response?.status === 404
+            ? "This lead was not found or you don't have access to it."
+            : "Failed to load lead details. Please try again."
+        );
       } finally {
         setLoading(false);
       }
@@ -65,7 +59,19 @@ export default function LeadDetail() {
     fetchLead();
   }, [id]);
 
-  // Fetch inventory items when form is opened
+  // Pre-fill form when lead data is available
+  useEffect(() => {
+    if (lead) {
+      setFormData((prev) => ({
+        ...prev,
+        customer_name: lead.full_name || prev.customer_name || "Valued Customer",
+        customer_email: lead.email || prev.customer_email || "",
+        customer_company: lead.company || prev.customer_company || "",
+      }));
+    }
+  }, [lead]);
+
+  // Load inventory items when quotation form is opened
   useEffect(() => {
     if (showQuotationForm && inventoryItems.length === 0) {
       const fetchInventory = async () => {
@@ -73,20 +79,23 @@ export default function LeadDetail() {
           const res = await api.get("/inventory/items-for-quotation/");
           setInventoryItems(res.data || []);
         } catch (err) {
-          console.error("Failed to load inventory items:", err);
-          setFormMessage("Could not load product list. You can still enter items manually.");
+          console.error("Failed to load inventory:", err);
+          setFormMessage("Could not load product list. Enter items manually.");
         }
       };
       fetchInventory();
     }
   }, [showQuotationForm, inventoryItems.length]);
 
-  // Calculate grand total
-  const grandTotal = useMemo(() => {
+  // Calculate totals
+  const subtotal = useMemo(() => {
     return formData.items.reduce((sum, item) => {
       return sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0);
     }, 0);
   }, [formData.items]);
+
+  const gst = subtotal * 0.18;
+  const grandTotal = subtotal + gst;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -103,13 +112,8 @@ export default function LeadDetail() {
     if (!itemId) return;
     const selected = inventoryItems.find((it) => it.id === Number(itemId));
     if (selected) {
-      const updatedItems = [...formData.items];
-      updatedItems[index] = {
-        ...updatedItems[index],
-        description: `${selected.name} (${selected.code || "N/A"})`,
-        unit_price: Number(selected.standard_price) || 0,
-      };
-      setFormData((prev) => ({ ...prev, items: updatedItems }));
+      updateItem(index, "description", `${selected.name} (${selected.code || "N/A"})`);
+      updateItem(index, "unit_price", Number(selected.standard_price) || 0);
     }
   };
 
@@ -143,18 +147,22 @@ export default function LeadDetail() {
       const payload = {
         lead_id: id,
         ...formData,
-        total: grandTotal,
+        total: subtotal, // backend will add GST
       };
 
       const response = await api.post("/sale/quotations/create-from-lead/", payload);
 
       setFormMessage("Quotation created and sent successfully!");
-      setShowQuotationForm(false);
+      setTimeout(() => {
+        setShowQuotationForm(false);
+        // Optional: redirect to quotations list
+        // navigate("/sales/quotations");
+      }, 1800);
     } catch (err) {
       console.error(err);
       setFormMessage(
         err.response?.data?.detail ||
-        "Failed to create quotation. Please check the data and try again."
+        "Failed to create quotation. Please check your input."
       );
     } finally {
       setSubmitting(false);
@@ -193,8 +201,8 @@ export default function LeadDetail() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {/* Header / Back */}
-        <div className="flex items-center justify-between mb-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <button
             onClick={() => navigate("/sales/qualifiedleads")}
             className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
@@ -203,7 +211,7 @@ export default function LeadDetail() {
             <span>Back to Qualified Leads</span>
           </button>
           <h1 className="text-2xl md:text-3xl font-bold text-cyan-300">
-            Lead: {lead?.full_name}
+            Lead: {lead?.full_name || "—"}
           </h1>
         </div>
 
@@ -250,7 +258,7 @@ export default function LeadDetail() {
           <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 md:p-8 shadow-xl">
             <h2 className="text-2xl font-bold text-purple-300 mb-6 flex items-center gap-3">
               <FileText size={24} />
-              New Quotation
+              New Quotation for {lead?.full_name || "this lead"}
             </h2>
 
             {formMessage && (
@@ -267,7 +275,7 @@ export default function LeadDetail() {
 
             <form onSubmit={handleSubmit} className="space-y-10">
               {/* Customer Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Customer Name *</label>
                   <input
@@ -315,7 +323,7 @@ export default function LeadDetail() {
                 </div>
               </div>
 
-              {/* Items */}
+              {/* Items Table */}
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-semibold text-cyan-300 flex items-center gap-2">
@@ -334,10 +342,10 @@ export default function LeadDetail() {
                   <table className="min-w-full divide-y divide-gray-700">
                     <thead className="bg-gray-800">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Description</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Description / Product</th>
                         <th className="px-6 py-4 text-center text-sm font-semibold text-gray-300">Qty</th>
                         <th className="px-6 py-4 text-right text-sm font-semibold text-gray-300">Unit Price (₹)</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-gray-300">Total (₹)</th>
+                        <th className="px-6 py-4 text-right text-sm font-semibold text-gray-300">Line Total (₹)</th>
                         <th className="px-6 py-4 text-center text-sm font-semibold text-gray-300">Action</th>
                       </tr>
                     </thead>
@@ -348,7 +356,7 @@ export default function LeadDetail() {
                             <select
                               value={
                                 inventoryItems.find(
-                                  (it) => it.name === item.description?.split(" (")[0]
+                                  (it) => item.description?.startsWith(it.name)
                                 )?.id || ""
                               }
                               onChange={(e) => selectInventoryItem(index, e.target.value)}
@@ -392,7 +400,7 @@ export default function LeadDetail() {
                             />
                           </td>
                           <td className="px-6 py-4 text-right font-medium text-emerald-400">
-                            ₹{((item.quantity || 0) * (item.unit_price || 0)).toFixed(2)}
+                            ₹{((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)).toFixed(2)}
                           </td>
                           <td className="px-6 py-4 text-center">
                             <button
@@ -409,9 +417,27 @@ export default function LeadDetail() {
                     <tfoot className="bg-gray-800/80">
                       <tr>
                         <td colSpan={3} className="px-6 py-4 text-right font-semibold text-gray-200">
+                          Subtotal
+                        </td>
+                        <td className="px-6 py-4 text-right text-emerald-400">
+                          ₹{subtotal.toFixed(2)}
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr>
+                        <td colSpan={3} className="px-6 py-4 text-right font-semibold text-gray-200">
+                          GST (18%)
+                        </td>
+                        <td className="px-6 py-4 text-right text-emerald-400">
+                          ₹{gst.toFixed(2)}
+                        </td>
+                        <td></td>
+                      </tr>
+                      <tr className="font-bold">
+                        <td colSpan={3} className="px-6 py-4 text-right text-lg text-gray-200">
                           Grand Total
                         </td>
-                        <td className="px-6 py-4 text-right text-xl font-bold text-emerald-400">
+                        <td className="px-6 py-4 text-right text-xl text-emerald-400">
                           ₹{grandTotal.toFixed(2)}
                         </td>
                         <td></td>
@@ -423,18 +449,20 @@ export default function LeadDetail() {
 
               {/* Notes */}
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Notes / Terms & Conditions</label>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Notes / Terms & Conditions
+                </label>
                 <textarea
                   name="notes"
                   value={formData.notes}
                   onChange={handleChange}
                   rows={5}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-gray-200 focus:border-purple-500 focus:ring-purple-500 outline-none resize-y"
-                  placeholder="Payment terms, delivery timeline, validity, thank you message, etc..."
+                  placeholder="Payment terms, delivery timeline, special instructions, thank you message..."
                 />
               </div>
 
-              {/* Buttons */}
+              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t border-gray-800">
                 <button
                   type="button"

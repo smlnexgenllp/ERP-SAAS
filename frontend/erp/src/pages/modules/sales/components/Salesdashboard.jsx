@@ -2,59 +2,72 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../../context/AuthContext";
 import {
-  LayoutGrid,
-  Users,
-  DollarSign,
-  FileText,
   BarChart3,
+  Users,
+  FileText,
   Briefcase,
   Target,
   Handshake,
   LogOut,
 } from "lucide-react";
+import api from "../../../../services/api"; // your axios instance
 
 export default function SalesDashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  const [summary] = useState({
-    leadsToday: 28,
-    activeOpportunities: 42,
-    quotationsSentToday: 11,
-    pipelineValue: "₹ 84,50,000",
-    wonThisMonth: 7,
-    targetAchievement: "68%",
+  const [summary, setSummary] = useState({
+    leadsToday: 0,
+    activeOpportunities: 0,
+    quotationsSentToday: 0,
+    pipelineValue: "₹0",
+    wonThisMonth: 0,
+    targetAchievement: "0%",
   });
 
-  // Role logic
-// System level roles (User model)
-const isSuperAdmin = user?.role === "super_admin";
-const isSubOrgAdmin = user?.role === "sub_org_admin";
+  const [teamPerformance, setTeamPerformance] = useState([]);
+  const [myItems, setMyItems] = useState([]);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
 
-// Organization level role (OrganizationUser model)
-const isSalesHead = user?.org_role === "Sales Head";
+  // Role checks
+  const isSuperAdmin = user?.role === "super_admin";
+  const isSubOrgAdmin = user?.role === "sub_org_admin";
+  const isSalesHead = user?.org_role === "Sales Head";
+  const canAccess = isSuperAdmin || isSubOrgAdmin || isSalesHead;
+  const isHead = canAccess;
 
-// Final access control
-const canAccess = isSuperAdmin || isSubOrgAdmin || isSalesHead;
-const isHead = canAccess;
+  useEffect(() => {
+    if (!canAccess || authLoading) return;
 
-  // Static data
-  const teamPerformance = [
-    { name: "Pugal", leads: 54, opps: 18, won: 5, pipeline: "₹38,20,000", achievement: "72%" },
-    { name: "Priya", leads: 47, opps: 15, won: 4, pipeline: "₹29,80,000", achievement: "65%" },
-    { name: "Arjun", leads: 36, opps: 11, won: 2, pipeline: "₹19,50,000", achievement: "58%" },
-  ];
+    const fetchDashboardData = async () => {
+      try {
+        setDashboardLoading(true);
 
-  const myItems = [
-    { name: "Apex Solutions", type: "Opportunity", status: "Negotiation", next: "Follow-up call", value: "₹12,50,000" },
-    { name: "Rahul Sharma", type: "Lead", status: "Qualified", next: "Send quotation", value: "-" },
-    { name: "TechNova", type: "Opportunity", status: "Proposal Sent", next: "Meeting 10th", value: "₹28,00,000" },
-  ];
+        // You should create these endpoints in your Django backend
+        const [summaryRes, myItemsRes, teamRes] = await Promise.all([
+          api.get("/api/sales/dashboard/summary/"),
+          api.get("/api/sales/dashboard/my-items/"),
+          isHead ? api.get("/api/sales/dashboard/team-performance/") : Promise.resolve({ data: [] }),
+        ]);
+
+        setSummary(summaryRes.data || summary);
+        setMyItems(myItemsRes.data || []);
+        setTeamPerformance(teamRes.data || []);
+      } catch (err) {
+        console.error("Dashboard fetch failed:", err);
+        // Keep fallback static values if API fails
+      } finally {
+        setDashboardLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [canAccess, isHead, authLoading]);
 
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 flex items-center justify-center">
-        <div className="text-cyan-400 text-xl font-medium animate-pulse">Loading Dashboard...</div>
+        <div className="text-cyan-400 text-xl animate-pulse">Loading...</div>
       </div>
     );
   }
@@ -62,9 +75,9 @@ const isHead = canAccess;
   if (!user || !canAccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 flex items-center justify-center">
-        <div className="bg-gray-900/80 backdrop-blur-lg p-12 rounded-2xl border border-cyan-900/40 shadow-2xl text-center">
+        <div className="bg-gray-900/80 p-10 rounded-2xl border border-red-900/40 text-center">
           <h2 className="text-3xl font-bold text-red-400 mb-4">Access Denied</h2>
-          <p className="text-gray-300 text-lg">Sales Dashboard is restricted</p>
+          <p className="text-gray-300">You don't have permission to view this dashboard.</p>
         </div>
       </div>
     );
@@ -73,77 +86,88 @@ const isHead = canAccess;
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 flex flex-col">
       {/* Header */}
-      <header className="bg-gray-900/90 backdrop-blur-lg border-b border-cyan-900/50 px-6 py-4 flex items-center justify-between shadow-2xl sticky top-0 z-10">
-        <div className="flex items-center gap-5">
-          <BarChart3 className="w-10 h-10 text-cyan-400" />
+      <header className="bg-gray-900/90 border-b border-cyan-900/50 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-xl">
+        <div className="flex items-center gap-4">
+          <BarChart3 className="w-9 h-9 text-cyan-400" />
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-cyan-300 tracking-tight">
+            <h1 className="text-2xl font-bold text-cyan-300">
               Sales Dashboard
-              {isHead && <span className="ml-3 text-xl font-normal text-cyan-500/70">(Management)</span>}
+              {isHead && <span className="ml-2 text-lg text-cyan-500/70">(Management)</span>}
             </h1>
-            <p className="text-sm text-gray-400 mt-0.5">
-              {new Date().toLocaleDateString("en-IN")} • {user?.username || user?.name || "User"}
+            <p className="text-sm text-gray-400">
+              {new Date().toLocaleDateString("en-IN")} • {user?.username || "User"}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Role</p>
-            <p className="text-cyan-300 font-medium">
-              {isHead ? "Sales Head / Admin" : "Sales Executive"}
-            </p>
-          </div>
+        <div className="text-right">
+          <p className="text-xs text-gray-500 uppercase">Role</p>
+          <p className="text-cyan-300 font-medium">
+            {isHead ? "Sales Head / Admin" : "Sales Executive"}
+          </p>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-72 border-r border-gray-800 bg-gray-900/50 backdrop-blur-sm flex flex-col">
+        <div className="w-72 border-r border-gray-800 bg-gray-900/60 flex flex-col">
           <div className="p-5 border-b border-gray-800">
-            <h2 className="text-lg font-bold text-cyan-300">Sales Controls</h2>
+            <h2 className="text-lg font-bold text-cyan-300">Sales</h2>
           </div>
 
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
             <button
-              className="flex items-center gap-3 w-full p-3.5 rounded-xl hover:bg-gray-800/70 transition-all duration-200 text-left group"
               onClick={() => navigate("/sales/qualifiedleads")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
             >
-              <Users className="h-5 w-5 text-cyan-400 group-hover:text-cyan-300" />
-              <span className="font-medium">Leads</span>
+              <Users className="h-5 w-5 text-cyan-400" />
+              <span>Leads</span>
             </button>
 
             <button
-              className="flex items-center gap-3 w-full p-3.5 rounded-xl hover:bg-gray-800/70 transition-all duration-200 text-left group"
-              onClick={() => navigate("/sales/opportunities")}
+              onClick={() => navigate("/sales/customers")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
             >
-              <Briefcase className="h-5 w-5 text-teal-400 group-hover:text-teal-300" />
-              <span className="font-medium">Opportunities</span>
+              <Briefcase className="h-5 w-5 text-teal-400" />
+              <span>Customers</span>
             </button>
-
+             <button
+              onClick={() => navigate("/sale/orders/create")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <Briefcase className="h-5 w-5 text-teal-400" />
+              <span>Sales Orders</span>
+            </button>
+           <button
+              onClick={() => navigate("/sale/list")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <Briefcase className="h-5 w-5 text-teal-400" />
+              <span>Sales List</span>
+            </button>
             <button
-              className="flex items-center gap-3 w-full p-3.5 rounded-xl hover:bg-gray-800/70 transition-all duration-200 text-left group"
               onClick={() => navigate("/sales/quotations")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
             >
-              <FileText className="h-5 w-5 text-purple-400 group-hover:text-purple-300" />
-              <span className="font-medium">Quotations</span>
+              <FileText className="h-5 w-5 text-purple-400" />
+              <span>Quotations</span>
             </button>
 
             <button
-              className="flex items-center gap-3 w-full p-3.5 rounded-xl hover:bg-gray-800/70 transition-all duration-200 text-left group"
               onClick={() => navigate("/sales/reports")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
             >
-              <BarChart3 className="h-5 w-5 text-emerald-400 group-hover:text-emerald-300" />
-              <span className="font-medium">Reports & Analytics</span>
+              <BarChart3 className="h-5 w-5 text-emerald-400" />
+              <span>Reports</span>
             </button>
 
             {isHead && (
               <button
-                className="flex items-center gap-3 w-full p-3.5 rounded-xl hover:bg-gray-800/70 transition-all duration-200 text-left group mt-4 border-t border-gray-800 pt-4"
                 onClick={() => navigate("/sales/team")}
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition mt-4 border-t border-gray-800 pt-4"
               >
-                <Users className="h-5 w-5 text-blue-400 group-hover:text-blue-300" />
-                <span className="font-medium">Team Management</span>
+                <Users className="h-5 w-5 text-blue-400" />
+                <span>Team</span>
               </button>
             )}
           </nav>
@@ -151,130 +175,156 @@ const isHead = canAccess;
           <div className="p-4 border-t border-gray-800 mt-auto">
             <button
               onClick={() => navigate("/logout")}
-              className="flex items-center gap-3 w-full p-3.5 rounded-xl bg-gradient-to-r from-red-600/80 to-red-700/80 hover:from-red-700 hover:to-red-800 text-white transition-all duration-300 shadow-lg"
+              className="flex items-center gap-3 w-full p-3 rounded-xl bg-gradient-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 text-white transition"
             >
               <LogOut className="h-5 w-5" />
-              <span className="font-medium">Logout</span>
+              <span>Logout</span>
             </button>
           </div>
         </div>
 
         {/* Main Content */}
         <div className="flex-1 p-6 md:p-8 overflow-auto">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-            <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
-              <p className="text-sm text-cyan-400/80 uppercase tracking-wider font-medium mb-1">Leads Today</p>
-              <p className="text-4xl font-bold text-cyan-300">{summary.leadsToday}</p>
-            </div>
-
-            <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
-              <p className="text-sm text-teal-400/80 uppercase tracking-wider font-medium mb-1">Active Opportunities</p>
-              <p className="text-4xl font-bold text-teal-300">{summary.activeOpportunities}</p>
-            </div>
-
-            <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
-              <p className="text-sm text-purple-400/80 uppercase tracking-wider font-medium mb-1">Quotations Today</p>
-              <p className="text-4xl font-bold text-purple-300">{summary.quotationsSentToday}</p>
-            </div>
-
-            <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
-              <p className="text-sm text-emerald-400/80 uppercase tracking-wider font-medium mb-1">Pipeline Value</p>
-              <p className="text-4xl font-bold text-emerald-300">{summary.pipelineValue}</p>
-            </div>
-          </div>
-
-          {/* Role-based content */}
-          {isHead ? (
-            <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 shadow-xl">
-              <h2 className="text-2xl font-bold text-cyan-300 mb-6 flex items-center gap-3">
-                <Users className="h-7 w-7" /> Team Performance Overview
-              </h2>
-
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-gray-800">
-                      <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Name</th>
-                      <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Leads</th>
-                      <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Opps</th>
-                      <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Won</th>
-                      <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Pipeline</th>
-                      <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Achieved</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teamPerformance.map((member) => (
-                      <tr key={member.name} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
-                        <td className="py-4 px-5 font-medium text-gray-200">{member.name}</td>
-                        <td className="py-4 px-5 text-gray-300">{member.leads}</td>
-                        <td className="py-4 px-5 text-gray-300">{member.opps}</td>
-                        <td className="py-4 px-5 text-gray-300">{member.won}</td>
-                        <td className="py-4 px-5 text-gray-300">{member.pipeline}</td>
-                        <td className="py-4 px-5">
-                          <span className="px-3 py-1 bg-green-900/40 text-green-300 rounded-full text-sm font-medium">
-                            {member.achievement}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {dashboardLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-cyan-400 animate-pulse flex items-center gap-3">
+                <div className="w-6 h-6 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                Loading dashboard...
               </div>
             </div>
           ) : (
-            <div className="space-y-8">
-              <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 shadow-xl">
-                <h2 className="text-2xl font-bold text-cyan-300 mb-6 flex items-center gap-3">
-                  <Target className="h-7 w-7" /> My Assigned Items
-                </h2>
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+                <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-lg hover:shadow-cyan-900/20 transition">
+                  <p className="text-sm text-cyan-400/80 uppercase mb-1">Leads Today</p>
+                  <p className="text-4xl font-bold text-cyan-300">{summary.leadsToday}</p>
+                </div>
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="border-b border-gray-800">
-                        <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Name</th>
-                        <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Type</th>
-                        <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Status</th>
-                        <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Next Action</th>
-                        <th className="py-4 px-5 text-left text-sm font-semibold text-gray-300">Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {myItems.map((item, i) => (
-                        <tr key={i} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
-                          <td className="py-4 px-5 font-medium text-gray-200">{item.name}</td>
-                          <td className="py-4 px-5 text-gray-300">{item.type}</td>
-                          <td className="py-4 px-5 text-gray-300">{item.status}</td>
-                          <td className="py-4 px-5 text-gray-300">{item.next}</td>
-                          <td className="py-4 px-5 text-emerald-300 font-medium">{item.value}</td>
+                <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-lg hover:shadow-cyan-900/20 transition">
+                  <p className="text-sm text-teal-400/80 uppercase mb-1">Active Opportunities</p>
+                  <p className="text-4xl font-bold text-teal-300">{summary.activeOpportunities}</p>
+                </div>
+
+                <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-lg hover:shadow-cyan-900/20 transition">
+                  <p className="text-sm text-purple-400/80 uppercase mb-1">Quotations Today</p>
+                  <p className="text-4xl font-bold text-purple-300">{summary.quotationsSentToday}</p>
+                </div>
+
+                <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-lg hover:shadow-cyan-900/20 transition">
+                  <p className="text-sm text-emerald-400/80 uppercase mb-1">Pipeline Value</p>
+                  <p className="text-4xl font-bold text-emerald-300">{summary.pipelineValue}</p>
+                </div>
+              </div>
+
+              {/* Role-based content */}
+              {isHead ? (
+                <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-xl">
+                  <h2 className="text-2xl font-bold text-cyan-300 mb-6 flex items-center gap-3">
+                    <Users className="h-6 w-6" /> Team Performance
+                  </h2>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="border-b border-gray-800">
+                          <th className="py-4 px-5 text-left text-gray-300">Name</th>
+                          <th className="py-4 px-5 text-left text-gray-300">Leads</th>
+                          <th className="py-4 px-5 text-left text-gray-300">Opps</th>
+                          <th className="py-4 px-5 text-left text-gray-300">Won</th>
+                          <th className="py-4 px-5 text-left text-gray-300">Pipeline</th>
+                          <th className="py-4 px-5 text-left text-gray-300">Achieved</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {teamPerformance.map((member) => (
+                          <tr key={member.name} className="border-b border-gray-800 hover:bg-gray-800/50">
+                            <td className="py-4 px-5 font-medium text-gray-200">{member.name}</td>
+                            <td className="py-4 px-5 text-gray-300">{member.leads}</td>
+                            <td className="py-4 px-5 text-gray-300">{member.opps}</td>
+                            <td className="py-4 px-5 text-gray-300">{member.won}</td>
+                            <td className="py-4 px-5 text-gray-300">{member.pipeline}</td>
+                            <td className="py-4 px-5">
+                              <span className="px-3 py-1 bg-green-900/50 text-green-300 rounded-full text-sm">
+                                {member.achievement}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                        {teamPerformance.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="py-8 text-center text-gray-500">
+                              No team data available
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-8">
+                  <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-xl">
+                    <h2 className="text-2xl font-bold text-cyan-300 mb-6 flex items-center gap-3">
+                      <Target className="h-6 w-6" /> My Items
+                    </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 text-center shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
-                  <Target className="h-10 w-10 mx-auto mb-4 text-cyan-400" />
-                  <p className="text-sm text-gray-400 uppercase tracking-wider mb-2">Target Achieved</p>
-                  <p className="text-4xl font-bold text-cyan-300">{summary.targetAchievement}</p>
-                </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="border-b border-gray-800">
+                            <th className="py-4 px-5 text-left text-gray-300">Name</th>
+                            <th className="py-4 px-5 text-left text-gray-300">Type</th>
+                            <th className="py-4 px-5 text-left text-gray-300">Status</th>
+                            <th className="py-4 px-5 text-left text-gray-300">Next Action</th>
+                            <th className="py-4 px-5 text-left text-gray-300">Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {myItems.map((item, i) => (
+                            <tr key={i} className="border-b border-gray-800 hover:bg-gray-800/50">
+                              <td className="py-4 px-5 font-medium text-gray-200">{item.name}</td>
+                              <td className="py-4 px-5 text-gray-300">{item.type}</td>
+                              <td className="py-4 px-5 text-gray-300">{item.status}</td>
+                              <td className="py-4 px-5 text-gray-300">{item.next}</td>
+                              <td className="py-4 px-5 text-emerald-400 font-medium">{item.value}</td>
+                            </tr>
+                          ))}
+                          {myItems.length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="py-8 text-center text-gray-500">
+                                No assigned items yet
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
 
-                <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 text-center shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
-                  <BarChart3 className="h-10 w-10 mx-auto mb-4 text-teal-400" />
-                  <p className="text-sm text-gray-400 uppercase tracking-wider mb-2">Pipeline Value</p>
-                  <p className="text-4xl font-bold text-teal-300">{summary.pipelineValue}</p>
-                </div>
+                  {/* Small summary cards for non-head users */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 text-center shadow-lg">
+                      <Target className="h-10 w-10 mx-auto mb-3 text-cyan-400" />
+                      <p className="text-sm text-gray-400 uppercase mb-1">Target</p>
+                      <p className="text-3xl font-bold text-cyan-300">{summary.targetAchievement}</p>
+                    </div>
 
-                <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 text-center shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
-                  <Handshake className="h-10 w-10 mx-auto mb-4 text-emerald-400" />
-                  <p className="text-sm text-gray-400 uppercase tracking-wider mb-2">Won This Month</p>
-                  <p className="text-4xl font-bold text-emerald-300">{summary.wonThisMonth}</p>
+                    <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 text-center shadow-lg">
+                      <BarChart3 className="h-10 w-10 mx-auto mb-3 text-teal-400" />
+                      <p className="text-sm text-gray-400 uppercase mb-1">Pipeline</p>
+                      <p className="text-3xl font-bold text-teal-300">{summary.pipelineValue}</p>
+                    </div>
+
+                    <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 text-center shadow-lg">
+                      <Handshake className="h-10 w-10 mx-auto mb-3 text-emerald-400" />
+                      <p className="text-sm text-gray-400 uppercase mb-1">Won</p>
+                      <p className="text-3xl font-bold text-emerald-300">{summary.wonThisMonth}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>

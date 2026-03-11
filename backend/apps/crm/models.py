@@ -280,9 +280,65 @@ class Customer(models.Model):
         null=True,
         related_name='created_customers'
     )
-    
+    pan_number = models.CharField(
+        max_length=10,
+        blank=True,
+        verbose_name="PAN Number",
+        help_text="Permanent Account Number (10 characters)"
+    )
+    gstin = models.CharField(
+        max_length=15,
+        blank=True,
+        verbose_name="GSTIN",
+        help_text="15-digit GST Identification Number"
+    )
+    aadhaar_number = models.CharField(
+        max_length=12,
+        blank=True,
+        verbose_name="Aadhaar Number",
+        help_text="Optional – last 4 digits only for privacy"
+    )
+    business_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('sole_proprietorship', 'Sole Proprietorship'),
+            ('partnership', 'Partnership Firm'),
+            ('private_limited', 'Private Limited Company'),
+            ('limited_liability_partnership', 'LLP'),
+            ('public_limited', 'Public Limited Company'),
+            ('huf', 'HUF'),
+            ('trust', 'Trust / Society'),
+            ('other', 'Other'),
+        ],
+        blank=True,
+        default='',
+        verbose_name="Business Type"
+    )
+    industry = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Industry / Sector"
+    )
+    alternate_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name="Alternate / WhatsApp Number"
+    )
+    billing_address = models.TextField(blank=True, verbose_name="Billing Address")
+    shipping_address = models.TextField(blank=True, verbose_name="Shipping Address")
+    payment_terms_days = models.PositiveIntegerField(
+        default=30,
+        verbose_name="Payment Terms (days)"
+    )
+    credit_limit = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="Credit Limit (₹)"
+    )
     class Meta:
         ordering = ['-customer_since']
+        
     
     def __str__(self):
         return self.full_name or self.email or "Unnamed Customer"
