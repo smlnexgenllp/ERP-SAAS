@@ -58,7 +58,7 @@ import ContactForm from "./pages/modules/crm/components/ContactForm";
 import ContactsList from "./pages/modules/crm/components/ContactsList";
 import CallLogs from "./pages/modules/crm/components/CallLogs";
 import Salesdashboard from "./pages/modules/sales/components/Salesdashboard";
-import LeadDetail from "./pages/modules/sales/components/LeadDetail";
+
 // import CustomerDetail from "./pages/modules/crm/components/CustomerDetail";
 import QualifiesLeads from "./pages/modules/sales/components/QualifiedLeadsList";
 
@@ -333,17 +333,17 @@ function App() {
           <Route
             path="/hr/tasks"
             element={
-              <HRProtectedRoute>
+              // <HRProtectedRoute>
                 <TaskDashboard />
-              </HRProtectedRoute>
+              // </HRProtectedRoute>
             }
           />
           <Route
             path="/hr/chat"
             element={
-              <HRProtectedRoute>
+              // <HRProtectedRoute>
                 <ChatPage />
-              </HRProtectedRoute>
+              // </HRProtectedRoute>
             }
           />
           <Route path="/vendors" element={<VendorList />} />
@@ -381,7 +381,7 @@ function App() {
           <Route path="/sales/dashboard" element={<Salesdashboard />} />
           {/* <Route path="/customers/:id" element={<CustomerDetail />} /> */}
           <Route path="/sales/qualifiedleads" element={<QualifiesLeads />} />
-          <Route path="/sales/leads/:id" element={<LeadDetail />} />
+
         </Routes>
       </Router>
     </AuthProvider>
