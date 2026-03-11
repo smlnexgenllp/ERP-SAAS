@@ -386,9 +386,6 @@ function App() {
           <Route path="/sales/dashboard" element={<Salesdashboard />} />
           {/* <Route path="/customers/:id" element={<CustomerDetail />} /> */}
           <Route path="/sales/qualifiedleads" element={<QualifiesLeads />} />
-<<<<<<< HEAD
-
-=======
           <Route path="/sales/leads/:id" element={<LeadDetail />} />
           <Route path="/sales/quotations" element={<QuotationsList />} />
           <Route path="/sales/customers" element={<CustomersList />} />
@@ -397,7 +394,6 @@ function App() {
           <Route path="/sale/customers/:id/edit" element={<CustomerEdit />} />
           <Route path="/sale/orders/create" element={<SalesOrderCreate />} />
           <Route path="/sale/list" element={<SalesOrderList />} />
->>>>>>> b926693f635c21558203a651408fa16e47b6d447
         </Routes>
       </Router>
     </AuthProvider>
