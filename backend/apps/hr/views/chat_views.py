@@ -7,6 +7,7 @@ from apps.hr.models import ChatGroup, Message, UnreadMessage,Project,Designation
 from apps.hr.serializers import ChatGroupSerializer, MessageSerializer
 from django.contrib.auth import get_user_model
 from ..utils import get_project_members
+from apps.organizations.models import OrganizationUser
 User = get_user_model()
 
 class ChatGroupViewSet(viewsets.ViewSet):
@@ -182,62 +183,69 @@ def upload_chat_file(request):
         "filename": file.name
     })
 
-@api_view(['POST'])
+import logging
+logger = logging.getLogger(__name__)
+User = get_user_model()
+
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_custom_chat_group(request):
+
     user = request.user
-    employee = getattr(user, 'employee', None)
 
-    # Allowed User roles (from your custom User model)
-    allowed_user_roles = ['super_admin', 'main_org_admin', 'sub_org_admin']
-    
-    # Allowed Employee roles
-    allowed_employee_roles = ['hr_manager', 'admin']  # Add more like 'accountant' if needed
+    # get role from OrganizationUser table
+    org_user = OrganizationUser.objects.filter(user=user).first()
+    role = org_user.role if org_user else None
 
-    # Check permission
-    is_allowed = (
-        user.role in allowed_user_roles or
-        (employee and employee.role in allowed_employee_roles)
-    )
+    ALLOWED_ROLES = {
+        "Admin",
+        "HR Manager",
+        "Manager",
+        "Team Lead",
+        "MD"
+    }
 
-    if not is_allowed:
+    if role not in ALLOWED_ROLES:
         return Response(
-            {"error": "You do not have permission to create custom chat groups. "
-                     "Only HR Managers, Admins, and Organization Admins can create groups."},
-            status=status.HTTP_403_FORBIDDEN
+            {"error": "You do not have permission to create chat groups"},
+            status=403
         )
 
-    name = request.data.get('name')
-    member_ids = request.data.get('members', [])
+    name = request.data.get("name")
+    member_ids = request.data.get("members", [])
 
     if not name:
-        return Response({"error": "Group name is required"}, status=status.HTTP_400_BAD_REQUEST)
-    
-    if len(member_ids) < 2:
-        return Response({"error": "At least 2 members are required (including yourself)"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Group name required"}, status=400)
 
-    # Validate all members are in the same organization
-    members = User.objects.filter(id__in=member_ids, organization=user.organization)
-    if members.count() != len(set(member_ids)):
-        return Response(
-            {"error": "All selected members must belong to your organization"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+    if not member_ids:
+        return Response({"error": "Select at least one member"}, status=400)
 
-    # Create the custom group
+    member_ids = [int(i) for i in member_ids]
+
+    organization = user.organization
+
+    members = User.objects.filter(
+        employee__id__in=member_ids,
+        employee__organization=organization
+    )
+
+    members = members | User.objects.filter(id=user.id)
+
+    if not members.exists():
+        return Response({"error": "No valid members found"}, status=400)
+
     group = ChatGroup.objects.create(
         name=name.strip(),
-        group_type='custom',
-        organization=user.organization,
+        group_type=ChatGroup.GROUP_TYPE_CUSTOM,
+        organization=organization,
         created_by=user
     )
+
     group.manual_members.set(members)
 
-    # Serialize and return
-    from apps.hr.serializers import ChatGroupSerializer
-    serializer = ChatGroupSerializer(group, context={'request': request})
-    
-    return Response(serializer.data, status=status.HTTP_201_CREATED)    
+    serializer = ChatGroupSerializer(group)
+
+    return Response(serializer.data, status=201)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -325,3 +333,233 @@ def get_pinned_messages(request, group_id):
     
     return Response(pinned)        
 
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def update_chat_group(request, group_id):
+    user = request.user
+
+    try:
+        group = ChatGroup.objects.get(id=group_id)
+
+        # Only creator can edit - NO admin override for modifications
+        if group.created_by != user:
+            return Response(
+                {"error": "Only group creator can edit this group"},
+                status=403
+            )
+
+        name = request.data.get("name")
+        member_ids = request.data.get("members", [])
+
+        if name:
+            group.name = name.strip()
+            group.save()
+
+        if member_ids is not None:
+            member_ids = [int(i) for i in member_ids]
+            members = User.objects.filter(
+                employee__id__in=member_ids,
+                employee__organization=group.organization
+            )
+            # Always include creator
+            members = members | User.objects.filter(id=user.id)
+            group.manual_members.set(members)
+
+        serializer = ChatGroupSerializer(group)
+        return Response(serializer.data)
+
+    except ChatGroup.DoesNotExist:
+        return Response({"error": "Group not found"}, status=404)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def add_member_to_group(request, group_id):
+    user = request.user
+    employee_id = request.data.get("employee_id")
+
+    try:
+        group = ChatGroup.objects.get(id=group_id)
+
+        # Only creator can add members - NO admin override
+        if group.created_by != user:
+            return Response(
+                {"error": "Only group creator can add members"},
+                status=403
+            )
+
+        new_user = User.objects.filter(
+            employee__id=employee_id,
+            employee__organization=group.organization
+        ).first()
+
+        if not new_user:
+            return Response({"error": "Invalid member"}, status=400)
+
+        group.manual_members.add(new_user)
+        return Response({"message": "Member added successfully"})
+
+    except ChatGroup.DoesNotExist:
+        return Response({"error": "Group not found"}, status=404)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def remove_member_from_group(request, group_id):
+    user = request.user
+    employee_id = request.data.get("employee_id")
+
+    try:
+        group = ChatGroup.objects.get(id=group_id)
+
+        # Only creator can remove members - NO admin override
+        if group.created_by != user:
+            return Response(
+                {"error": "Only group creator can remove members"},
+                status=403
+            )
+
+        remove_user = User.objects.filter(employee__id=employee_id).first()
+
+        if remove_user == group.created_by:
+            return Response(
+                {"error": "Creator cannot be removed"},
+                status=400
+            )
+
+        group.manual_members.remove(remove_user)
+        return Response({"message": "Member removed successfully"})
+
+    except ChatGroup.DoesNotExist:
+        return Response({"error": "Group not found"}, status=404)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_chat_group(request, group_id):
+    user = request.user
+
+    try:
+        group = ChatGroup.objects.get(id=group_id)
+
+        # Only creator can delete - NO admin override
+        if group.created_by != user:
+            return Response(
+                {"error": "Only group creator can delete this group"},
+                status=403
+            )
+
+        group.delete()
+        return Response({"message": "Group deleted successfully"})
+
+    except ChatGroup.DoesNotExist:
+        return Response({"error": "Group not found"}, status=404)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_chat_group_members(request, group_id):
+    """
+    Get all members of a chat group with admin override
+    """
+    try:
+        group = ChatGroup.objects.get(id=group_id)
+        
+        print("="*50)
+        print(f"[DEBUG] Getting members for group ID: {group_id}")
+        print(f"[DEBUG] User: {request.user.email}")
+        print(f"[DEBUG] User role: {request.user.role}")
+        print(f"[DEBUG] Group name: {group.name}")
+        print(f"[DEBUG] Group type: {group.group_type}")
+        
+        # Check if user is admin
+        is_admin_user = request.user.role in ['super_admin', 'sub_org_admin']
+        print(f"[DEBUG] Is admin user: {is_admin_user}")
+        
+        # Get user's organization
+        user_org = None
+        if hasattr(request.user, 'employee') and request.user.employee:
+            user_org = request.user.employee.organization
+            print(f"[DEBUG] User organization: {user_org.name if user_org else 'None'}")
+            print(f"[DEBUG] User organization ID: {user_org.id if user_org else 'None'}")
+        else:
+            print("[DEBUG] User has no employee profile")
+        
+        # Get group's organization through creator
+        creator_org = None
+        if group.created_by:
+            print(f"[DEBUG] Group created by: {group.created_by.email}")
+            if hasattr(group.created_by, 'employee') and group.created_by.employee:
+                creator_org = group.created_by.employee.organization
+                print(f"[DEBUG] Creator organization: {creator_org.name if creator_org else 'None'}")
+                print(f"[DEBUG] Creator organization ID: {creator_org.id if creator_org else 'None'}")
+            else:
+                print("[DEBUG] Creator has no employee profile")
+        else:
+            print("[DEBUG] Group has no creator")
+        
+        # Check if user is in manual_members
+        is_member = group.manual_members.filter(id=request.user.id).exists()
+        print(f"[DEBUG] Is direct member: {is_member}")
+        
+        # Admin override logic
+        if is_admin_user:
+            if user_org and creator_org and user_org.id == creator_org.id:
+                print(f"[DEBUG] ✅ ADMIN OVERRIDE: Organizations match! Granting access")
+                # Grant access - continue to return members
+            else:
+                print(f"[DEBUG] ❌ ADMIN OVERRIDE FAILED: Organizations don't match")
+                print(f"[DEBUG] User org ID: {user_org.id if user_org else 'None'}")
+                print(f"[DEBUG] Creator org ID: {creator_org.id if creator_org else 'None'}")
+                
+                if not is_member:
+                    print(f"[DEBUG] ❌ Access denied - not a member and admin override failed")
+                    return Response(
+                        {"error": "You are not a member of this group"},
+                        status=403
+                    )
+        else:
+            # Regular user - must be member
+            if not is_member:
+                print(f"[DEBUG] ❌ Access denied - regular user not a member")
+                return Response(
+                    {"error": "You are not a member of this group"},
+                    status=403
+                )
+        
+        # If we get here, access is granted
+        print(f"[DEBUG] ✅ Access granted to user {request.user.email}")
+        
+        # Get members based on group type
+        if group.group_type == 'project' and group.project:
+            project_members = group.project.members.all()
+            users = User.objects.filter(employee__in=project_members)
+        else:
+            users = group.manual_members.all()
+        
+        member_list = []
+        for user in users:
+            employee = getattr(user, 'employee', None)
+            
+            member_list.append({
+                'id': user.id,
+                'email': user.email,
+                'full_name': employee.full_name if employee else (user.get_full_name() or user.email),
+                'employee_id': employee.id if employee else None,
+                'department': employee.department.name if employee and employee.department else None,
+                'designation': employee.designation.title if employee and employee.designation else None,
+                'photo': employee.photo.url if employee and employee.photo else None,
+                'role': getattr(employee, 'role', None),
+                'is_creator': group.created_by.id == user.id,
+                'is_admin': group.created_by.id == user.id,
+            })
+        
+        print(f"[DEBUG] Returning {len(member_list)} members")
+        return Response(member_list)
+        
+    except ChatGroup.DoesNotExist:
+        return Response({"error": "Group not found"}, status=404)
+    except Exception as e:
+        print(f"[DEBUG] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response({"error": "Internal server error"}, status=500)
+
+        

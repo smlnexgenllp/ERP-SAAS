@@ -68,11 +68,11 @@ api.interceptors.request.use(
       config.headers["X-CSRFToken"] = csrfToken;
     }
 
-    // 2. Attach Access Token (for token-based authentication)
-    const accessToken = localStorage.getItem("access_token");
-    if (accessToken && !config.headers.Authorization) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
+    // // 2. Attach Access Token (for token-based authentication)
+    // const accessToken = localStorage.getItem("access_token");
+    // if (accessToken && !config.headers.Authorization) {
+    //   config.headers.Authorization = `Bearer ${accessToken}`;
+    // }
 
     return config;
   },

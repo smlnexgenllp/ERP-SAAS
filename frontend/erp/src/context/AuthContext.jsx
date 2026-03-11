@@ -177,6 +177,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const employeeLogout = async () => {
+  try {
+    await api.post("/auth/employee-logout/");
+  } catch (err) {
+    console.warn("Employee logout failed, proceeding client-side", err);
+  }
+
+  document.cookie = "sessionid=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+  setUser(null);
+  setOrganization(null);
+  setIsAuthenticated(false);
+
+  window.location.href = "/employee_login";
+};
+
   const value = {
     user,
     organization,
@@ -187,6 +203,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     checkAuthStatus,
     getCsrfToken,
+    employeeLogout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

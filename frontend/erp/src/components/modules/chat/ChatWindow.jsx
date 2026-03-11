@@ -9,11 +9,14 @@ import {
   Briefcase, MessageSquare, Loader2, AlertTriangle,
   ChevronLeft, Phone, Video, Search, Filter, Shield,
   Calendar, FileText, X, Eye, EyeOff, AtSign, Mic,
-  MicOff, ThumbsUp, Award, Crown, Star, Target
+  MicOff, ThumbsUp, Award, Crown, Star, Target,
+  UserPlus, UserMinus, Settings, LogOut
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import EditGroupModal from './EditGroupModal';
+import AddMemberModal from './AddMemberModal';
 
-function ChatWindow({ group, onBack }) {
+function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [file, setFile] = useState(null);
@@ -21,7 +24,7 @@ function ChatWindow({ group, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [typing, setTyping] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState([]); // ← Fixed: initialized as array
+  const [onlineUsers, setOnlineUsers] = useState([]);
   const [showMembers, setShowMembers] = useState(false);
   const [socket, setSocket] = useState(null);
   const [projectMembers, setProjectMembers] = useState([]);
@@ -32,12 +35,77 @@ function ChatWindow({ group, onBack }) {
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [showPinned, setShowPinned] = useState(false);
 
+  // State for group management
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [groupMembers, setGroupMembers] = useState([]);
+  const [isCreator, setIsCreator] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  // Get current user safely
+  const getCurrentUser = () => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) return {};
+      const user = JSON.parse(userStr);
+      return {
+        id: user.id || user.user_id || null,
+        email: user.email || '',
+        full_name: user.full_name || user.name || user.email || 'User'
+      };
+    } catch (e) {
+      console.error('Failed to parse user:', e);
+      return {};
+    }
+  };
+  
+  const currentUser = getCurrentUser();
+
+  // Check if current user is group creator - FIXED VERSION
+  useEffect(() => {
+    if (group && currentUser) {
+      // Get creator ID - handle both object and primitive
+      const creatorId = group.created_by?.id || group.created_by;
+      const currentUserId = currentUser?.id || currentUser;
+      
+      console.log('=== CREATOR CHECK ===');
+      console.log('Group:', group.name);
+      console.log('Group ID:', group.id);
+      console.log('Creator ID:', creatorId);
+      console.log('Current User ID:', currentUserId);
+      console.log('Is Creator?', creatorId === currentUserId);
+      
+      setIsCreator(creatorId === currentUserId);
+    }
+  }, [group, currentUser]);
+
+  // Fetch group members
+  const fetchGroupMembers = useCallback(async () => {
+    if (!group?.id) return;
+    
+    try {
+      const res = await api.get(`/hr/chat/groups/${group.id}/members/`);
+      setGroupMembers(res.data || []);
+    } catch (error) {
+      console.error('Failed to fetch group members:', error);
+      // Fallback: at least show creator if available
+      if (group?.created_by) {
+        setGroupMembers([{
+          id: group.created_by.id,
+          email: group.created_by.email || '',
+          full_name: group.created_by.full_name || 'Creator',
+          is_creator: true
+        }]);
+      }
+    }
+  }, [group?.id, group?.created_by]);
 
   // If no group selected
   if (!group) {
@@ -65,22 +133,19 @@ function ChatWindow({ group, onBack }) {
 
   // Load messages
   const loadMessages = useCallback(async () => {
-  try {
-    setLoading(true);
-    setError(null);
-
-    const res = await api.get(`/hr/chat/groups/${group.id}/messages/`);
-    setMessages(res.data || []);
-    setFilteredMessages(res.data || []);
-
-  } catch (err) {
-    console.error("Temporary failure loading messages:", err);
-    // Don't show scary error — just retry silently
-    setTimeout(loadMessages, 2000);  // Retry in 2 seconds
-  } finally {
-    setLoading(false);
-  }
-}, [group.id]);
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.get(`/hr/chat/groups/${group.id}/messages/`);
+      setMessages(res.data || []);
+      setFilteredMessages(res.data || []);
+    } catch (err) {
+      console.error("Temporary failure loading messages:", err);
+      setTimeout(loadMessages, 2000);
+    } finally {
+      setLoading(false);
+    }
+  }, [group.id]);
 
   // Fetch project members
   const fetchProjectMembers = useCallback(async () => {
@@ -100,7 +165,6 @@ function ChatWindow({ group, onBack }) {
   // WebSocket connection
   const connectWebSocket = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // ← Fixed: use hostname + :8000 for backend
     const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/chat/${group.id}/`;
 
     const newSocket = new WebSocket(wsUrl);
@@ -109,7 +173,6 @@ function ChatWindow({ group, onBack }) {
       console.log('WebSocket connected');
       setError(null);
 
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
       newSocket.send(JSON.stringify({
         type: 'presence',
         action: 'join',
@@ -118,10 +181,8 @@ function ChatWindow({ group, onBack }) {
     };
 
     newSocket.onmessage = (event) => {
-      console.log("Raw WebSocket message:", event.data);
       try {
         const data = JSON.parse(event.data);
-        console.log("Parsed WS data:", data);
 
         switch (data.type) {
           case 'new_message':
@@ -139,13 +200,12 @@ function ChatWindow({ group, onBack }) {
             break;
 
           case 'presence':
-  if (data.action === 'join') {
-    setOnlineUsers(prev => [...new Set([...prev, data.user_id])]);
-  } else if (data.action === 'leave') {
-    setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
-  }
-  break;
-
+            if (data.action === 'join') {
+              setOnlineUsers(prev => [...new Set([...prev, data.user_id])]);
+            } else if (data.action === 'leave') {
+              setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
+            }
+            break;
 
           case 'user_joined':
             setOnlineUsers(prev => [...prev, data.user_id]);
@@ -161,6 +221,28 @@ function ChatWindow({ group, onBack }) {
 
           case 'message_unpinned':
             setPinnedMessages(prev => prev.filter(msg => msg.id !== data.message_id));
+            break;
+
+          case 'group_updated':
+            if (onGroupUpdated) {
+              onGroupUpdated(data.group);
+            }
+            fetchGroupMembers();
+            break;
+
+          case 'member_added':
+            fetchGroupMembers();
+            break;
+
+          case 'member_removed':
+            fetchGroupMembers();
+            break;
+
+          case 'group_deleted':
+            if (onGroupDeleted) {
+              onGroupDeleted();
+            }
+            onBack();
             break;
 
           case 'error':
@@ -182,21 +264,19 @@ function ChatWindow({ group, onBack }) {
     };
 
     newSocket.onclose = (event) => {
-  console.log('WebSocket closed:', event.code, event.reason);
+      console.log('WebSocket closed:', event.code, event.reason);
 
-  // Only reconnect on abnormal closure
-  if (event.code !== 1000 && event.code !== 1001) {
-    setError("Connection lost — reconnecting...");
-    reconnectTimeoutRef.current = setTimeout(() => {
-      connectWebSocket();
-    }, 2000);
-  }
-};
+      if (event.code !== 1000 && event.code !== 1001) {
+        setError("Connection lost — reconnecting...");
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connectWebSocket();
+        }, 2000);
+      }
+    };
 
     setSocket(newSocket);
-
     return newSocket;
-  }, [group.id, currentUser.id]);
+  }, [group.id, currentUser.id, onGroupUpdated, onBack, fetchGroupMembers, onGroupDeleted]);
 
   // Load pinned messages
   const loadPinnedMessages = useCallback(async () => {
@@ -211,15 +291,16 @@ function ChatWindow({ group, onBack }) {
   useEffect(() => {
     loadMessages();
     fetchProjectMembers();
+    fetchGroupMembers();
     loadPinnedMessages();
     const ws = connectWebSocket();
 
     return () => {
-  if (ws) ws.close(1000, 'Leaving chat');  // Normal close
-  clearTimeout(reconnectTimeoutRef.current);
-  clearTimeout(typingTimeoutRef.current);
-};
-  }, [loadMessages, fetchProjectMembers, loadPinnedMessages, connectWebSocket]);
+      if (ws) ws.close(1000, 'Leaving chat');
+      clearTimeout(reconnectTimeoutRef.current);
+      clearTimeout(typingTimeoutRef.current);
+    };
+  }, [loadMessages, fetchProjectMembers, fetchGroupMembers, loadPinnedMessages, connectWebSocket]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -353,6 +434,83 @@ function ChatWindow({ group, onBack }) {
       ));
     } catch (error) {
       console.error('Failed to react to message:', error);
+    }
+  };
+
+  // Group management functions
+  const handleUpdateGroup = async (updatedGroup) => {
+    if (onGroupUpdated) {
+      onGroupUpdated(updatedGroup);
+    }
+    setShowEditModal(false);
+    fetchGroupMembers();
+  };
+
+  const handleAddMember = async (employeeId) => {
+    try {
+      await api.post(`/hr/chat/groups/${group.id}/add-member/`, {
+        employee_id: employeeId
+      });
+
+      fetchGroupMembers();
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'member_added',
+          group_id: group.id,
+          employee_id: employeeId
+        }));
+      }
+
+      setShowAddMemberModal(false);
+    } catch (error) {
+      console.error('Failed to add member:', error);
+      alert(error.response?.data?.error || 'Failed to add member');
+    }
+  };
+
+  const handleRemoveMember = async (employeeId, userName) => {
+    if (!window.confirm(`Are you sure you want to remove ${userName} from the group?`)) return;
+
+    try {
+      await api.post(`/hr/chat/groups/${group.id}/remove-member/`, {
+        employee_id: employeeId
+      });
+
+      fetchGroupMembers();
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'member_removed',
+          group_id: group.id,
+          employee_id: employeeId
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to remove member:', error);
+      alert(error.response?.data?.error || 'Failed to remove member');
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    try {
+      await api.delete(`/hr/chat/groups/${group.id}/delete/`);
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'group_deleted',
+          group_id: group.id
+        }));
+      }
+
+      setShowDeleteConfirm(false);
+      if (onGroupDeleted) {
+        onGroupDeleted();
+      }
+      onBack();
+    } catch (error) {
+      console.error('Failed to delete group:', error);
+      alert(error.response?.data?.error || 'Failed to delete group');
     }
   };
 
@@ -494,6 +652,7 @@ function ChatWindow({ group, onBack }) {
   const renderMembersSidebar = () => {
     const Icon = getGroupIcon();
     const isProject = group.group_type === 'project';
+    const creatorId = group.created_by?.id || group.created_by;
 
     return (
       <div className="absolute right-0 top-0 bottom-0 w-80 bg-gray-900 border-l border-gray-800 shadow-2xl z-10 flex flex-col">
@@ -523,22 +682,64 @@ function ChatWindow({ group, onBack }) {
         <div className="p-4 border-b border-gray-800">
           <h4 className="font-medium text-gray-300 mb-3">About</h4>
           <p className="text-gray-400 text-sm mb-4">{getGroupTypeLabel()}</p>
+          
+          {/* Show creator info with correct badge */}
+          {group.created_by && (
+            <div className="flex items-center gap-2 mb-2">
+              <Crown className="w-4 h-4 text-amber-500" />
+              <span className="text-sm text-gray-400">
+                Created by {group.created_by.full_name || group.created_by.email || 'Unknown'}
+                {creatorId === currentUser?.id && ' (You)'}
+              </span>
+            </div>
+          )}
+          
           {isProject && group.project_name && (
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <Briefcase className="w-4 h-4" />
               <span>Project: {group.project_name}</span>
             </div>
           )}
+          
           <div className="flex items-center gap-4 mt-3 text-sm">
             <div className="flex items-center gap-2 text-gray-400">
               <Users className="w-4 h-4" />
-              <span>{group.member_count || 0} members</span>
+              <span>{group.member_count || groupMembers.length || 0} members</span>
             </div>
             <div className="flex items-center gap-2 text-emerald-400">
               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
               <span>{(onlineUsers || []).length} online</span>
             </div>
           </div>
+
+          {/* EDIT AND DELETE BUTTONS - ONLY SHOW FOR CREATOR */}
+          {isCreator && (
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition"
+              >
+                <Edit className="w-4 h-4" />
+                Edit Group
+              </button>
+              
+              <button
+                onClick={() => setShowAddMemberModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
+              >
+                <UserPlus className="w-4 h-4" />
+                Add Members
+              </button>
+              
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 rounded-lg font-medium transition border border-red-900/50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Group
+              </button>
+            </div>
+          )}
         </div>
 
         {pinnedMessages.length > 0 && (
@@ -576,7 +777,7 @@ function ChatWindow({ group, onBack }) {
         <div className="flex-1 overflow-y-auto">
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-gray-300">Members ({group.member_count || 0})</h4>
+              <h4 className="font-medium text-gray-300">Members ({groupMembers.length})</h4>
               {loadingMembers && <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
             </div>
 
@@ -594,76 +795,67 @@ function ChatWindow({ group, onBack }) {
               </div>
             ) : (
               <div className="space-y-2">
-                {isProject && projectMembers.length > 0 && (
-                  <div className="mb-4">
-                    <h5 className="text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">Project Team</h5>
-                    {projectMembers.map(member => (
-                      <div key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-800/30 rounded-lg">
-                        <div className="relative">
-                          <div className="w-8 h-8 bg-gradient-to-br from-emerald-600 to-blue-600 rounded-full flex items-center justify-center">
-                            {member.photo ? (
-                              <img src={member.photo} alt={member.full_name} className="w-full h-full rounded-full object-cover" />
-                            ) : (
-                              <span className="text-white text-sm font-bold">
-                                {member.full_name?.[0]?.toUpperCase() || 'U'}
-                              </span>
-                            )}
-                          </div>
-                          {onlineUsers?.includes(member.id) && (
-                            <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-gray-900"></div>
+                {groupMembers.map(member => {
+                  const isOnline = onlineUsers?.includes(member.id);
+                  const isMemberCreator = member.id === creatorId;
+                  const isCurrentUser = member.id === currentUser?.id;
+
+                  return (
+                    <div key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-800/30 rounded-lg group">
+                      <div className="relative">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          isMemberCreator 
+                            ? 'bg-gradient-to-br from-amber-600 to-orange-600' 
+                            : 'bg-gradient-to-br from-cyan-600 to-blue-600'
+                        }`}>
+                          {member.photo ? (
+                            <img src={member.photo} alt={member.full_name} className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            <span className="text-white font-bold text-lg">
+                              {member.full_name?.[0]?.toUpperCase() || 'U'}
+                            </span>
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-200 truncate">
-                              {member.full_name || member.email}
-                            </p>
-                            {member.id === currentUser.id && (
-                              <span className="text-xs px-1.5 py-0.5 bg-cyan-900/30 text-cyan-300 rounded">You</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {member.department && (
-                              <span className="text-xs text-gray-400 truncate">{member.department}</span>
-                            )}
-                            {member.role && (
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${member.role === 'admin' ? 'bg-purple-900/30 text-purple-300' :
-                                member.role === 'manager' ? 'bg-blue-900/30 text-blue-300' :
-                                  'bg-gray-800/50 text-gray-400'
-                                }`}>
-                                {member.role}
-                              </span>
-                            )}
-                          </div>
+                        {isOnline && (
+                          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-gray-900"></div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-200 truncate">
+                            {member.full_name || member.email}
+                          </p>
+                          {isMemberCreator && (
+                            <Crown className="w-3 h-3 text-amber-500" title="Group Creator" />
+                          )}
+                          {isCurrentUser && (
+                            <span className="text-xs px-1.5 py-0.5 bg-cyan-900/30 text-cyan-300 rounded">You</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {member.designation && (
+                            <span className="text-xs text-gray-400 truncate">{member.designation}</span>
+                          )}
+                          {isOnline && (
+                            <span className="text-xs text-emerald-400">Online</span>
+                          )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                {(onlineUsers || []).length > 0 && projectMembers.length > 0 && (
-                  <div className="mb-4">
-                    <h5 className="text-xs font-medium text-emerald-400 mb-2 uppercase tracking-wider">Online Now</h5>
-                    {projectMembers
-                      .filter(member => onlineUsers?.includes(member.id))
-                      .map(member => (
-                        <div key={member.id} className="flex items-center gap-3 p-2">
-                          <div className="relative">
-                            <div className="w-8 h-8 bg-gradient-to-br from-emerald-600 to-blue-600 rounded-full flex items-center justify-center">
-                              <span className="text-white text-sm font-bold">
-                                {member.full_name?.[0]?.toUpperCase() || 'U'}
-                              </span>
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-gray-900"></div>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-200">{member.full_name}</p>
-                            <p className="text-xs text-emerald-400">Online</p>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
+                      
+                      {/* Remove button - only for creator and not for self/creator */}
+                      {isCreator && !isMemberCreator && !isCurrentUser && (
+                        <button
+                          onClick={() => handleRemoveMember(member.employee_id || member.id, member.full_name)}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-900/30 rounded transition"
+                          title="Remove from group"
+                        >
+                          <UserMinus className="w-4 h-4 text-red-400" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -708,7 +900,7 @@ function ChatWindow({ group, onBack }) {
                 {pinnedMessages.map(msg => (
                   <div
                     key={msg.id}
-                    className="p-4 bg-gray-800/30 rounded-xl border border-gray-700 hover:border-gray-600 transition"
+                    className="p-4 bg-gray-800/30 rounded-xl border border-gray-700 hover:border-gray-600 transition cursor-pointer"
                     onClick={() => {
                       setShowPinned(false);
                       const element = document.getElementById(`message-${msg.id}`);
@@ -773,6 +965,48 @@ function ChatWindow({ group, onBack }) {
     );
   };
 
+  const renderDeleteConfirmModal = () => {
+    if (!showDeleteConfirm) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="bg-gray-900 rounded-2xl w-full max-w-md overflow-hidden border border-gray-800 shadow-2xl">
+          <div className="p-6">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-red-900/30 rounded-full">
+                <AlertTriangle className="w-8 h-8 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-100">Delete Group</h3>
+                <p className="text-gray-400">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <p className="text-gray-300 mb-6">
+              Are you sure you want to delete <span className="font-bold text-cyan-400">{group.name}</span>?
+              All messages and group data will be permanently removed.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteGroup}
+                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
+              >
+                Delete Group
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-gradient-to-b from-gray-900 to-gray-950 relative">
       <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-20">
@@ -791,11 +1025,14 @@ function ChatWindow({ group, onBack }) {
               {group.group_type === 'project' && (
                 <span className="px-2 py-0.5 text-xs bg-emerald-900/30 text-emerald-400 rounded-full">Project</span>
               )}
+              {isCreator && (
+                <span className="px-2 py-0.5 text-xs bg-amber-900/30 text-amber-400 rounded-full">Creator</span>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1 text-sm text-gray-400">
                 <Users className="w-3 h-3" />
-                <span>{group.member_count || 0} members</span>
+                <span>{group.member_count || groupMembers.length || 0} members</span>
               </div>
               <div className="flex items-center gap-1 text-sm text-emerald-400">
                 <div className="flex -space-x-1">
@@ -846,14 +1083,33 @@ function ChatWindow({ group, onBack }) {
           <button className="p-2 hover:bg-gray-800 rounded-lg transition">
             <Bell className="w-5 h-5 text-gray-400" />
           </button>
-          <button className="p-2 hover:bg-gray-800 rounded-lg transition">
-            <MoreVertical className="w-5 h-5 text-gray-400" />
-          </button>
         </div>
       </div>
 
       {showMembers && renderMembersSidebar()}
       {renderPinnedModal()}
+      {renderDeleteConfirmModal()}
+
+      {/* Modals for group management - only render when needed */}
+      {showEditModal && isCreator && (
+        <EditGroupModal
+          group={group}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleUpdateGroup}
+          currentUser={currentUser}
+        />
+      )}
+
+      {showAddMemberModal && isCreator && (
+        <AddMemberModal
+          group={group}
+          onClose={() => setShowAddMemberModal(false)}
+          onAdd={handleAddMember}
+          onRemove={handleRemoveMember}
+          existingMembers={groupMembers}
+          currentUser={currentUser}
+        />
+      )}
 
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 relative">
         {loading ? (

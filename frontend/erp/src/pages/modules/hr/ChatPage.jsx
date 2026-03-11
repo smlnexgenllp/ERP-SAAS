@@ -1,10 +1,10 @@
 // src/pages/hr/ChatPage.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Add useCallback
 import ChatSidebar from "../../../components/modules/chat/ChatSidebar";
 import ChatWindow from "../../../components/modules/chat/ChatWindow";
 import CreateGroupModal from "../../../components/modules/chat/CreateGroupModal";
 import { useAuth } from "../../../context/AuthContext";
-import { MessageSquare, Users, Plus, AlertCircle } from "lucide-react";
+import { MessageSquare, Users, Plus, AlertCircle, RefreshCw } from "lucide-react"; // Add RefreshCw
 import api from "../../../services/api";
 
 export default function ChatPage() {
@@ -13,31 +13,56 @@ export default function ChatPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false); // Add loading state
+  const [error, setError] = useState(null); // Add error state
+
+  // Memoize fetch function to prevent unnecessary re-renders
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.get('/hr/chat/groups/');
+      const groups = res.data || [];
+      const totalUnread = groups.reduce((sum, group) => sum + (group.unread_count || 0), 0);
+      setUnreadCount(totalUnread);
+    } catch (error) {
+      console.error("Failed to fetch unread count:", error);
+      setError("Could not update unread count");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Fetch total unread count
   useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        // You might need to add an endpoint for total unread count
-        // For now, we'll calculate from groups
-        const res = await api.get('/hr/chat/groups/');
-        const groups = res.data || [];
-        const totalUnread = groups.reduce((sum, group) => sum + (group.unread_count || 0), 0);
-        setUnreadCount(totalUnread);
-      } catch (error) {
-        console.error("Failed to fetch unread count:", error);
-      }
-    };
-
     fetchUnreadCount();
+    
     // Refresh every 30 seconds for unread count
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [refreshSidebar]);
+  }, [fetchUnreadCount, refreshSidebar]); // Add fetchUnreadCount to dependencies
 
   const handleGroupCreated = () => {
     setShowCreateModal(false);
-    setRefreshSidebar(prev => prev + 1); // Trigger sidebar refresh
+    setRefreshSidebar(prev => prev + 1);
+  };
+
+  // Handle group updates from ChatWindow
+  const handleGroupUpdated = (updatedGroup) => {
+    setSelectedGroup(updatedGroup);
+    setRefreshSidebar(prev => prev + 1);
+  };
+
+  // Handle group deletion
+  const handleGroupDeleted = () => {
+    setSelectedGroup(null);
+    setRefreshSidebar(prev => prev + 1);
+  };
+
+  // Manual refresh
+  const handleRefresh = () => {
+    fetchUnreadCount();
+    setRefreshSidebar(prev => prev + 1);
   };
 
   return (
@@ -51,6 +76,9 @@ export default function ChatPage() {
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 flex items-center justify-center animate-pulse">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
+            )}
+            {loading && (
+              <RefreshCw className="absolute -top-2 -right-2 w-4 h-4 text-cyan-400 animate-spin" />
             )}
           </div>
           <div>
@@ -78,15 +106,37 @@ export default function ChatPage() {
             )}
           </div>
           
-          {/* <button
+          {/* Refresh button (optional) */}
+          <button
+            onClick={handleRefresh}
+            className="p-2 hover:bg-gray-800 rounded-lg transition"
+            title="Refresh"
+          >
+            <RefreshCw className="w-5 h-5 text-gray-400" />
+          </button>
+
+          <button
             onClick={() => setShowCreateModal(true)}
             className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-4 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-cyan-500/20"
           >
             <Plus className="w-5 h-5" />
             New Group
-          </button> */}
+          </button>
         </div>
       </header>
+
+      {/* Error banner (optional) */}
+      {error && (
+        <div className="bg-red-900/50 border-b border-red-700 px-6 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-red-200">
+            <AlertCircle className="w-4 h-4" />
+            <span className="text-sm">{error}</span>
+          </div>
+          <button onClick={fetchUnreadCount} className="text-xs text-red-200 hover:text-red-100">
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden">
@@ -106,6 +156,8 @@ export default function ChatPage() {
             <ChatWindow 
               group={selectedGroup} 
               onBack={() => setSelectedGroup(null)}
+              onGroupUpdated={handleGroupUpdated}
+              onGroupDeleted={handleGroupDeleted}
             />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-b from-gray-900/50 to-gray-950/50 p-8">
@@ -121,18 +173,18 @@ export default function ChatPage() {
                   to start collaborating with your team in real-time.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-                    <MessageSquare className="w-6 h-6 text-cyan-400 mb-2 mx-auto" />
+                  <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700 hover:border-cyan-700 transition-all duration-300 group">
+                    <MessageSquare className="w-6 h-6 text-cyan-400 mb-2 mx-auto group-hover:scale-110 transition-transform" />
                     <h4 className="font-medium text-gray-300">Organization Chat</h4>
                     <p className="text-sm text-gray-500 mt-1">Company-wide announcements</p>
                   </div>
-                  <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-                    <div className="w-6 h-6 text-cyan-400 mb-2 mx-auto">📋</div>
+                  <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700 hover:border-cyan-700 transition-all duration-300 group">
+                    <div className="w-6 h-6 text-cyan-400 mb-2 mx-auto group-hover:scale-110 transition-transform">📋</div>
                     <h4 className="font-medium text-gray-300">Project Teams</h4>
                     <p className="text-sm text-gray-500 mt-1">Project-specific discussions</p>
                   </div>
-                  <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-                    <div className="w-6 h-6 text-cyan-400 mb-2 mx-auto">👥</div>
+                  <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700 hover:border-cyan-700 transition-all duration-300 group">
+                    <div className="w-6 h-6 text-cyan-400 mb-2 mx-auto group-hover:scale-110 transition-transform">👥</div>
                     <h4 className="font-medium text-gray-300">Custom Groups</h4>
                     <p className="text-sm text-gray-500 mt-1">Create your own teams</p>
                   </div>

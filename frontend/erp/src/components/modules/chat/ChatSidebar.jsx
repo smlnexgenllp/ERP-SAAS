@@ -29,15 +29,33 @@ function ChatSidebar({ onSelectGroup, currentUser, selectedGroup, refreshTrigger
       
       const res = await api.get('/hr/chat/groups/');
       
-      // Transform data to include icons and better grouping
-      const transformedGroups = (res.data || []).map(group => ({
-        ...group,
-        icon: getGroupIcon(group.group_type),
-        memberCount: group.member_count || 0,
-        lastMessageTime: group.last_message?.timestamp 
-          ? new Date(group.last_message.timestamp).getTime()
-          : 0
-      }));
+      // Transform data to include icons, creator info, and better grouping
+      const transformedGroups = (res.data || []).map(group => {
+        // Get creator info - handle both object and ID formats
+        let creatorInfo = null;
+        if (group.created_by) {
+          if (typeof group.created_by === 'object') {
+            creatorInfo = group.created_by;
+          } else {
+            // If created_by is just an ID, create a basic object
+            creatorInfo = {
+              id: group.created_by,
+              // We'll need to fetch full creator details later if needed
+            };
+          }
+        }
+
+        return {
+          ...group,
+          icon: getGroupIcon(group.group_type),
+          memberCount: group.member_count || 0,
+          lastMessageTime: group.last_message?.timestamp 
+            ? new Date(group.last_message.timestamp).getTime()
+            : 0,
+          created_by: creatorInfo || { id: group.created_by_id }, // Ensure created_by exists
+          created_by_id: group.created_by_id || group.created_by?.id,
+        };
+      });
       
       setGroups(transformedGroups);
     } catch (err) {
@@ -127,6 +145,25 @@ function ChatSidebar({ onSelectGroup, currentUser, selectedGroup, refreshTrigger
     custom: sortedGroups.filter(g => g.group_type === 'custom'),
   };
 
+  // Handle group selection with enhanced data
+  const handleGroupSelect = (group) => {
+    // Enhance group with creator info before passing to ChatWindow
+    const enhancedGroup = {
+      ...group,
+      // Ensure created_by is properly structured
+      created_by: group.created_by || { 
+        id: group.created_by_id || group.created_by 
+      },
+    };
+    
+    // Log for debugging
+    console.log('Selected group:', enhancedGroup);
+    console.log('Current user:', currentUser);
+    console.log('Is creator?', enhancedGroup.created_by?.id === currentUser?.id);
+    
+    onSelectGroup(enhancedGroup);
+  };
+
   if (loading && !refreshing) {
     return (
       <div className="w-full h-full flex flex-col">
@@ -181,7 +218,7 @@ function ChatSidebar({ onSelectGroup, currentUser, selectedGroup, refreshTrigger
       {/* Header */}
       <div className="p-4 border-b border-gray-800">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-100">Conversa\tions</h2>
+          <h2 className="text-xl font-bold text-gray-100">Conversations</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
@@ -285,7 +322,7 @@ function ChatSidebar({ onSelectGroup, currentUser, selectedGroup, refreshTrigger
               return (
                 <div
                   key={group.id}
-                  onClick={() => onSelectGroup(group)}
+                  onClick={() => handleGroupSelect(group)}
                   className={`p-4 cursor-pointer transition-all duration-200 border-l-2 ${
                     isSelected
                       ? 'bg-gradient-to-r from-cyan-900/20 to-transparent border-l-cyan-500'
@@ -339,6 +376,11 @@ function ChatSidebar({ onSelectGroup, currentUser, selectedGroup, refreshTrigger
                           <Users className="w-3 h-3" />
                           {group.memberCount} members
                         </span>
+
+                        {/* Show creator indicator */}
+                        {group.created_by?.id === currentUser?.id && (
+                          <span className="text-xs text-amber-400">(You)</span>
+                        )}
                       </div>
                       
                       {group.last_message && (
