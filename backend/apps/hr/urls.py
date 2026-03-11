@@ -34,7 +34,10 @@ from .views.payslip_views import(
     generate_payslip_pdf,
 )
 from .views.task_views import TaskViewSet, DailyChecklistViewSet,performance_report, project_updates,ProjectViewSet,DailyTLReportViewSet
-from .views.chat_views import (ChatGroupViewSet,  group_messages, upload_chat_file, create_custom_chat_group,get_project_chat_members,get_pinned_messages)
+from .views.chat_views import (ChatGroupViewSet,  group_messages, upload_chat_file, create_custom_chat_group,get_project_chat_members,get_pinned_messages,update_chat_group,
+    delete_chat_group,
+    add_member_to_group,
+    remove_member_from_group,get_chat_group_members)
 # Router for standard CRUD APIs
 router = DefaultRouter()
 router.register('employees', EmployeeViewSet, basename='employees')
@@ -88,13 +91,21 @@ urlpatterns = [
      # Chat endpoints (separate from router for custom actions)
     path('chat/groups/<int:group_id>/messages/', group_messages, name='chat-group-messages'),
     path('chat/upload-file/', upload_chat_file, name='chat-file-upload'),
-    path('chat/groups/create/', create_custom_chat_group, name='create-custom-chat-group'),
+    path('chat/custom-groups/create/', create_custom_chat_group, name='create-custom-chat-group'),
     path('chat/groups/create-project-chat/', ChatGroupViewSet.as_view({'post': 'create_project_chat'}), name='create-project-chat'),
+
+    path('chat/groups/<int:group_id>/update/', update_chat_group, name='update-chat-group'),
+    path('chat/groups/<int:group_id>/delete/', delete_chat_group, name='delete-chat-group'),
+    path('chat/groups/<int:group_id>/add-member/', add_member_to_group, name='add-group-member'),
+    path('chat/groups/<int:group_id>/remove-member/', remove_member_from_group, name='remove-group-member'),
      # New endpoint to get project chat members
     path('projects/<int:project_id>/chat-members/', get_project_chat_members, name='project-chat-members'),
     path('chat/groups/<int:group_id>/pinned/', get_pinned_messages, name='chat-pinned-messages'),
     path('daily-checklists/<int:pk>/rate/', DailyChecklistViewSet.as_view({'patch': 'rate'}), name='dailychecklist-rate'),
-   path('employees/active/', EmployeeViewSet.as_view({'get': 'active_employees'}), name='active-employees'),
+    path('employees/active/', EmployeeViewSet.as_view({'get': 'active_employees'}), name='active-employees'),
+
+    path('chat/groups/<int:group_id>/members/', get_chat_group_members, name='chat-group-members'),
+    # path('hr/chat/groups/',get_chat_groups, name='chat-groups-list'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
