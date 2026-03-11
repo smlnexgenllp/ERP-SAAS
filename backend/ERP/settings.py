@@ -62,7 +62,7 @@ INSTALLED_APPS = [
     'apps.hr.apps.HrConfig',
     'apps.inventory',
     'apps.crm',
-    'apps.sales',
+    'apps.sales.apps.SalesConfig',
     'apps.modules',
     'apps.transport',
     'apps.payroll',

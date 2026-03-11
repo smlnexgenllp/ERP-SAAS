@@ -110,22 +110,19 @@ class CallLogSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
-        fields = '__all__'
-        extra_kwargs = {
-            'organization': {'required': False},
-            'created_by': {'required': False},
-        }
-
-    def create(self, validated_data):
-        request = self.context['request']
-        validated_data['organization'] = request.user.organization
-        validated_data['created_by'] = request.user
-        return super().create(validated_data)
-
-
+        fields = [
+            'id', 'full_name', 'email', 'phone', 'company',
+            'pan_number', 'gstin', 'aadhaar_number',
+            'business_type', 'industry', 'alternate_phone',
+            'billing_address', 'shipping_address',
+            'payment_terms_days', 'credit_limit',
+            'status', 'notes', 'customer_since', 'created_by'
+        ]
+        read_only_fields = ['customer_since', 'created_by']
 class QuotationItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuotationItem

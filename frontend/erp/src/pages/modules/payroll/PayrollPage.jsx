@@ -117,7 +117,7 @@ const PayrollPage = () => {
               'Dashboard',
               'Salary Setup',
               'Attendance & Payroll',
-              'Invoice Generation',
+              
               'Payroll History',
             ].map((tab, index) => (
               <button

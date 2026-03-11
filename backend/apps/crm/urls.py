@@ -5,6 +5,7 @@ from rest_framework.routers import DefaultRouter
 # Import all the ViewSets you're using
 from .views import (
     ContactViewSet,
+    CustomerCreateView,
     OpportunityViewSet,
     CallLogViewSet,
     ProductViewSet,
@@ -28,9 +29,11 @@ router.register(r'activities',      ActivityViewSet,         basename='crm-activ
 
 
 
+
+
 urlpatterns = [
     path('', include(router.urls)),
-    
+    path('customers/', CustomerCreateView.as_view(), name='customer-create')
     # You can add non-ViewSet endpoints here if needed in the future
     # path('reports/sales-pipeline/', SalesPipelineReportView.as_view(), name='sales-pipeline-report'),
     # path('reports/revenue/', RevenueReportView.as_view(), name='revenue-report'),
