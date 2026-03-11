@@ -111,12 +111,10 @@ const Login = () => {
 
         {/* Demo Info */}
         <div className="mt-8 p-4 bg-gray-900/30 border border-cyan-800 rounded-lg text-center">
-          <h3 className="text-sm font-medium text-pink-400 mb-2">
-            Demo Credentials
+          <h3 className="text-xl font-medium text-pink-400 mb-2">
+            Employee Login
           </h3>
-          <p className="text-cyan-300 text-sm">
-            Use your main organization admin credentials
-          </p>
+          <button onClick={()=>navigate("/employee_login")}  className="w-full bg-cyan-600 hover:bg-cyan-500 text-gray-950 py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed">Click Here </button>
         </div>
       </div>
     </div>
