@@ -694,7 +694,16 @@ export default function MyProfile() {
                     </span>
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </button>
-
+                  <button
+                    onClick={() => navigate("/hr/chat")}
+                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Users className="w-6 h-6 text-cyan-400" />
+                      Chat
+                    </span>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                  </button>
                 </div>
               </div>
 

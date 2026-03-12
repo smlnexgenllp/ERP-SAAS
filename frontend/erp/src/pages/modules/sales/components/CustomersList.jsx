@@ -71,12 +71,12 @@ export default function CustomersList() {
           </div>
         </div>
 
-        <button
+        {/* <button
           onClick={() => navigate('/sale/customers/create')}
           className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-lg transition-all"
         >
           <Users size={20} /> Add Customer
-        </button>
+        </button> */}
       </header>
 
       <div className="p-6 md:p-8">
