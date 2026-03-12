@@ -66,7 +66,7 @@ import CustomerDetail from "./pages/modules/sales/components/CustomerDetail";
 import CustomerEdit from "./pages/modules/sales/components/CustomerEdit";
 import SalesOrderCreate from "./pages/modules/sales/components/SalesOrderCreate";
 import SalesOrderList from "./pages/modules/sales/components/SalesOrderList";
-
+import LeadDetail from "./pages/modules/sales/components/LeadDetail";
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -215,9 +215,9 @@ function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute>
+              
                 <MyProfile />
-              </ProtectedRoute>
+             
             }
           />
           {/* -------- HR MODULE (Now accessible by HR, Manager, TL) -------- */}
@@ -280,9 +280,7 @@ function App() {
           <Route
             path="/hr/jobreferrals"
             element={
-              <HRProtectedRoute>
                 <JobReferral />
-              </HRProtectedRoute>
             }
           />
           <Route

@@ -152,13 +152,13 @@ export default function SalesOrderList() {
 
         </div>
 
-        <button
+        {/* <button
           onClick={() => navigate("/sale/orders/create")}
           className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg flex gap-2 items-center"
         >
           <Plus size={18} />
           New Order
-        </button>
+        </button> */}
       </header>
 
       {/* FILTERS */}
@@ -265,23 +265,23 @@ export default function SalesOrderList() {
 
                     <td className="p-4 flex gap-3 justify-center">
 
-                      <button
+                      {/* <button
                         onClick={() =>
                           navigate(`/sale/orders/${order.id}`)
                         }
                         className="text-cyan-400"
                       >
                         <Eye size={18} />
-                      </button>
+                      </button> */}
 
-                      <button
+                      {/* <button
                         onClick={() =>
                           navigate(`/sale/orders/${order.id}/edit`)
                         }
                         className="text-purple-400"
                       >
                         <Edit size={18} />
-                      </button>
+                      </button> */}
 
                       {["draft", "confirmed"].includes(order.status) && (
                         <button
