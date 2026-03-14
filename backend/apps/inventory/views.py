@@ -375,3 +375,23 @@ class InventoryDashboardStatsAPIView(APIView):
         }
 
         return Response(data)
+class InventoryDashboardStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Example – adjust based on your real logic
+        low_stock = Item.objects.filter(
+            organization=request.user.organization,
+            current_stock__lte=10  # or use min_stock_level field if you have it
+        ).count()
+
+        # MRP shortages – if you have MRPRequirement model
+        shortages = 0  # replace with real count later
+        # shortages = MRPRequirement.objects.filter(shortage__gt=0).count()
+
+        data = {
+            'low_stock_items': low_stock,
+            'material_shortages': shortages,
+            'pending_pos': 5,  # example – count open Purchase Orders
+        }
+        return Response(data)

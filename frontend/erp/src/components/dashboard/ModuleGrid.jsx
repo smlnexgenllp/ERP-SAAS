@@ -33,6 +33,9 @@ const ModuleGrid = ({ modules, onModuleClick }) => {
       case "transport":
         navigate("/transport/dashboard");
         break;
+      case "manufacturing":
+        navigate("/manufacturing/dashboard");
+        break;
       default:
         if (onModuleClick) onModuleClick(module);
     }
