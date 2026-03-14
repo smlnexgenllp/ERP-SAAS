@@ -16,7 +16,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import EditGroupModal from './EditGroupModal';
 import AddMemberModal from './AddMemberModal';
 
-function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
+const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [file, setFile] = useState(null);
@@ -48,40 +48,64 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
   const typingTimeoutRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  
+
   // Get current user safely
   const getCurrentUser = () => {
     try {
-      const userStr = localStorage.getItem('user');
-      if (!userStr) return {};
+      const userStr = localStorage.getItem("user");
+      if (!userStr) return null;
+
       const user = JSON.parse(userStr);
+
       return {
-        id: user.id || user.user_id || null,
-        email: user.email || '',
-        full_name: user.full_name || user.name || user.email || 'User'
+        id: user.id || user.user_id || user?.user?.id || null,
+        email: user.email || user?.user?.email || "",
+        full_name:
+          user.full_name ||
+          user.name ||
+          user?.user?.full_name ||
+          user?.user?.name ||
+          "User"
       };
     } catch (e) {
-      console.error('Failed to parse user:', e);
-      return {};
+      console.error("Failed to parse user:", e);
+      return null;
     }
   };
-  
-  const currentUser = getCurrentUser();
 
+  // const currentUser = getCurrentUser();
+
+  // Check if current user is group creator - FIXED VERSION
   // Check if current user is group creator - FIXED VERSION
   useEffect(() => {
     if (group && currentUser) {
-      // Get creator ID - handle both object and primitive
-      const creatorId = group.created_by?.id || group.created_by;
-      const currentUserId = currentUser?.id || currentUser;
-      
+      // Get creator ID from multiple possible sources
+      let creatorId = null;
+
+      // Check all possible places where creator ID might be stored
+      if (group.created_by_details?.id) {
+        creatorId = group.created_by_details.id;
+        console.log('Creator ID from created_by_details:', creatorId);
+      } else if (group.created_by?.id) {
+        creatorId = group.created_by.id;
+        console.log('Creator ID from created_by.id:', creatorId);
+      } else if (typeof group.created_by === 'number') {
+        creatorId = group.created_by;
+        console.log('Creator ID from created_by (number):', creatorId);
+      } else if (group.created_by_id) {
+        creatorId = group.created_by_id;
+        console.log('Creator ID from created_by_id:', creatorId);
+      }
+
+      const currentUserId = currentUser?.id;
+
       console.log('=== CREATOR CHECK ===');
       console.log('Group:', group.name);
       console.log('Group ID:', group.id);
       console.log('Creator ID:', creatorId);
       console.log('Current User ID:', currentUserId);
       console.log('Is Creator?', creatorId === currentUserId);
-      
+
       setIsCreator(creatorId === currentUserId);
     }
   }, [group, currentUser]);
@@ -89,7 +113,7 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
   // Fetch group members
   const fetchGroupMembers = useCallback(async () => {
     if (!group?.id) return;
-    
+
     try {
       const res = await api.get(`/hr/chat/groups/${group.id}/members/`);
       setGroupMembers(res.data || []);
@@ -176,7 +200,7 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
       newSocket.send(JSON.stringify({
         type: 'presence',
         action: 'join',
-        user_id: currentUser.id
+        user_id: currentUser?.id
       }));
     };
 
@@ -276,7 +300,7 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
 
     setSocket(newSocket);
     return newSocket;
-  }, [group.id, currentUser.id, onGroupUpdated, onBack, fetchGroupMembers, onGroupDeleted]);
+  }, [group.id, currentUser?.id, onGroupUpdated, onBack, fetchGroupMembers, onGroupDeleted]);
 
   // Load pinned messages
   const loadPinnedMessages = useCallback(async () => {
@@ -446,51 +470,53 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
     fetchGroupMembers();
   };
 
-  const handleAddMember = async (employeeId) => {
-    try {
-      await api.post(`/hr/chat/groups/${group.id}/add-member/`, {
-        employee_id: employeeId
-      });
+  const handleAddMember = async (payload) => {
+  try {
+    console.log('Adding member with payload:', payload);
+    const response = await api.post(`/hr/chat/groups/${group.id}/add-member/`, payload);
+    console.log('Add member response:', response.data);
 
-      fetchGroupMembers();
+    fetchGroupMembers();
 
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({
-          type: 'member_added',
-          group_id: group.id,
-          employee_id: employeeId
-        }));
-      }
-
-      setShowAddMemberModal(false);
-    } catch (error) {
-      console.error('Failed to add member:', error);
-      alert(error.response?.data?.error || 'Failed to add member');
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'member_added',
+        group_id: group.id,
+        ...payload
+      }));
     }
-  };
 
-  const handleRemoveMember = async (employeeId, userName) => {
-    if (!window.confirm(`Are you sure you want to remove ${userName} from the group?`)) return;
+    setShowAddMemberModal(false);
+  } catch (error) {
+    console.error('Failed to add member:', error);
+    console.error('Error response:', error.response?.data);
+    alert(error.response?.data?.error || 'Failed to add member');
+  }
+};
 
-    try {
-      await api.post(`/hr/chat/groups/${group.id}/remove-member/`, {
-        employee_id: employeeId
-      });
+const handleRemoveMember = async (payload, userName) => {
+  if (!window.confirm(`Are you sure you want to remove ${userName} from the group?`)) return;
 
-      fetchGroupMembers();
+  try {
+    console.log('Removing member with payload:', payload);
+    const response = await api.post(`/hr/chat/groups/${group.id}/remove-member/`, payload);
+    console.log('Remove member response:', response.data);
 
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({
-          type: 'member_removed',
-          group_id: group.id,
-          employee_id: employeeId
-        }));
-      }
-    } catch (error) {
-      console.error('Failed to remove member:', error);
-      alert(error.response?.data?.error || 'Failed to remove member');
+    fetchGroupMembers();
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'member_removed',
+        group_id: group.id,
+        ...payload
+      }));
     }
-  };
+  } catch (error) {
+    console.error('Failed to remove member:', error);
+    console.error('Error response:', error.response?.data);
+    alert(error.response?.data?.error || 'Failed to remove member');
+  }
+};
 
   const handleDeleteGroup = async () => {
     try {
@@ -556,7 +582,7 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
   };
 
   const renderMessage = (msg) => {
-    const isOwn = msg.sender?.id === currentUser.id;
+    const isOwn = msg.sender?.id === currentUser?.id;
     const isImage = msg.file_url && msg.file_url.match(/\.(jpg|jpeg|png|gif)$/i);
     const isFile = msg.file_url && !isImage;
     const isOnline = onlineUsers?.includes(msg.sender?.id);
@@ -682,25 +708,31 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
         <div className="p-4 border-b border-gray-800">
           <h4 className="font-medium text-gray-300 mb-3">About</h4>
           <p className="text-gray-400 text-sm mb-4">{getGroupTypeLabel()}</p>
-          
+
           {/* Show creator info with correct badge */}
-          {group.created_by && (
+          {/* Show creator info with correct badge */}
+          {(group.created_by || group.created_by_details) && (
             <div className="flex items-center gap-2 mb-2">
               <Crown className="w-4 h-4 text-amber-500" />
               <span className="text-sm text-gray-400">
-                Created by {group.created_by.full_name || group.created_by.email || 'Unknown'}
+                Created by {
+                  group.created_by_details?.full_name ||
+                  group.created_by?.full_name ||
+                  group.created_by?.email ||
+                  'Creator'
+                }
                 {creatorId === currentUser?.id && ' (You)'}
               </span>
             </div>
           )}
-          
+
           {isProject && group.project_name && (
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <Briefcase className="w-4 h-4" />
               <span>Project: {group.project_name}</span>
             </div>
           )}
-          
+
           <div className="flex items-center gap-4 mt-3 text-sm">
             <div className="flex items-center gap-2 text-gray-400">
               <Users className="w-4 h-4" />
@@ -722,7 +754,7 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
                 <Edit className="w-4 h-4" />
                 Edit Group
               </button>
-              
+
               <button
                 onClick={() => setShowAddMemberModal(true)}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
@@ -730,7 +762,7 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
                 <UserPlus className="w-4 h-4" />
                 Add Members
               </button>
-              
+
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 rounded-lg font-medium transition border border-red-900/50"
@@ -797,17 +829,16 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
               <div className="space-y-2">
                 {groupMembers.map(member => {
                   const isOnline = onlineUsers?.includes(member.id);
-                  const isMemberCreator = member.id === creatorId;
+                  const isMemberCreator = member.is_creator || member.id === creatorId;
                   const isCurrentUser = member.id === currentUser?.id;
 
                   return (
                     <div key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-800/30 rounded-lg group">
                       <div className="relative">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isMemberCreator 
-                            ? 'bg-gradient-to-br from-amber-600 to-orange-600' 
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMemberCreator
+                            ? 'bg-gradient-to-br from-amber-600 to-orange-600'
                             : 'bg-gradient-to-br from-cyan-600 to-blue-600'
-                        }`}>
+                          }`}>
                           {member.photo ? (
                             <img src={member.photo} alt={member.full_name} className="w-full h-full rounded-full object-cover" />
                           ) : (
@@ -820,7 +851,7 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
                           <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-gray-900"></div>
                         )}
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium text-gray-200 truncate">
@@ -842,7 +873,7 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
                           )}
                         </div>
                       </div>
-                      
+
                       {/* Remove button - only for creator and not for self/creator */}
                       {isCreator && !isMemberCreator && !isCurrentUser && (
                         <button
