@@ -67,6 +67,8 @@ import CustomerEdit from "./pages/modules/sales/components/CustomerEdit";
 import SalesOrderCreate from "./pages/modules/sales/components/SalesOrderCreate";
 import SalesOrderList from "./pages/modules/sales/components/SalesOrderList";
 import LeadDetail from "./pages/modules/sales/components/LeadDetail";
+import ManufacturingDashboard from "./components/modules/production/pages/ManufacturingDashboard";
+import PendingSalesOrders from "./components/modules/production/pages/PendingSalesOrders";
 /* -------------------- ROUTE GUARDS -------------------- */
 
 const ProtectedRoute = ({ children }) => {
@@ -362,7 +364,7 @@ function App() {
           <Route path="/items/create" element={<ItemCreate />} />
           <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
           <Route path="/inventory/dashboard" element={<InventoryDashboard />} />
-
+          
 
           <Route path="/vendor-payments/create" element={<VendorPaymentCreate />} />
           <Route path="/vendor-invoices/create" element={<VendorInvoiceCreate />} />
@@ -392,6 +394,8 @@ function App() {
           <Route path="/sale/customers/:id/edit" element={<CustomerEdit />} />
           <Route path="/sale/orders/create" element={<SalesOrderCreate />} />
           <Route path="/sale/list" element={<SalesOrderList />} />
+          <Route path="/manufacturing/dashboard" element={<ManufacturingDashboard />} />
+          <Route path='/production/pending-sales-orders' element={<PendingSalesOrders />} />
         </Routes>
       </Router>
     </AuthProvider>
