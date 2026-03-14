@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from ..utils import get_project_members
 from apps.organizations.models import OrganizationUser
 from django.db import models
+from django.db.models import Count, Q
 User = get_user_model()
 
 class ChatGroupViewSet(viewsets.ViewSet):
@@ -30,25 +31,25 @@ class ChatGroupViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Get groups in one optimized query
             groups = ChatGroup.objects.filter(
                 organization=organization
-            ).select_related('project', 'organization').prefetch_related('manual_members')
+            ).select_related(
+                'project', 'organization', 'created_by'
+            ).prefetch_related(
+                'manual_members'
+            ).annotate(
+                unread_count=Count(
+                    'unreadmessage',
+                    filter=Q(unreadmessage__user=user)
+                )
+            )
 
-            user_groups = []
-
-            for group in groups:
-                try:
-                    if group.user_is_member(user):
-                        unread_count = UnreadMessage.objects.filter(
-                            user=user,
-                            group=group
-                        ).count()
-
-                        group.unread_count = unread_count
-                        user_groups.append(group)
-                except Exception as e:
-                    print(f"[Chat] Membership check failed for group {group.id}: {e}")
-                    continue
+            # Filter groups where user is member
+            user_groups = [
+                group for group in groups
+                if group.user_is_member(user)
+            ]
 
             serializer = ChatGroupSerializer(
                 user_groups,
@@ -64,6 +65,7 @@ class ChatGroupViewSet(viewsets.ViewSet):
                 {"error": "Failed to load chat groups"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
     def retrieve(self, request, pk=None):
         group = get_object_or_404(ChatGroup, pk=pk)
         
