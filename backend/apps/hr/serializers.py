@@ -688,54 +688,123 @@ class ChatGroupSerializer(serializers.ModelSerializer):
     member_count = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     members = serializers.SerializerMethodField()
+    
+    # Add creator fields
+    created_by_id = serializers.IntegerField(source='created_by.id', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    created_by_email = serializers.SerializerMethodField()
+    created_by_details = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatGroup
         fields = [
             'id', 'name', 'group_type', 'organization', 'project',
-            'project_name', 'unread_count',
-            'member_count', 'last_message',
-            'members', 'created_at'
+            'project_name', 'unread_count', 'member_count', 'last_message',
+            'members', 'created_at', 'created_by', 'created_by_id',
+            'created_by_name', 'created_by_email', 'created_by_details'
         ]
+
+    def get_created_by_name(self, obj):
+        """Get creator's display name"""
+        if not obj.created_by:
+            return None
+        
+        if hasattr(obj.created_by, 'employee') and obj.created_by.employee:
+            return obj.created_by.employee.full_name
+        return obj.created_by.get_full_name() or obj.created_by.email
+
+    def get_created_by_email(self, obj):
+        """Get creator's email"""
+        return obj.created_by.email if obj.created_by else None
+
+    def get_created_by_details(self, obj):
+        """Get detailed creator information"""
+        if not obj.created_by:
+            return None
+        
+        user = obj.created_by
+        details = {
+            'id': user.id,
+            'email': user.email,
+            'full_name': user.email,
+            'role': user.role
+        }
+        
+        # Try to get employee details if available
+        if hasattr(user, 'employee') and user.employee:
+            employee = user.employee
+            details['full_name'] = employee.full_name or user.email
+            if employee.photo:
+                details['photo'] = employee.photo.url
+            if employee.department:
+                details['department'] = employee.department.name
+            if employee.designation:
+                details['designation'] = employee.designation.title
+        
+        return details
 
     def get_member_count(self, obj):
         return obj.get_members().count()
 
     def get_members(self, obj):
         members_qs = obj.get_members()
-
-        return [
-            {
+        
+        member_list = []
+        for user in members_qs:
+            # Get user info from multiple sources
+            full_name = user.email
+            employee_id = None
+            department = None
+            photo = None
+            designation = None
+            
+            if hasattr(user, 'employee') and user.employee:
+                employee = user.employee
+                full_name = employee.full_name or user.email
+                employee_id = employee.id
+                if employee.department:
+                    department = employee.department.name
+                if employee.designation:
+                    designation = employee.designation.title
+                if employee.photo:
+                    photo = employee.photo.url
+            else:
+                # For users without employee record (org users, sub-admins)
+                full_name = user.get_full_name() or user.email
+            
+            # Check if this user is the creator
+            is_creator = obj.created_by_id == user.id
+            
+            member_list.append({
                 'id': user.id,
                 'email': user.email or '',
-                'full_name': (
-                    user.employee.full_name
-                    if hasattr(user, 'employee') and user.employee
-                    else user.email
-                ),
-                'employee_id': user.employee.id if hasattr(user, 'employee') and user.employee else None,
-                'department': (
-                    user.employee.department.name
-                    if hasattr(user, 'employee') and user.employee and user.employee.department
-                    else None
-                ),
-                'photo': (
-                    user.employee.photo.url
-                    if hasattr(user, 'employee') and user.employee and user.employee.photo
-                    else None
-                ),
-            }
-            for user in members_qs
-        ]
-
+                'full_name': full_name,
+                'employee_id': employee_id,
+                'department': department,
+                'designation': designation,
+                'photo': photo,
+                'role': user.role,
+                'is_creator': is_creator,  # Add this flag
+                'user_type': 'sub_admin' if user.role == 'sub_org_admin' else
+                            'main_admin' if user.role == 'main_org_admin' else
+                            'super_admin' if user.role == 'super_admin' else 'user'
+            })
+        
+        return member_list
+        
     def get_last_message(self, obj):
         last_msg = obj.messages.last()
         if not last_msg:
             return None
 
+        sender_name = last_msg.sender.email
+        if hasattr(last_msg.sender, 'employee') and last_msg.sender.employee:
+            sender_name = last_msg.sender.employee.full_name
+
         return {
-            'content': last_msg.content[:50] + '...' if len(last_msg.content) > 50 else last_msg.content,
-            'sender': last_msg.sender.email,
+            'content': last_msg.content[:50] + '...' if last_msg.content and len(last_msg.content) > 50 else (last_msg.content or 'File'),
+            'sender': sender_name,
+            'sender_id': last_msg.sender.id,
             'timestamp': last_msg.timestamp
         }
 

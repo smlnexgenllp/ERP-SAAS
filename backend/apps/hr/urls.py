@@ -37,7 +37,8 @@ from .views.task_views import TaskViewSet, DailyChecklistViewSet,performance_rep
 from .views.chat_views import (ChatGroupViewSet,  group_messages, upload_chat_file, create_custom_chat_group,get_project_chat_members,get_pinned_messages,update_chat_group,
     delete_chat_group,
     add_member_to_group,
-    remove_member_from_group,get_chat_group_members)
+    remove_member_from_group,get_chat_group_members,get_organization_users,
+    get_sub_organization_admins,get_all_chat_users)
 # Router for standard CRUD APIs
 router = DefaultRouter()
 router.register('employees', EmployeeViewSet, basename='employees')
@@ -106,6 +107,10 @@ urlpatterns = [
 
     path('chat/groups/<int:group_id>/members/', get_chat_group_members, name='chat-group-members'),
     # path('hr/chat/groups/',get_chat_groups, name='chat-groups-list'),
+    path('organizations/users/', get_organization_users, name='organization-users'),
+    path('organizations/sub-org-admins/', get_sub_organization_admins, name='sub-organization-admins'),
+    # In your urls.py
+    path('organizations/all-chat-users/', get_all_chat_users, name='all-chat-users'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

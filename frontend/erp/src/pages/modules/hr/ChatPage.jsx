@@ -36,7 +36,7 @@ export default function ChatPage() {
   // Fetch total unread count
   useEffect(() => {
     fetchUnreadCount();
-    
+
     // Refresh every 30 seconds for unread count
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
@@ -105,7 +105,7 @@ export default function ChatPage() {
               </p>
             )}
           </div>
-          
+
           {/* Refresh button (optional) */}
           <button
             onClick={handleRefresh}
@@ -153,8 +153,9 @@ export default function ChatPage() {
         {/* Chat Area */}
         <div className="flex-1 flex flex-col">
           {selectedGroup ? (
-            <ChatWindow 
-              group={selectedGroup} 
+            <ChatWindow
+              group={selectedGroup}
+              currentUser={user}
               onBack={() => setSelectedGroup(null)}
               onGroupUpdated={handleGroupUpdated}
               onGroupDeleted={handleGroupDeleted}
@@ -169,7 +170,7 @@ export default function ChatPage() {
                   Welcome to Team Chat
                 </h2>
                 <p className="text-gray-400 mb-8 text-lg leading-relaxed">
-                  Select a conversation from the sidebar or create a new group 
+                  Select a conversation from the sidebar or create a new group
                   to start collaborating with your team in real-time.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
