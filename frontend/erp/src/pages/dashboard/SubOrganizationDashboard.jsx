@@ -142,6 +142,7 @@ const SubOrganizationDashboard = () => {
       crm: "/crm/dashboard",
       projects: "/projects/dashboard",
       project: "/projects/dashboard",
+      manufacturing: "/manufacturing/dashboard",
     };
 
     if (moduleShortcuts[cmd]) {
