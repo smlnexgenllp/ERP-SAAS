@@ -12,6 +12,11 @@ from django.db import models
 from django.db.models import Count, Q
 User = get_user_model()
 
+from django.db.models import Count, Q, Prefetch
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
 class ChatGroupViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
@@ -31,28 +36,30 @@ class ChatGroupViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Get groups in one optimized query
-            groups = ChatGroup.objects.filter(
-                organization=organization
-            ).select_related(
-                'project', 'organization', 'created_by'
-            ).prefetch_related(
-                'manual_members'
-            ).annotate(
-                unread_count=Count(
-                    'unreadmessage',
-                    filter=Q(unreadmessage__user=user)
+            groups = (
+                ChatGroup.objects.filter(organization=organization)
+                .filter(Q(manual_members=user) | Q(created_by=user))
+                .select_related("project", "organization", "created_by")
+                .prefetch_related(
+                    "manual_members",
+                    "manual_members__employee__department",
+                    "manual_members__employee__designation",
+                    Prefetch(
+                        "messages",
+                        queryset=Message.objects.select_related("sender").order_by("-timestamp"),
+                        to_attr="prefetched_messages"
+                    )
+                )
+                .annotate(
+                    unread_count=Count(
+                        "unreadmessage",
+                        filter=Q(unreadmessage__user=user)
+                    )
                 )
             )
 
-            # Filter groups where user is member
-            user_groups = [
-                group for group in groups
-                if group.user_is_member(user)
-            ]
-
             serializer = ChatGroupSerializer(
-                user_groups,
+                groups,
                 many=True,
                 context={'request': request}
             )
