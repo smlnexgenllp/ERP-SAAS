@@ -215,9 +215,9 @@ function App() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute>
+              
                 <MyProfile />
-              </ProtectedRoute>
+             
             }
           />
           {/* -------- HR MODULE (Now accessible by HR, Manager, TL) -------- */}
@@ -280,9 +280,7 @@ function App() {
           <Route
             path="/hr/jobreferrals"
             element={
-              <HRProtectedRoute>
                 <JobReferral />
-              </HRProtectedRoute>
             }
           />
           <Route

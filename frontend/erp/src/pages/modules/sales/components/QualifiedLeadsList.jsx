@@ -42,12 +42,12 @@ export default function QualifiedLeadsList() {
             <p className="text-sm text-gray-400">Ready for quotation & conversion</p>
           </div>
         </div>
-        <button
+        {/* <button
           onClick={() => navigate("/sales/leads/create")}
           className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-lg transition-all"
         >
           <Plus size={20} /> New Lead
-        </button>
+        </button> */}
       </header>
 
       <div className="p-6 md:p-8">
