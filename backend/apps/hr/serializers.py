@@ -793,9 +793,10 @@ class ChatGroupSerializer(serializers.ModelSerializer):
         return member_list
         
     def get_last_message(self, obj):
-        last_msg = obj.messages.last()
-        if not last_msg:
+        if not hasattr(obj, "prefetched_messages") or not obj.prefetched_messages:
             return None
+
+        last_msg = obj.prefetched_messages[0]
 
         sender_name = last_msg.sender.email
         if hasattr(last_msg.sender, 'employee') and last_msg.sender.employee:

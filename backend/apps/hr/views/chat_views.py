@@ -9,7 +9,13 @@ from django.contrib.auth import get_user_model
 from ..utils import get_project_members
 from apps.organizations.models import OrganizationUser
 from django.db import models
+from django.db.models import Count, Q
 User = get_user_model()
+
+from django.db.models import Count, Q, Prefetch
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
 class ChatGroupViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -30,28 +36,30 @@ class ChatGroupViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            groups = ChatGroup.objects.filter(
-                organization=organization
-            ).select_related('project', 'organization').prefetch_related('manual_members')
-
-            user_groups = []
-
-            for group in groups:
-                try:
-                    if group.user_is_member(user):
-                        unread_count = UnreadMessage.objects.filter(
-                            user=user,
-                            group=group
-                        ).count()
-
-                        group.unread_count = unread_count
-                        user_groups.append(group)
-                except Exception as e:
-                    print(f"[Chat] Membership check failed for group {group.id}: {e}")
-                    continue
+            groups = (
+                ChatGroup.objects.filter(organization=organization)
+                .filter(Q(manual_members=user) | Q(created_by=user))
+                .select_related("project", "organization", "created_by")
+                .prefetch_related(
+                    "manual_members",
+                    "manual_members__employee__department",
+                    "manual_members__employee__designation",
+                    Prefetch(
+                        "messages",
+                        queryset=Message.objects.select_related("sender").order_by("-timestamp"),
+                        to_attr="prefetched_messages"
+                    )
+                )
+                .annotate(
+                    unread_count=Count(
+                        "unreadmessage",
+                        filter=Q(unreadmessage__user=user)
+                    )
+                )
+            )
 
             serializer = ChatGroupSerializer(
-                user_groups,
+                groups,
                 many=True,
                 context={'request': request}
             )
@@ -64,6 +72,7 @@ class ChatGroupViewSet(viewsets.ViewSet):
                 {"error": "Failed to load chat groups"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
     def retrieve(self, request, pk=None):
         group = get_object_or_404(ChatGroup, pk=pk)
         

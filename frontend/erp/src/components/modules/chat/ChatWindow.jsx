@@ -1,5 +1,5 @@
 // components/modules/chat/ChatWindow.jsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import api from '../../../services/api';
 import {
   Send, Paperclip, Smile, MoreVertical, ArrowLeft,
@@ -16,12 +16,19 @@ import { formatDistanceToNow, format } from 'date-fns';
 import EditGroupModal from './EditGroupModal';
 import AddMemberModal from './AddMemberModal';
 
+// Cache for storing messages by group ID
+const messagesCache = new Map();
+// Cache for pinned messages by group ID
+const pinnedCache = new Map();
+// Cache for group members by group ID
+const membersCache = new Map();
+
 const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [file, setFile] = useState(null);
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with false
   const [error, setError] = useState(null);
   const [typing, setTyping] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -48,65 +55,24 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const typingTimeoutRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const initialLoadDoneRef = useRef(false);
 
-  // Get current user safely
-  const getCurrentUser = () => {
-    try {
-      const userStr = localStorage.getItem("user");
-      if (!userStr) return null;
-
-      const user = JSON.parse(userStr);
-
-      return {
-        id: user.id || user.user_id || user?.user?.id || null,
-        email: user.email || user?.user?.email || "",
-        full_name:
-          user.full_name ||
-          user.name ||
-          user?.user?.full_name ||
-          user?.user?.name ||
-          "User"
-      };
-    } catch (e) {
-      console.error("Failed to parse user:", e);
-      return null;
-    }
-  };
-
-  // const currentUser = getCurrentUser();
-
-  // Check if current user is group creator - FIXED VERSION
-  // Check if current user is group creator - FIXED VERSION
+  // Check if current user is group creator
   useEffect(() => {
     if (group && currentUser) {
-      // Get creator ID from multiple possible sources
       let creatorId = null;
 
-      // Check all possible places where creator ID might be stored
       if (group.created_by_details?.id) {
         creatorId = group.created_by_details.id;
-        console.log('Creator ID from created_by_details:', creatorId);
       } else if (group.created_by?.id) {
         creatorId = group.created_by.id;
-        console.log('Creator ID from created_by.id:', creatorId);
       } else if (typeof group.created_by === 'number') {
         creatorId = group.created_by;
-        console.log('Creator ID from created_by (number):', creatorId);
       } else if (group.created_by_id) {
         creatorId = group.created_by_id;
-        console.log('Creator ID from created_by_id:', creatorId);
       }
 
-      const currentUserId = currentUser?.id;
-
-      console.log('=== CREATOR CHECK ===');
-      console.log('Group:', group.name);
-      console.log('Group ID:', group.id);
-      console.log('Creator ID:', creatorId);
-      console.log('Current User ID:', currentUserId);
-      console.log('Is Creator?', creatorId === currentUserId);
-
-      setIsCreator(creatorId === currentUserId);
+      setIsCreator(creatorId === currentUser?.id);
     }
   }, [group, currentUser]);
 
@@ -114,60 +80,114 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const fetchGroupMembers = useCallback(async () => {
     if (!group?.id) return;
 
+    // Check cache first
+    if (membersCache.has(group.id)) {
+      setGroupMembers(membersCache.get(group.id));
+      return;
+    }
+
     try {
       const res = await api.get(`/hr/chat/groups/${group.id}/members/`);
-      setGroupMembers(res.data || []);
+      const members = res.data || [];
+      membersCache.set(group.id, members);
+      setGroupMembers(members);
     } catch (error) {
       console.error('Failed to fetch group members:', error);
-      // Fallback: at least show creator if available
       if (group?.created_by) {
-        setGroupMembers([{
+        const fallbackMembers = [{
           id: group.created_by.id,
           email: group.created_by.email || '',
           full_name: group.created_by.full_name || 'Creator',
           is_creator: true
-        }]);
+        }];
+        membersCache.set(group.id, fallbackMembers);
+        setGroupMembers(fallbackMembers);
       }
     }
   }, [group?.id, group?.created_by]);
 
-  // If no group selected
-  if (!group) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-gray-950 p-8">
-        <div className="max-w-md text-center">
-          <Users className="w-32 h-32 text-cyan-900/20 mx-auto mb-8" />
-          <h3 className="text-2xl font-bold text-gray-300 mb-4">
-            Select a Conversation
-          </h3>
-          <p className="text-gray-400 text-lg mb-8">
-            Choose a chat from the sidebar to start messaging with your team.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh chats
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Load messages with cache
+  const loadMessages = useCallback(async (showLoading = false) => {
+    if (!group?.id) return;
 
-  // Load messages
-  const loadMessages = useCallback(async () => {
+    // Check cache first for instant display
+    if (messagesCache.has(group.id)) {
+      const cachedMessages = messagesCache.get(group.id);
+      setMessages(cachedMessages);
+      setFilteredMessages(cachedMessages);
+      
+      // If we already have cached messages, don't show loading
+      if (!showLoading) {
+        // Still fetch in background for updates
+        fetchMessagesInBackground();
+        return;
+      }
+    }
+
+    // Show loading only if explicitly requested and no cache
+    if (showLoading) setLoading(true);
+    
     try {
-      setLoading(true);
       setError(null);
       const res = await api.get(`/hr/chat/groups/${group.id}/messages/`);
-      setMessages(res.data || []);
-      setFilteredMessages(res.data || []);
+      const newMessages = res.data || [];
+      
+      // Update cache
+      messagesCache.set(group.id, newMessages);
+      
+      setMessages(newMessages);
+      setFilteredMessages(newMessages);
     } catch (err) {
-      console.error("Temporary failure loading messages:", err);
-      setTimeout(loadMessages, 2000);
+      console.error("Failed to load messages:", err);
+      setError("Failed to load messages");
     } finally {
       setLoading(false);
+    }
+  }, [group?.id]);
+
+  // Background fetch for updates
+  const fetchMessagesInBackground = useCallback(async () => {
+    if (!group?.id) return;
+
+    try {
+      const res = await api.get(`/hr/chat/groups/${group.id}/messages/`);
+      const newMessages = res.data || [];
+      
+      // Update cache
+      messagesCache.set(group.id, newMessages);
+      
+      setMessages(newMessages);
+      setFilteredMessages(prev => {
+        if (!searchQuery) return newMessages;
+        const query = searchQuery.toLowerCase();
+        return newMessages.filter(msg =>
+          msg.content?.toLowerCase().includes(query) ||
+          msg.sender?.full_name?.toLowerCase().includes(query) ||
+          msg.sender?.email?.toLowerCase().includes(query)
+        );
+      });
+    } catch (err) {
+      console.error("Background fetch failed:", err);
+    }
+  }, [group?.id, searchQuery]);
+
+  // Load pinned messages with cache
+  const loadPinnedMessages = useCallback(async () => {
+    if (!group?.id) return;
+
+    // Check cache first
+    if (pinnedCache.has(group.id)) {
+      setPinnedMessages(pinnedCache.get(group.id));
+      return;
+    }
+
+    try {
+      const res = await api.get(`/hr/chat/groups/${group.id}/pinned/`);
+      const pinned = res.data || [];
+      pinnedCache.set(group.id, pinned);
+      setPinnedMessages(pinned);
+    } catch (error) {
+      console.error('Failed to load pinned messages:', error);
     }
   }, [group.id]);
 
@@ -210,12 +230,28 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
 
         switch (data.type) {
           case 'new_message':
-            setMessages(prev => [...prev, data.message]);
-            setFilteredMessages(prev => [...prev, data.message]);
+            setMessages(prev => {
+              const updated = [...prev, data.message];
+              // Update cache
+              messagesCache.set(group.id, updated);
+              return updated;
+            });
+            setFilteredMessages(prev => {
+              if (!searchQuery) return [...prev, data.message];
+              const query = searchQuery.toLowerCase();
+              const matches = data.message.content?.toLowerCase().includes(query) ||
+                data.message.sender?.full_name?.toLowerCase().includes(query) ||
+                data.message.sender?.email?.toLowerCase().includes(query);
+              return matches ? [...prev, data.message] : prev;
+            });
             break;
 
           case 'message_deleted':
-            setMessages(prev => prev.filter(msg => msg.id !== data.message_id));
+            setMessages(prev => {
+              const updated = prev.filter(msg => msg.id !== data.message_id);
+              messagesCache.set(group.id, updated);
+              return updated;
+            });
             setFilteredMessages(prev => prev.filter(msg => msg.id !== data.message_id));
             break;
 
@@ -240,11 +276,19 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
             break;
 
           case 'message_pinned':
-            setPinnedMessages(prev => [...prev, data.message]);
+            setPinnedMessages(prev => {
+              const updated = [...prev, data.message];
+              pinnedCache.set(group.id, updated);
+              return updated;
+            });
             break;
 
           case 'message_unpinned':
-            setPinnedMessages(prev => prev.filter(msg => msg.id !== data.message_id));
+            setPinnedMessages(prev => {
+              const updated = prev.filter(msg => msg.id !== data.message_id);
+              pinnedCache.set(group.id, updated);
+              return updated;
+            });
             break;
 
           case 'group_updated':
@@ -300,23 +344,47 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
 
     setSocket(newSocket);
     return newSocket;
-  }, [group.id, currentUser?.id, onGroupUpdated, onBack, fetchGroupMembers, onGroupDeleted]);
+  }, [group.id, currentUser?.id, onGroupUpdated, onBack, fetchGroupMembers, onGroupDeleted, searchQuery]);
 
-  // Load pinned messages
-  const loadPinnedMessages = useCallback(async () => {
-    try {
-      const res = await api.get(`/hr/chat/groups/${group.id}/pinned/`);
-      setPinnedMessages(res.data || []);
-    } catch (error) {
-      console.error('Failed to load pinned messages:', error);
-    }
-  }, [group.id]);
-
+  // Initial load - use cache first
   useEffect(() => {
-    loadMessages();
-    fetchProjectMembers();
-    fetchGroupMembers();
-    loadPinnedMessages();
+    if (!group?.id) return;
+
+    // Reset states for new group
+    setSearchQuery('');
+    setError(null);
+    setTyping(false);
+    
+    // Check cache first for instant display
+    if (messagesCache.has(group.id)) {
+      setMessages(messagesCache.get(group.id));
+      setFilteredMessages(messagesCache.get(group.id));
+    } else {
+      // Only show loading if no cache
+      setLoading(true);
+    }
+    
+    if (pinnedCache.has(group.id)) {
+      setPinnedMessages(pinnedCache.get(group.id));
+    }
+    
+    if (membersCache.has(group.id)) {
+      setGroupMembers(membersCache.get(group.id));
+    }
+
+    // Fetch fresh data in background
+    const fetchAll = async () => {
+      await Promise.allSettled([
+        loadMessages(true), // Pass true to update loading state if needed
+        fetchGroupMembers(),
+        loadPinnedMessages(),
+        fetchProjectMembers()
+      ]);
+    };
+
+    fetchAll();
+
+    // WebSocket connection
     const ws = connectWebSocket();
 
     return () => {
@@ -324,12 +392,14 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
       clearTimeout(reconnectTimeoutRef.current);
       clearTimeout(typingTimeoutRef.current);
     };
-  }, [loadMessages, fetchProjectMembers, fetchGroupMembers, loadPinnedMessages, connectWebSocket]);
+  }, [group.id, connectWebSocket, loadMessages, fetchGroupMembers, loadPinnedMessages, fetchProjectMembers]);
 
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Filter messages based on search
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredMessages(messages);
@@ -426,9 +496,17 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
     try {
       const res = await api.post(`/hr/chat/messages/${messageId}/pin/`);
       if (res.data.pinned) {
-        setPinnedMessages(prev => [...prev, res.data.message]);
+        setPinnedMessages(prev => {
+          const updated = [...prev, res.data.message];
+          pinnedCache.set(group.id, updated);
+          return updated;
+        });
       } else {
-        setPinnedMessages(prev => prev.filter(msg => msg.id !== messageId));
+        setPinnedMessages(prev => {
+          const updated = prev.filter(msg => msg.id !== messageId);
+          pinnedCache.set(group.id, updated);
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Failed to pin message:', error);
@@ -440,9 +518,17 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
 
     try {
       await api.delete(`/hr/chat/messages/${messageId}/`);
-      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      setMessages(prev => {
+        const updated = prev.filter(msg => msg.id !== messageId);
+        messagesCache.set(group.id, updated);
+        return updated;
+      });
       setFilteredMessages(prev => prev.filter(msg => msg.id !== messageId));
-      setPinnedMessages(prev => prev.filter(msg => msg.id !== messageId));
+      setPinnedMessages(prev => {
+        const updated = prev.filter(msg => msg.id !== messageId);
+        pinnedCache.set(group.id, updated);
+        return updated;
+      });
     } catch (error) {
       console.error('Failed to delete message:', error);
     }
@@ -451,11 +537,15 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const reactToMessage = async (messageId, reaction) => {
     try {
       await api.post(`/hr/chat/messages/${messageId}/react/`, { reaction });
-      setMessages(prev => prev.map(msg =>
-        msg.id === messageId
-          ? { ...msg, reactions: [...(msg.reactions || []), reaction] }
-          : msg
-      ));
+      setMessages(prev => {
+        const updated = prev.map(msg =>
+          msg.id === messageId
+            ? { ...msg, reactions: [...(msg.reactions || []), reaction] }
+            : msg
+        );
+        messagesCache.set(group.id, updated);
+        return updated;
+      });
     } catch (error) {
       console.error('Failed to react to message:', error);
     }
@@ -471,52 +561,52 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   };
 
   const handleAddMember = async (payload) => {
-  try {
-    console.log('Adding member with payload:', payload);
-    const response = await api.post(`/hr/chat/groups/${group.id}/add-member/`, payload);
-    console.log('Add member response:', response.data);
+    try {
+      console.log('Adding member with payload:', payload);
+      const response = await api.post(`/hr/chat/groups/${group.id}/add-member/`, payload);
+      console.log('Add member response:', response.data);
 
-    fetchGroupMembers();
+      fetchGroupMembers();
 
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({
-        type: 'member_added',
-        group_id: group.id,
-        ...payload
-      }));
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'member_added',
+          group_id: group.id,
+          ...payload
+        }));
+      }
+
+      setShowAddMemberModal(false);
+    } catch (error) {
+      console.error('Failed to add member:', error);
+      console.error('Error response:', error.response?.data);
+      alert(error.response?.data?.error || 'Failed to add member');
     }
+  };
 
-    setShowAddMemberModal(false);
-  } catch (error) {
-    console.error('Failed to add member:', error);
-    console.error('Error response:', error.response?.data);
-    alert(error.response?.data?.error || 'Failed to add member');
-  }
-};
+  const handleRemoveMember = async (payload, userName) => {
+    if (!window.confirm(`Are you sure you want to remove ${userName} from the group?`)) return;
 
-const handleRemoveMember = async (payload, userName) => {
-  if (!window.confirm(`Are you sure you want to remove ${userName} from the group?`)) return;
+    try {
+      console.log('Removing member with payload:', payload);
+      const response = await api.post(`/hr/chat/groups/${group.id}/remove-member/`, payload);
+      console.log('Remove member response:', response.data);
 
-  try {
-    console.log('Removing member with payload:', payload);
-    const response = await api.post(`/hr/chat/groups/${group.id}/remove-member/`, payload);
-    console.log('Remove member response:', response.data);
+      fetchGroupMembers();
 
-    fetchGroupMembers();
-
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({
-        type: 'member_removed',
-        group_id: group.id,
-        ...payload
-      }));
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'member_removed',
+          group_id: group.id,
+          ...payload
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to remove member:', error);
+      console.error('Error response:', error.response?.data);
+      alert(error.response?.data?.error || 'Failed to remove member');
     }
-  } catch (error) {
-    console.error('Failed to remove member:', error);
-    console.error('Error response:', error.response?.data);
-    alert(error.response?.data?.error || 'Failed to remove member');
-  }
-};
+  };
 
   const handleDeleteGroup = async () => {
     try {
@@ -709,8 +799,6 @@ const handleRemoveMember = async (payload, userName) => {
           <h4 className="font-medium text-gray-300 mb-3">About</h4>
           <p className="text-gray-400 text-sm mb-4">{getGroupTypeLabel()}</p>
 
-          {/* Show creator info with correct badge */}
-          {/* Show creator info with correct badge */}
           {(group.created_by || group.created_by_details) && (
             <div className="flex items-center gap-2 mb-2">
               <Crown className="w-4 h-4 text-amber-500" />
@@ -744,7 +832,6 @@ const handleRemoveMember = async (payload, userName) => {
             </div>
           </div>
 
-          {/* EDIT AND DELETE BUTTONS - ONLY SHOW FOR CREATOR */}
           {isCreator && (
             <div className="mt-4 space-y-2">
               <button
@@ -874,7 +961,6 @@ const handleRemoveMember = async (payload, userName) => {
                         </div>
                       </div>
 
-                      {/* Remove button - only for creator and not for self/creator */}
                       {isCreator && !isMemberCreator && !isCurrentUser && (
                         <button
                           onClick={() => handleRemoveMember(member.employee_id || member.id, member.full_name)}
@@ -1038,6 +1124,30 @@ const handleRemoveMember = async (payload, userName) => {
     );
   };
 
+  // If no group selected
+  if (!group) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-gray-950 p-8">
+        <div className="max-w-md text-center">
+          <Users className="w-32 h-32 text-cyan-900/20 mx-auto mb-8" />
+          <h3 className="text-2xl font-bold text-gray-300 mb-4">
+            Select a Conversation
+          </h3>
+          <p className="text-gray-400 text-lg mb-8">
+            Choose a chat from the sidebar to start messaging with your team.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh chats
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col bg-gradient-to-b from-gray-900 to-gray-950 relative">
       <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-20">
@@ -1121,7 +1231,7 @@ const handleRemoveMember = async (payload, userName) => {
       {renderPinnedModal()}
       {renderDeleteConfirmModal()}
 
-      {/* Modals for group management - only render when needed */}
+      {/* Modals for group management */}
       {showEditModal && isCreator && (
         <EditGroupModal
           group={group}
@@ -1143,7 +1253,8 @@ const handleRemoveMember = async (payload, userName) => {
       )}
 
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 relative">
-        {loading ? (
+        {/* Loading indicator - only shown when no cached data */}
+        {loading && messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <RefreshCw className="w-8 h-8 text-cyan-500 animate-spin mx-auto mb-4" />
@@ -1156,7 +1267,7 @@ const handleRemoveMember = async (payload, userName) => {
               <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
               <p className="text-gray-300 font-medium mb-2">Failed to load messages</p>
               <p className="text-gray-400 mb-6 max-w-sm mx-auto">{error}</p>
-              <button onClick={loadMessages} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium">
+              <button onClick={() => loadMessages(true)} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium">
                 Retry
               </button>
             </div>
