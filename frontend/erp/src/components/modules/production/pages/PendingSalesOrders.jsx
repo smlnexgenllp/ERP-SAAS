@@ -173,11 +173,11 @@ export default function PendingSalesOrders() {
           <nav className="flex-1 p-4 space-y-2">
 
             <button
-              onClick={() => navigate("/production/plans")}
+              onClick={() => navigate("/manufacturing/dashboard")}
               className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800"
             >
               <ClipboardList className="h-5 w-5 text-cyan-400"/>
-              Production Plans
+              Dashboard
             </button>
 
             <button

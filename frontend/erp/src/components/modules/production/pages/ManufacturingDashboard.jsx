@@ -20,7 +20,7 @@ const Sidebar = ({ active = 'dashboard' }) => {
 
   const menu = [
     { icon: Factory, label: 'Dashboard', path: '/production/dashboard', key: 'dashboard' },
-    { icon: ClipboardList, label: 'Production Plans', path: '/production/plans', key: 'plans' },
+    { icon: ClipboardList, label: 'Production Plans', path: '/production/pending-sales-orders', key: 'plans' },
     { icon: Package, label: 'Planned Orders', path: '/production/planned-orders', key: 'planned-orders' },
     { icon: Settings, label: 'Manufacturing Orders', path: '/production/manufacturing-orders', key: 'manufacturing-orders' },
   ];
