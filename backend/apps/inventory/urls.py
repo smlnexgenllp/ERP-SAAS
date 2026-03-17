@@ -10,7 +10,7 @@ from .views import (
     GRNViewSet,
     QualityInspectionViewSet,
     VendorInvoiceViewSet,
-    VendorPaymentViewSet,InventoryDashboardStatsAPIView,
+    VendorPaymentViewSet,InventoryDashboardStatsAPIView,MachineViewSet
 )
 
 router = DefaultRouter()
@@ -22,6 +22,7 @@ router.register(r'grns', GRNViewSet, basename='grns')
 router.register(r'quality-inspections', QualityInspectionViewSet, basename='quality-inspections')
 router.register(r'vendor-invoices', VendorInvoiceViewSet, basename='vendor-invoices')
 router.register(r'vendor-payments', VendorPaymentViewSet, basename='vendor-payments')
+router.register(r'machines', MachineViewSet, basename='machines')
 
 
 urlpatterns = [

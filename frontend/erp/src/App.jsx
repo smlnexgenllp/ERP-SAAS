@@ -70,6 +70,12 @@ import LeadDetail from "./pages/modules/sales/components/LeadDetail";
 import ManufacturingDashboard from "./components/modules/production/pages/ManufacturingDashboard";
 import PendingSalesOrders from "./components/modules/production/pages/PendingSalesOrders";
 /* -------------------- ROUTE GUARDS -------------------- */
+import MachineCreate from "./components/modules/inventory/MachineCreate";
+import MachineList from "./components/modules/inventory/MachineList";
+import MachineEdit from "./components/modules/inventory/MachineEdit";
+
+
+
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -396,6 +402,9 @@ function App() {
           <Route path="/sale/list" element={<SalesOrderList />} />
           <Route path="/manufacturing/dashboard" element={<ManufacturingDashboard />} />
           <Route path='/production/pending-sales-orders' element={<PendingSalesOrders />} />
+          <Route path="/machines/create" element={<MachineCreate />} />
+          <Route path="/machines-list" element={<MachineList />} />
+          <Route path="/machines/edit/:id" element={<MachineEdit />} />
         </Routes>
       </Router>
     </AuthProvider>

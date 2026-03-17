@@ -17,7 +17,7 @@ from .models import (
     GRN,
     QualityInspection,
     VendorInvoice,
-    VendorPayment
+    VendorPayment,Machine
 )
 from .serializers import (
     ItemSerializer,
@@ -26,7 +26,7 @@ from .serializers import (
     GRNSerializer,
     QualityInspectionSerializer,
     VendorInvoiceSerializer,
-    VendorPaymentSerializer
+    VendorPaymentSerializer,MachineSerializer
 )
 
 class ItemListForQuotation(APIView):
@@ -395,3 +395,86 @@ class InventoryDashboardStatsView(APIView):
             'pending_pos': 5,  # example – count open Purchase Orders
         }
         return Response(data)
+
+from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+
+from .models import Machine
+from .serializers import MachineSerializer
+
+
+class MachineViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for machines/work centers:
+    - List: GET    /inventory/machines/
+    - Create: POST /inventory/machines/
+    - Retrieve: GET    /inventory/machines/<id>/
+    - Update: PUT/PATCH /inventory/machines/<id>/
+    - Delete: DELETE   /inventory/machines/<id>/
+    """
+    serializer_class = MachineSerializer
+    permission_classes = [IsAuthenticated]
+
+    # Required for ModelViewSet
+    queryset = Machine.objects.none()  # ← placeholder, overridden below
+
+    def get_queryset(self):
+        """
+        Only return machines from the user's organization
+        """
+        user = self.request.user
+
+        if hasattr(user, 'organization') and user.organization:
+            return Machine.objects.filter(organization=user.organization)
+
+        # Fallback for employee-based users
+        try:
+            employee = Employee.objects.get(user=user)
+            return Machine.objects.filter(organization=employee.organization)
+        except Employee.DoesNotExist:
+            return Machine.objects.none()
+
+    def get_object(self):
+        """
+        Override to enforce organization check on retrieve/update/delete
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        pk = self.kwargs.get('pk')
+        obj = get_object_or_404(queryset, pk=pk)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        org = None
+
+        if hasattr(user, 'organization') and user.organization:
+            org = user.organization
+        else:
+            try:
+                employee = Employee.objects.get(user=user)
+                org = employee.organization
+            except Employee.DoesNotExist:
+                raise PermissionDenied("No organization associated with this user")
+
+        serializer.save(
+            organization=org,
+            created_by=user
+        )
+
+    def perform_update(self, serializer):
+        """
+        Optional: you can add extra checks here (e.g. only creator or admin can edit)
+        """
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        Optional: extra logic before delete (e.g. check if machine is in use)
+        """
+
+        instance.delete()
