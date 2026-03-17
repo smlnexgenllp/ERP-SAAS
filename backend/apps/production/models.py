@@ -22,17 +22,20 @@ class WorkCenter(models.Model):
 
 
 class BillOfMaterial(models.Model):
-
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-
     product = models.ForeignKey(Item, on_delete=models.CASCADE)
-
     version = models.CharField(max_length=20, default="v1")
-
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    # ← Add this line
+    is_active = models.BooleanField(default=True, help_text="Set to False to deactivate this BOM version")
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['product', 'version']  # optional but useful
 
     def __str__(self):
-        return f"BOM - {self.product}"
+        return f"BOM {self.version} - {self.product.name}"
 
 
 class BOMLine(models.Model):
