@@ -391,3 +391,40 @@ class StockLedger(models.Model):
 
     def __str__(self):
         return f"{self.item.code} | {self.quantity:+.2f} | {self.transaction_type}"
+
+class Machine(models.Model):           # or keep WorkCenter if you prefer
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="machines"
+    )
+    department = models.ForeignKey(
+    'apps_hr.Department',   # ✅ CORRECT
+    on_delete=models.PROTECT,
+    related_name="machines",
+    null=True,
+    blank=True
+)
+    name = models.CharField(max_length=200)
+    code = models.CharField(max_length=50, blank=True, null=True)
+    description = models.TextField(blank=True)
+    capacity_per_day_hours = models.PositiveIntegerField(default=8)
+    is_active = models.BooleanField(default=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_machines"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('organization', 'code')
+        ordering = ['name']
+        verbose_name = "Machine"
+        verbose_name_plural = "Machines"
+
+    def __str__(self):
+        return f"{self.name} ({self.code or 'no code'})"        

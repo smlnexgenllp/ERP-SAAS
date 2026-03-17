@@ -13,10 +13,11 @@ from .models import (
     GRN, GRNItem,
     QualityInspection, QualityInspectionItem,
     VendorInvoice,
-    VendorPayment
+    VendorPayment,Machine
 )
 from apps.finance.serializers.vendor import VendorSerializer
 from apps.finance.models.vendor import Vendor
+from apps.hr.models import Department
 
 
 # ========================= ITEM =========================
@@ -590,3 +591,26 @@ class VendorPaymentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return super().create(validated_data)
+
+
+class MachineSerializer(serializers.ModelSerializer):
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = Machine
+        fields = [
+            'id',
+            'name',
+            'code',
+            'description',
+            'department',
+            'department_name',
+            'capacity_per_day_hours',
+            'is_active',
+            'created_by',
+            'created_by_username',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_by', 'created_at', 'updated_at', 'organization']        
