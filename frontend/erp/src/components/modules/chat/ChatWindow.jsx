@@ -165,7 +165,7 @@ function ChatWindow({ group, onBack, onGroupUpdated, onGroupDeleted }) {
   // WebSocket connection
   const connectWebSocket = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/chat/${group.id}/`;
+    const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/chat/${group.id}/`;
 
     const newSocket = new WebSocket(wsUrl);
 

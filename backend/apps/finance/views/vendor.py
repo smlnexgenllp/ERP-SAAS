@@ -12,49 +12,58 @@ from apps.finance.serializers.vendor import VendorSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from apps.finance.models.vendor import Vendor
+from apps.finance.serializers.vendor import VendorSerializer
+from apps.hr.models import Employee
 
 
-
-# ── DRF API ViewSet (this handles GET/POST/PUT/DELETE for React) ────────
 class VendorViewSet(viewsets.ModelViewSet):
     serializer_class = VendorSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_user_organization(self):
+        user = self.request.user
+
+        # ✅ Case 1: Direct user.organization
+        if hasattr(user, "organization") and user.organization:
+            return user.organization
+
+        # ✅ Case 2: From employee
+        try:
+            employee = Employee.objects.get(user=user)
+            return employee.organization
+        except Employee.DoesNotExist:
+            return None
+
     def get_queryset(self):
-        org = getattr(self.request, 'user_current_organization', None)
+        org = self.get_user_organization()
+
         if not org:
             return Vendor.objects.none()
+
         return Vendor.objects.filter(organization=org)
 
     def perform_create(self, serializer):
-        org = getattr(self.request, 'user_current_organization', None)
+        org = self.get_user_organization()
+
         if not org:
             raise PermissionDenied("No organization assigned")
-        serializer.save(organization=org, created_by=self.request.user)
+
+        serializer.save(
+            organization=org,
+            created_by=self.request.user
+        )
 
     def perform_update(self, serializer):
-        org = getattr(self.request, 'user_current_organization', None)
+        org = self.get_user_organization()
+
         if not org or serializer.instance.organization != org:
             raise PermissionDenied("Cannot update vendor from different organization")
+
         serializer.save()
-    @action(detail=False, methods=['get'], url_path='stats')
-    def stats(self, request):
-        org = getattr(request, 'user_current_organization', None)
-        
-        if not org:
-            return Response(
-                {"error": "No organization context available"},
-                status=400
-            )
-
-        qs = Vendor.objects.filter(organization=org)
-
-        data = {
-            "total": qs.count(),
-            "active": qs.filter(is_active=True).count() if hasattr(Vendor, 'is_active') else 0,
-            "approved": qs.filter(is_approved=True).count() if hasattr(Vendor, 'is_approved') else 0,
-        }
-        return Response(data)
 class VendorListView(LoginRequiredMixin, ListView):
     model = Vendor
     template_name = 'finance/vendor_list.html'  # ← updated path

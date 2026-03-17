@@ -3,7 +3,7 @@
 from collections import defaultdict
 from decimal import Decimal
 from datetime import timedelta
-
+from django.db.models import DecimalField
 from django.db.models import Sum, Count, Q, Value
 from django.db.models.functions import Coalesce
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -23,6 +23,7 @@ from .serializers import (
 )
 from apps.inventory.models import Item
 from apps.sales.models import SalesOrderItem
+
 
 
 # =========================================================
@@ -102,6 +103,8 @@ class ProductionPlanListView(APIView):
 
         serializer = ProductionPlanSerializer(plans, many=True)
         return Response(serializer.data)
+
+
 
 
 # =========================================================
