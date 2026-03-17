@@ -1,69 +1,99 @@
+# apps/production/urls.py
+
 from django.urls import path
-from .views import *
+from .views import (
+    # MRP / Demand
+    ItemSalesSummaryView,
+    
+    # Production Plans
+    ProductionPlanCreateView,
+    ProductionPlanListView,
+    
+    # MRP Run
+    RunMRPView,
+    
+    # Dashboard Counters
+    ProductionDashboardView,
+    
+    # Planned Orders
+    PlannedOrderListView,
+    PlannedOrderCreateView,
+    
+    # Convert Planned → MO
+    ConvertToMOView,
+    
+    # Manufacturing Orders
+    ManufacturingOrderListView,
+    ManufacturingOrderStartView,
+    ManufacturingOrderCompleteView,
+)
+
+app_name = 'production'  # optional: useful for namespacing reverse URLs
 
 urlpatterns = [
+    # ──────────────────────────────────────────────
+    # MRP & Demand Overview
+    # ──────────────────────────────────────────────
+    path('item-sales-summary/', 
+         ItemSalesSummaryView.as_view(), 
+         name='item-sales-summary'),
 
-    # ITEM SALES SUMMARY
-    path(
-        "item-sales-summary/",
-        ItemSalesSummaryView.as_view(),
-        name="item-sales-summary"
-    ),
+    # ──────────────────────────────────────────────
+    # Production Plans
+    # ──────────────────────────────────────────────
+    path('production-plans/', 
+         ProductionPlanListView.as_view(), 
+         name='production-plan-list'),
+    
+    path('production-plans/create/', 
+         ProductionPlanCreateView.as_view(), 
+         name='production-plan-create'),
 
-    # PRODUCTION PLAN
-    path(
-        "production-plans/",
-        ProductionPlanListView.as_view(),
-        name="production-plan-list"
-    ),
+    # ──────────────────────────────────────────────
+    # Run MRP (global or per plan – currently global)
+    # ──────────────────────────────────────────────
+    path('run-mrp/', 
+         RunMRPView.as_view(), 
+         name='run-mrp'),
 
-    path(
-        "production-plans/create/",
-        ProductionPlanCreateView.as_view(),
-        name="production-plan-create"
-    ),
+    # If you later want per-plan MRP (optional):
+    # path('production-plans/<int:pk>/run-mrp/', RunMRPView.as_view(), name='run-mrp-plan'),
 
-    # RUN MRP
-    path(
-        "run-mrp/<int:pk>/",
-        RunMRPView.as_view(),
-        name="run-mrp"
-    ),
+    # ──────────────────────────────────────────────
+    # Dashboard Overview / Counters
+    # ──────────────────────────────────────────────
+    path('dashboard/', 
+         ProductionDashboardView.as_view(), 
+         name='production-dashboard'),
 
-    # PLANNED ORDERS
-    path(
-        "planned-orders/",
-        PlannedOrderListView.as_view(),
-        name="planned-orders"
-    ),
+    # ──────────────────────────────────────────────
+    # Planned Orders
+    # ──────────────────────────────────────────────
+    path('planned-orders/', 
+         PlannedOrderListView.as_view(), 
+         name='planned-order-list'),
+    
+    path('planned-orders/create/', 
+         PlannedOrderCreateView.as_view(), 
+         name='planned-order-create'),
 
-    # CONVERT TO MO
-    path(
-        "convert-to-mo/<int:pk>/",
-        ConvertToMOView.as_view(),
-        name="convert-to-mo"
-    ),
+    # Convert Planned Order to Manufacturing Order
+    path('planned-orders/<int:pk>/convert-to-mo/', 
+         ConvertToMOView.as_view(), 
+         name='planned-to-mo'),
 
-    # MANUFACTURING ORDERS
-    path(
-        "manufacturing-orders/",
-        ManufacturingOrderListView.as_view(),
-        name="manufacturing-orders"
-    ),
+    # ──────────────────────────────────────────────
+    # Manufacturing Orders (Work Orders)
+    # ──────────────────────────────────────────────
+    path('manufacturing-orders/', 
+         ManufacturingOrderListView.as_view(), 
+         name='manufacturing-order-list'),
 
-    path(
-        "manufacturing-orders/start/<int:pk>/",
-        ManufacturingOrderStartView.as_view(),
-        name="mo-start"
-    ),
+    path('manufacturing-orders/<int:pk>/start/', 
+         ManufacturingOrderStartView.as_view(), 
+         name='mo-start'),
 
-    path(
-        "manufacturing-orders/complete/<int:pk>/",
-        ManufacturingOrderCompleteView.as_view(),
-        name="mo-complete"
-    ),
-    path(
-    "planned-orders/create/",
-    PlannedOrderCreateView.as_view(),
-),
+    path('manufacturing-orders/<int:pk>/complete/', 
+         ManufacturingOrderCompleteView.as_view(), 
+         name='mo-complete'),
 ]

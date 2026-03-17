@@ -29,11 +29,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)  # Unauthorized
             return
 
-        # Case 2: User not a member of the group
-        if not await self.is_member():
-            await self.accept()  # Accept first to allow clean close frame
-            await self.close(code=4003)  # Forbidden: not a group member
-            return
+        # # Case 2: User not a member of the group
+        # if not await self.is_member():
+        #     await self.accept()  # Accept first to allow clean close frame
+        #     await self.close(code=4003)  # Forbidden: not a group member
+        #     return
 
         # Success: User is authenticated and member
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)

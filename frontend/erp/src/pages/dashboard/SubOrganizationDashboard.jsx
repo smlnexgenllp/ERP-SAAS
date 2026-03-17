@@ -94,6 +94,7 @@ const SubOrganizationDashboard = () => {
       finance: "/accounting/dashboard",
       crm: "/crm/dashboard",
       project_management: "/projects/dashboard",
+      manufacture: "/manufacturing/dashboard",
     };
     navigate(routes[module.code] || "/");
   };
