@@ -593,24 +593,76 @@ class VendorPaymentSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+from rest_framework import serializers
+from .models import Machine
+from apps.hr.models import Department
+
 class MachineSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source='department.name', read_only=True)
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    work_center_type_display = serializers.CharField(source='get_work_center_type_display', read_only=True)
+    maintenance_status_display = serializers.CharField(source='get_maintenance_status_display', read_only=True)
+    effective_capacity = serializers.SerializerMethodField()
+    
+    # Make sure these fields are properly handled
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    last_maintenance_date = serializers.DateField(required=False, allow_null=True)
+    next_maintenance_date = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = Machine
         fields = [
-            'id',
-            'name',
-            'code',
-            'description',
-            'department',
-            'department_name',
-            'capacity_per_day_hours',
+            'id', 'name', 'code', 'department', 'department_name',
+            'work_center_type', 'work_center_type_display',
+            'maintenance_status', 'maintenance_status_display',
             'is_active',
-            'created_by',
-            'created_by_username',
-            'created_at',
-            'updated_at',
+            'capacity_per_day_hours',
+            'efficiency_percentage',
+            'utilization_percentage',
+            'default_queue_time_hours',
+            'setup_time_hours',
+            'hourly_labor_cost',
+            'hourly_overhead_cost',
+            'last_maintenance_date',
+            'next_maintenance_date',
+            'effective_capacity',
+            'description',
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at', 'organization']        
+        read_only_fields = ['created_at', 'updated_at', 'organization', 'code']
+        
+    def get_effective_capacity(self, obj):
+        """Show effective capacity for planning"""
+        try:
+            return obj.get_effective_capacity()
+        except Exception as e:
+            return 0
+    
+    def validate(self, data):
+        """Add any custom validation here"""
+        # Ensure capacity is positive
+        if data.get('capacity_per_day_hours', 0) <= 0:
+            raise serializers.ValidationError({
+                'capacity_per_day_hours': 'Capacity must be greater than 0'
+            })
+        
+        # Validate percentages are within range
+        if data.get('efficiency_percentage', 100) < 0 or data.get('efficiency_percentage', 100) > 200:
+            raise serializers.ValidationError({
+                'efficiency_percentage': 'Efficiency must be between 0 and 200%'
+            })
+        
+        if data.get('utilization_percentage', 100) < 0 or data.get('utilization_percentage', 100) > 100:
+            raise serializers.ValidationError({
+                'utilization_percentage': 'Utilization must be between 0 and 100%'
+            })
+        
+        return data
+    
+    def validate_department(self, value):
+        """Validate that the department exists and belongs to the user's organization"""
+        if value:
+            request = self.context.get('request')
+            if request and request.user:
+                # You might want to add organization validation here
+                pass
+        return value

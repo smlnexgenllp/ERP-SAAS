@@ -16,6 +16,7 @@ from .views import (
     ItemProcessCreateView,
     complete_transaction,
     start_transaction, 
+    ManufacturingOrderCompleteView,MachineLoadView,
 )
 
 urlpatterns = [
@@ -43,4 +44,30 @@ path('department/<int:dept_id>/transactions/', DepartmentTransactionsByDeptView.
 path('transaction/create/', DepartmentTransactionCreateView.as_view(), name='transaction-create'),
  path("department-transaction/<int:pk>/start/", start_transaction),
 path("department-transaction/<int:pk>/complete/", complete_transaction),
+    path('planned-orders/create/', 
+         PlannedOrderCreateView.as_view(), 
+         name='planned-order-create'),
+
+    # Convert Planned Order to Manufacturing Order
+    path('planned-orders/<int:pk>/convert-to-mo/', 
+         ConvertToMOView.as_view(), 
+         name='planned-to-mo'),
+
+    # ──────────────────────────────────────────────
+    # Manufacturing Orders (Work Orders)
+    # ──────────────────────────────────────────────
+    path('manufacturing-orders/', 
+         ManufacturingOrderListView.as_view(), 
+         name='manufacturing-order-list'),
+
+    path('manufacturing-orders/<int:pk>/start/', 
+         ManufacturingOrderStartView.as_view(), 
+         name='mo-start'),
+
+    path('manufacturing-orders/<int:pk>/complete/', 
+         ManufacturingOrderCompleteView.as_view(), 
+         name='mo-complete'),
+    path('machine-load/', 
+         MachineLoadView.as_view(), 
+         name='machine-load'),     
 ]

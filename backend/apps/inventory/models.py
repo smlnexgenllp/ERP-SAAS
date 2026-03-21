@@ -419,28 +419,136 @@ class StockLedger(models.Model):
     def __str__(self):
         return f"{self.item.code} | {self.quantity:+.2f} | {self.transaction_type}"
 
-class Machine(models.Model):           # or keep WorkCenter if you prefer
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.conf import settings
+from apps.hr.models import Department
+import uuid
+
+
+class Machine(models.Model):
+    # Machine Types for different scheduling rules
+    WORK_CENTER_TYPES = [
+        ('machine', 'Machine Tool'),
+        ('assembly', 'Assembly Station'),
+        ('inspection', 'Quality Station'),
+        ('labor', 'Manual Work'),
+    ]
+    
+    MAINTENANCE_STATUS = [
+        ('operational', 'Operational'),
+        ('maintenance', 'Under Maintenance'),
+        ('breakdown', 'Breakdown'),
+    ]
+
+    # Core Identification
     organization = models.ForeignKey(
-        Organization,
+        "organizations.Organization",
         on_delete=models.CASCADE,
         related_name="machines"
     )
     department = models.ForeignKey(
-    'apps_hr.Department',   # ✅ CORRECT
-    on_delete=models.PROTECT,
-    related_name="machines",
-    null=True,
-    blank=True
-)
+        Department, 
+        on_delete=models.PROTECT, 
+        null=True,
+        blank=True,
+        related_name="machines"
+    )
     name = models.CharField(max_length=200)
-    code = models.CharField(max_length=50, blank=True, null=True)
-    description = models.TextField(blank=True)
-    capacity_per_day_hours = models.PositiveIntegerField(default=8)
-    is_active = models.BooleanField(default=True)
-
+    code = models.CharField(
+        max_length=50, 
+        null=False,
+        blank=False,
+        default='MACHINE-' + str(uuid.uuid4())[:8],  # Temporary default for migration
+        help_text="Unique machine code"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Additional notes or description about the machine"
+    )
+    
+    # Type & Status
+    work_center_type = models.CharField(
+        max_length=20, 
+        choices=WORK_CENTER_TYPES,
+        default='machine',
+        help_text="Type determines scheduling logic"
+    )
+    maintenance_status = models.CharField(
+        max_length=20,
+        choices=MAINTENANCE_STATUS,
+        default='operational',
+        help_text="Current operational status"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Available for production planning"
+    )
+    
+    # === CAPACITY PLANNING FIELDS ===
+    # Basic capacity
+    capacity_per_day_hours = models.PositiveIntegerField(
+        default=8,
+        help_text="Hours available per day (e.g., 8 for single shift, 16 for double)"
+    )
+    
+    # Efficiency factor (real-world performance)
+    efficiency_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=100.00,
+        validators=[MinValueValidator(0), MaxValueValidator(200)],
+        help_text="Efficiency % (new machine=95%, old=70%)"
+    )
+    
+    # Utilization factor (planned downtime)
+    utilization_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=100.00,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Utilization % (85% = 15% planned downtime)"
+    )
+    
+    # === LEAD TIME FIELDS ===
+    default_queue_time_hours = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=0,
+        help_text="Hours job waits before processing"
+    )
+    
+    setup_time_hours = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=0,
+        help_text="Standard setup/changeover time in hours"
+    )
+    
+    # === COSTING FIELDS ===
+    hourly_labor_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Cost per hour for operator"
+    )
+    
+    hourly_overhead_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Cost per hour for electricity, maintenance"
+    )
+    
+    # Maintenance tracking
+    last_maintenance_date = models.DateField(null=True, blank=True)
+    next_maintenance_date = models.DateField(null=True, blank=True)
+    
+    # Audit fields
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+        on_delete=models.SET_NULL,  # Better to SET_NULL than CASCADE
         null=True,
         related_name="created_machines"
     )
@@ -454,4 +562,92 @@ class Machine(models.Model):           # or keep WorkCenter if you prefer
         verbose_name_plural = "Machines"
 
     def __str__(self):
-        return f"{self.name} ({self.code or 'no code'})"        
+        return f"{self.name} ({self.code})"
+    
+    def save(self, *args, **kwargs):
+        """Auto-generate a truly unique code if not provided"""
+        if not self.code:
+            self.code = self.generate_unique_code()
+        super().save(*args, **kwargs)
+    
+    def generate_unique_code(self):
+        """Generate a truly unique code for the organization"""
+        max_attempts = 10
+        attempt = 0
+        
+        while attempt < max_attempts:
+            # Method 1: Based on name + random string (preferred)
+            if self.name:
+                # Get first 3 letters of name, uppercase, keep only alphanumeric
+                name_part = ''.join(c for c in self.name[:3].upper() if c.isalnum())
+                if not name_part:  # If name has no alphanumeric chars
+                    name_part = "MCH"
+            else:
+                name_part = "MCH"
+            
+            # Add random part (6 characters)
+            random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            code = f"{name_part}-{random_part}"
+            
+            # Check if code exists for this organization
+            if not Machine.objects.filter(organization=self.organization, code=code).exists():
+                return code
+            
+            attempt += 1
+        
+        # If all attempts fail, use UUID as fallback
+        return f"MCH-{uuid.uuid4().hex[:8].upper()}"
+    # === HELPER METHODS FOR MRP ===
+    
+    def get_effective_capacity(self, days=1):
+        """
+        Calculate actual available capacity considering efficiency and utilization
+        Used by MRP for capacity planning
+        """
+        base_capacity = self.capacity_per_day_hours * days
+        effective = base_capacity * (self.efficiency_percentage / 100) * (self.utilization_percentage / 100)
+        return round(effective, 2)
+    
+    def calculate_lead_time(self, quantity, run_time_per_unit):
+        """
+        Calculate total lead time for a quantity
+        Used by MRP for scheduling
+        """
+        total_run_time = quantity * run_time_per_unit
+        total_time = float(self.default_queue_time_hours) + float(self.setup_time_hours) + total_run_time
+        return round(total_time, 2)
+    
+    def calculate_operation_cost(self, quantity, run_time_per_unit):
+        """
+        Calculate total cost for an operation
+        Used for product costing
+        """
+        hourly_rate = float(self.hourly_labor_cost) + float(self.hourly_overhead_cost)
+        setup_cost = float(self.setup_time_hours) * hourly_rate
+        run_cost = (quantity * run_time_per_unit) * hourly_rate
+        return round(setup_cost + run_cost, 2)
+    
+    def is_available_for_scheduling(self, start_date, end_date):
+        """
+        Check if machine is available in date range
+        Used by scheduling algorithm
+        """
+        if self.maintenance_status != 'operational' or not self.is_active:
+            return False
+        
+        # Check if maintenance is scheduled in this period
+        if self.next_maintenance_date:
+            from datetime import date
+            if isinstance(start_date, str):
+                # Convert string dates if needed
+                from django.utils.dateparse import parse_date
+                start = parse_date(start_date) or date.today()
+                end = parse_date(end_date) or date.today()
+            else:
+                start = start_date or date.today()
+                end = end_date or date.today()
+                
+            if start <= self.next_maintenance_date <= end:
+                return False
+        
+        return True

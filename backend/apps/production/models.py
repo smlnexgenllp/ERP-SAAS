@@ -50,6 +50,22 @@ class Routing(models.Model):
 
     def __str__(self):
         return self.name or f"Routing for {self.product.name}"
+from apps.inventory.models import Machine
+
+# class WorkCenter(models.Model):
+
+#     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+
+#     name = models.CharField(max_length=200)
+
+#     code = models.CharField(max_length=50)
+
+#     capacity_per_day = models.PositiveIntegerField(default=8)
+
+#     created_at = models.DateTimeField(auto_now_add=True)
+
+#     def __str__(self):
+#         return self.name
 
 
 class RoutingOperation(models.Model):
@@ -163,6 +179,11 @@ class DepartmentTransaction(models.Model):
         indexes = [
             models.Index(fields=['status', 'current_department']),
         ]
+    machine = models.ForeignKey(  # Changed from work_center to machine
+        Machine, 
+        on_delete=models.CASCADE,
+        help_text="Machine/work center used for this operation"
+    )
 
     def __str__(self):
         return f"{self.item.name} @ {self.current_department.name} ({self.quantity})"
@@ -182,10 +203,11 @@ class DepartmentTransaction(models.Model):
 
 class ProductionPlan(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    sales_order = models.ForeignKey(
-        SalesOrder,
-        on_delete=models.SET_NULL,
-        null=True,
+    
+
+    # Make this field optional
+    sales_orders = models.ManyToManyField(
+        'sales.SalesOrder',
         blank=True,
         related_name='production_plans'
     )
@@ -204,10 +226,36 @@ class ProductionPlan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, )
 
     def __str__(self):
-        if self.sales_order:
-            return f"Plan {self.id} - {self.sales_order.order_number}"
+        # FIX: Use sales_orders (ManyToMany) not sales_order (single)
+        first_order = self.sales_orders.first()
+        if first_order:
+            return f"Plan {self.id} - {first_order.order_number}"
         return f"Plan {self.id} - MRP/Independent"
 
+# apps/production/models.py - Updated PlannedOrder with nullable fields
+
+class PlannedOrder(models.Model):
+    # Status choices for order lifecycle
+    STATUS_CHOICES = [
+        ("planned", "Planned"),
+        ("confirmed", "Confirmed"),
+        ("converted", "Converted"),
+        ("cancelled", "Cancelled"),
+    ]
+    
+    # Scheduling type choices
+    SCHEDULING_TYPE_CHOICES = [
+        ('production', 'Production Order'),
+        ('purchase', 'Purchase Order'),
+        ('basic', 'Basic Scheduling'),
+        ('lead_time', 'Lead Time Scheduling'),
+    ]
+
+    production_plan = models.ForeignKey(
+        ProductionPlan,
+        on_delete=models.CASCADE,
+        related_name="planned_orders"
+    )
 
 class PlannedOrder(models.Model):
     production_plan = models.ForeignKey(ProductionPlan, on_delete=models.CASCADE, related_name="planned_orders")
@@ -224,7 +272,65 @@ class PlannedOrder(models.Model):
         max_length=20,
         choices=[("draft", "Draft"), ("confirmed", "Confirmed"), ("converted", "Converted")],
         default="draft"
+        choices=STATUS_CHOICES,
+        default="planned"
     )
+    
+    scheduling_type = models.CharField(
+        max_length=20,
+        choices=SCHEDULING_TYPE_CHOICES,
+        default='production'
+    )
+    
+    # Make these fields nullable for existing data
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Additional notes about this planned order"
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        null=True,  # ← Add null=True for existing rows
+        blank=True,
+        help_text="When this planned order was created"
+    )
+    
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        null=True,  # ← Add null=True for existing rows
+        blank=True,
+        help_text="When this planned order was last updated"
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Planned Order"
+        verbose_name_plural = "Planned Orders"
+
+    def __str__(self):
+        return f"{self.get_scheduling_type_display()}: {self.product.name} - {self.quantity} units"
+    
+    def save(self, *args, **kwargs):
+        """Ensure scheduled dates are consistent"""
+        if self.planned_start and self.planned_finish:
+            if self.planned_finish < self.planned_start:
+                raise ValueError("Planned finish date cannot be before planned start date")
+        super().save(*args, **kwargs)
+    
+    @property
+    def is_production_order(self):
+        return self.scheduling_type == 'production'
+    
+    @property
+    def is_purchase_order(self):
+        return self.scheduling_type == 'purchase'
+    
+    @property
+    def lead_days(self):
+        if self.planned_start and self.planned_finish:
+            return (self.planned_finish - self.planned_start).days
+        return 0
 
 
 class PurchaseRequisition(models.Model):
@@ -274,6 +380,11 @@ class BillOfMaterial(models.Model):
     class Meta:
         ordering = ['-created_at']
         unique_together = ['product', 'version']
+    machine = models.ForeignKey(  # Changed from work_center to machine
+        Machine, 
+        on_delete=models.CASCADE,
+        help_text="Machine assigned for this operation"
+    )
 
     def __str__(self):
         return f"BOM {self.version} - {self.product.name}"
