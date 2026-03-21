@@ -73,6 +73,11 @@ import PendingSalesOrders from "./components/modules/production/pages/PendingSal
 import MachineCreate from "./components/modules/inventory/MachineCreate";
 import MachineList from "./components/modules/inventory/MachineList";
 import MachineEdit from "./components/modules/inventory/MachineEdit";
+import DepartmentWork from "./components/modules/production/components/DepartmentWork";
+import ProcessSetup from "./components/modules/production/components/ProcessSetup";
+import TransactionForm from "./components/modules/production/components/TransactionForm";
+import DepartmentStockMatrix from "./components/modules/production/pages/DepartmentStockMatrix";
+import TransactionHistory from "./components/modules/production/components/TransactionHistory";
 
 
 
@@ -370,10 +375,12 @@ function App() {
           <Route path="/items/create" element={<ItemCreate />} />
           <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
           <Route path="/inventory/dashboard" element={<InventoryDashboard />} />
-          
-
+          <Route path="/process-setup" element={<ProcessSetup />} />
+        <Route path="/department/:id" element={<DepartmentWork />} />         
+         <Route path="/department-transaction" element={<TransactionForm/>}/>
           <Route path="/vendor-payments/create" element={<VendorPaymentCreate />} />
           <Route path="/vendor-invoices/create" element={<VendorInvoiceCreate />} />
+          <Route path="/overall-stock" element={<DepartmentStockMatrix/>} />
           <Route path="/grns/create" element={<GRNCreate />} />
           <Route path="/QC" element={<QualityInspectionCreate />} />
           <Route path="/gate-entry" element={<GateEntryCreate />} />
@@ -405,7 +412,9 @@ function App() {
           <Route path="/machines/create" element={<MachineCreate />} />
           <Route path="/machines-list" element={<MachineList />} />
           <Route path="/machines/edit/:id" element={<MachineEdit />} />
+          <Route path="/transaction-history" element={<TransactionHistory/>} />
         </Routes>
+
       </Router>
     </AuthProvider>
   );

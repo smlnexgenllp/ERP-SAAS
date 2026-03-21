@@ -7,9 +7,8 @@ from django.db.models.functions import Coalesce
 from decimal import Decimal
 from apps.finance.models.vendor import Vendor
 from apps.organizations.models import Organization
-
 User = settings.AUTH_USER_MODEL
-
+from django.db.models import F
 
 def get_next_number(prefix, org_id, model_class):
     """
@@ -129,7 +128,29 @@ class Item(models.Model):
             grn__received_date__lte=date
         ).aggregate(total=Sum('received_qty'))['total']
         return Decimal(total or '0.00')
+    def get_department_stock(self, department_id=None):
+        """
+        Returns stock based on Stock Ledger
+        """
+        from .models import StockLedger
 
+        qs = StockLedger.objects.filter(item=self)
+
+        if department_id:
+            qs = qs.filter(department_id=department_id)
+
+        stock = qs.aggregate(
+            total=Sum(
+                Case(
+                    When(transaction_type='IN', then='quantity'),
+                    When(transaction_type='OUT', then=-1 * F('quantity')),
+                    default=Value(0),
+                    output_field=DecimalField()
+                )
+            )
+        )['total']
+
+        return Decimal(stock or 0)
 # ========================= PURCHASE ORDER =========================
 class PurchaseOrder(models.Model):
     STATUS_CHOICES = [
@@ -378,6 +399,12 @@ class StockLedger(models.Model):
     transaction_type = models.CharField(
         max_length=10,
         choices=[('IN', 'Received'), ('OUT', 'Issued'), ('ADJ', 'Adjustment')]
+    )
+    department = models.ForeignKey(
+    'apps_hr.Department',
+    on_delete=models.PROTECT,
+    null=True,
+    blank=True
     )
     reference = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
