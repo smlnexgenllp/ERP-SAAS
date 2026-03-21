@@ -20,7 +20,6 @@ from apps.inventory.models import Machine
 #     def __str__(self):
 #         return self.name
 
-
 class BillOfMaterial(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     product = models.ForeignKey(Item, on_delete=models.CASCADE)

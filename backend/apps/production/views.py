@@ -606,9 +606,6 @@ class ManufacturingOrderCompleteView(APIView):
 
         return Response({"detail": "Production completed — finished goods stock updated"})
 
-# Add to apps/production/views.py
-
-# apps/production/views.py - Fix MachineLoadView
 
 class MachineLoadView(APIView):
     """
