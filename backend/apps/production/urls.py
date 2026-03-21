@@ -25,7 +25,7 @@ from .views import (
     # Manufacturing Orders
     ManufacturingOrderListView,
     ManufacturingOrderStartView,
-    ManufacturingOrderCompleteView,
+    ManufacturingOrderCompleteView,MachineLoadView,
 )
 
 app_name = 'production'  # optional: useful for namespacing reverse URLs
@@ -96,4 +96,7 @@ urlpatterns = [
     path('manufacturing-orders/<int:pk>/complete/', 
          ManufacturingOrderCompleteView.as_view(), 
          name='mo-complete'),
+    path('machine-load/', 
+         MachineLoadView.as_view(), 
+         name='machine-load'),     
 ]
