@@ -153,7 +153,7 @@ export default function PendingSalesOrders() {
           </div>
         </div>
 
-        {/* RUN MRP BUTTON with loading state */}
+        {/* RUN MRP BUTTON withe */}
         <button
           onClick={runMRP}
           disabled={runningMRP}

@@ -165,7 +165,6 @@ export default function CapacityDashboard() {
           </div>
         </div>
 
-        {/* Machine Details Modal would go here */}
       </div>
     </div>
   );
