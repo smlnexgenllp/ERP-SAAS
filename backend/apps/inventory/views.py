@@ -502,6 +502,236 @@ class MachineViewSet(viewsets.ModelViewSet):
         """
         Check if machine can be deleted before removing
         """
+
+        instance.delete()
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.db.models import Sum, Case, When, Value, DecimalField, F
+from django.db.models.functions import Coalesce
+from decimal import Decimal
+
+from .models import StockLedger
+
+
+# inventory/views.py
+
+from django.db.models import Sum, Case, When, Value, DecimalField
+from django.db.models.functions import Coalesce
+from django.db.models import F
+class DepartmentStockAPIView(APIView):
+    def get(self, request):
+        item_id = request.GET.get("item")
+        department_id = request.GET.get("department")
+
+        stock = StockLedger.objects.filter(
+            item_id=item_id,
+            department_id=department_id
+        ).aggregate(
+            stock=Coalesce(
+                Sum(
+                    Case(
+                        When(transaction_type='IN', then='quantity'),
+                        When(transaction_type='OUT', then=-1 * F('quantity')),
+                        default=Value(0),
+                        output_field=DecimalField()
+                    )
+                ),
+                Value(0),
+                output_field=DecimalField()
+            )
+        )
+
+        return Response({"stock": stock["stock"]})
+    
+# inventory/views.py
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from decimal import Decimal
+from django.utils import timezone
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+
+from apps.inventory.models import (
+    Item,
+    StockLedger,
+)
+from apps.hr.models import Department
+from apps.production.models import DepartmentTransaction
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+class MaterialTransferAPIView(APIView):
+    """
+    Combined endpoint for Material Transfer:
+    - GET  → List all transfers (history)
+    - POST → Create new material transfer
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        GET /api/inventory/material-transfer/
+        Returns list of department transfers for history
+        """
+        org = getattr(request.user, 'organization', None)
+        if not org:
+            return Response({"error": "Organization not found for user"}, status=400)
+
+        transfers = DepartmentTransaction.objects.filter(
+            organization=org
+        ).select_related(
+            'item', 'current_department', 'next_department', 'created_by'
+        ).order_by('-created_at')
+
+        data = []
+        for t in transfers:
+            sent_by_name = (
+                f"{t.created_by.first_name} {t.created_by.last_name}".strip()
+                if t.created_by else "—"
+            )
+
+            data.append({
+                "id": t.id,
+                "created_at": t.created_at.isoformat(),
+                "from_department_name": t.current_department.name if t.current_department else "—",
+                "to_department_name": t.next_department.name if t.next_department else "—",
+                "item_name": t.item.name if t.item else "—",
+                "quantity": str(t.quantity),
+                "sent_by_name": sent_by_name,
+                "status": t.status,
+            })
+
+        return Response(data)
+
+    def post(self, request):
+        """
+        POST /api/inventory/material-transfer/
+        Creates a new department transfer + stock ledger entries
+        """
+        data = request.data
+        user = request.user
+        org = getattr(user, 'organization', None)
+
+        if not org:
+            return Response({"error": "Organization not found for user"}, status=400)
+
+        required_fields = ['from_department', 'to_department', 'item', 'quantity']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return Response({"error": f"{field} is required"}, status=400)
+
+        try:
+            from_dept_id = int(data['from_department'])
+            to_dept_id   = int(data['to_department'])
+            item_id      = int(data['item'])
+            qty          = Decimal(str(data['quantity']))
+
+            if qty <= 0:
+                return Response({"error": "Quantity must be positive"}, status=400)
+
+            from_dept = get_object_or_404(Department, id=from_dept_id, organization=org)
+            to_dept   = get_object_or_404(Department, id=to_dept_id, organization=org)
+            item      = get_object_or_404(Item, id=item_id, organization=org)
+
+            # Check available stock in source department
+            current_stock = item.get_department_stock(department_id=from_dept.id)
+            if qty > current_stock:
+                return Response(
+                    {"error": f"Insufficient stock in {from_dept.name}. Available: {current_stock}"},
+                    status=400
+                )
+
+            with transaction.atomic():
+                # Create the transfer record
+                transfer = DepartmentTransaction.objects.create(
+                    organization=org,
+                    item=item,
+                    current_department=from_dept,
+                    next_department=to_dept,
+                    quantity=qty,
+                    created_by=user,
+                    status="completed",  # change to "pending" if approval needed
+                    completed_at=timezone.now(),
+                )
+
+                # Stock movement: OUT from source
+                StockLedger.objects.create(
+                    item=item,
+                    quantity=qty,
+                    transaction_type='OUT',
+                    department=from_dept,
+                    reference=f"Transfer #{transfer.id} to {to_dept.name}",
+                    created_by=user,
+                )
+
+                # Stock movement: IN to destination
+                StockLedger.objects.create(
+                    item=item,
+                    quantity=qty,
+                    transaction_type='IN',
+                    department=to_dept,
+                    reference=f"Transfer #{transfer.id} from {from_dept.name}",
+                    created_by=user,
+                )
+
+            # Prepare success response (for slip / modal)
+            sent_by_name = (
+                f"{user.first_name} {user.last_name}".strip()
+                or user.username
+                or "System User"
+            )
+
+            return Response({
+                "id": transfer.id,
+                "from_department_name": from_dept.name,
+                "to_department_name": to_dept.name,
+                "item_name": item.name,
+                "quantity": str(qty),
+                "sent_by_name": sent_by_name,
+                "created_at": transfer.created_at.isoformat(),
+                "message": "Material transfer completed successfully"
+            }, status=status.HTTP_201_CREATED)
+
+        except (ValueError, Department.DoesNotExist, Item.DoesNotExist) as e:
+            return Response({"error": str(e)}, status=400)
+        except Exception as e:
+            return Response({"error": "Server error during transfer"}, status=500)
+class ItemDepartmentStockView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, item_id, dept_id):
+        try:
+            item = Item.objects.get(id=item_id, organization=request.user.organization)
+        except Item.DoesNotExist:
+            return Response({"error": "Item not found"}, status=404)
+
+        stock = item.get_department_stock(dept_id)
+
+        return Response({
+            "item_id": item.id,
+            "item_name": item.name,
+            "department_id": dept_id,
+            "available_stock": float(stock)
+        })
+from django.db.models import Sum
+from rest_framework.views import APIView
+from rest_framework.response import Response
+
+
+class AllDepartmentStockView(APIView):
+    def get(self, request):
+        data = (
+            StockLedger.objects
+            .values("item", "department")
+            .annotate(stock=Sum("quantity"))
+        )
+
+        return Response(data)
         try:
             instance.delete()
         except Exception as e:
