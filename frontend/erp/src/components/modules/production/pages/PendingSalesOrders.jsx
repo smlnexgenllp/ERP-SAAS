@@ -1,7 +1,7 @@
+// src/pages/PendingSalesOrders.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../../context/AuthContext";
-
 import {
   Factory,
   ClipboardList,
@@ -11,10 +11,10 @@ import {
   LogOut,
   RefreshCw,
   AlertTriangle,
-  CheckCircle,
-  XCircle
+  Layers,
+  BarChart3,
+  ArrowRightCircle
 } from "lucide-react";
-
 import api from "../../../../services/api";
 
 export default function PendingSalesOrders() {
@@ -131,8 +131,11 @@ export default function PendingSalesOrders() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-cyan-400 animate-pulse">Loading...</div>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin h-12 w-12 border-4 border-cyan-500 border-t-transparent rounded-full"></div>
+          <p className="text-cyan-400 font-medium">Loading MRP overview...</p>
+        </div>
       </div>
     );
   }
@@ -153,7 +156,7 @@ export default function PendingSalesOrders() {
           </div>
         </div>
 
-        {/* RUN MRP BUTTON withe */}
+        {/* RUN MRP BUTTON */}
         <button
           onClick={runMRP}
           disabled={runningMRP}
@@ -169,7 +172,10 @@ export default function PendingSalesOrders() {
               Running MRP...
             </>
           ) : (
-            'Run MRP'
+            <>
+              <Play size={16} />
+              Run MRP
+            </>
           )}
         </button>
       </header>
@@ -191,20 +197,18 @@ export default function PendingSalesOrders() {
               <ClipboardList className="h-5 w-5 text-cyan-400"/>
               Dashboard
             </button>
-
-            <button
-              onClick={() => navigate("/production/planned-orders")}
+            <button 
+              onClick={() => navigate("/production/planned-orders")} 
               className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800"
             >
-              <Package className="h-5 w-5 text-purple-400"/>
+              <Package className="h-5 w-5 text-purple-500" /> 
               Planned Orders
             </button>
-
-            <button
-              onClick={() => navigate("/production/manufacturing-orders")}
+            <button 
+              onClick={() => navigate("/production/manufacturing-orders")} 
               className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800"
             >
-              <Settings className="h-5 w-5 text-emerald-400"/>
+              <Settings className="h-5 w-5 text-emerald-500" /> 
               Manufacturing Orders
             </button>
           </nav>

@@ -1,39 +1,39 @@
 # apps/production/views.py
-
 from collections import defaultdict
 from decimal import Decimal
 from datetime import timedelta
+from django.utils import timezone
 from django.db.models import DecimalField
-from django.db.models import Sum, Count, Q, Value
+from django.db.models import Sum, Q, Value
 from django.db.models.functions import Coalesce
 from django.contrib.postgres.aggregates import ArrayAgg
-from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
 from .models import (
-    ProductionPlan, PlannedOrder, ManufacturingOrder,
+    ProductionPlan, PurchaseRequisition,
+    ManufacturingOrder, MOOperation,
+    BillOfMaterial, Routing, RoutingOperation
+    , PlannedOrder, ManufacturingOrder,
     BillOfMaterial, Routing, RoutingOperation,MOOperation
 )
 from .serializers import (
     ProductionPlanSerializer, PlannedOrderSerializer,
-    ManufacturingOrderSerializer
+    PurchaseRequisitionSerializer, ManufacturingOrderSerializer
 )
+from apps.inventory.models import Item, StockLedger
+from apps.sales.models import SalesOrderItem
 from apps.inventory.models import Item
 # Add this import at the top of your views.py with your other imports
 from apps.sales.models import SalesOrder, SalesOrderItem
 
 
-
-# =========================================================
-# ITEM SALES SUMMARY - MRP Dashboard Data
-# =========================================================
+# ────────────────────────────────────────────────
+# ITEM SALES SUMMARY (for MRP Planning Board)
+# ────────────────────────────────────────────────
 class ItemSalesSummaryView(APIView):
-    """
-    Returns demand vs stock per product for MRP planning board
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -49,7 +49,6 @@ class ItemSalesSummaryView(APIView):
             )
             .annotate(
                 total_sales_qty=Sum("quantity"),
-                sales_order_count=Count("sales_order", distinct=True),
                 sales_orders=ArrayAgg(
                     "sales_order__order_number",
                     distinct=True,
@@ -77,9 +76,20 @@ class ItemSalesSummaryView(APIView):
         return Response(result)
 
 
-# =========================================================
-# PRODUCTION PLAN - CREATE & LIST
-# =========================================================
+# ────────────────────────────────────────────────
+# PRODUCTION PLAN - LIST & CREATE
+# ────────────────────────────────────────────────
+class ProductionPlanListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        plans = ProductionPlan.objects.filter(
+            organization=request.user.organization
+        ).select_related("sales_order", "created_by").order_by("-created_at")
+        serializer = ProductionPlanSerializer(plans, many=True)
+        return Response(serializer.data)
+
+
 class ProductionPlanCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -94,6 +104,9 @@ class ProductionPlanCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# ────────────────────────────────────────────────
+# MRP RUN - IMPROVED MULTI-LEVEL + MAKE/BUY + SCHEDULING
+# ────────────────────────────────────────────────
 class ProductionPlanListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -399,6 +412,8 @@ class RunMRPView(APIView):
         }
 
 
+
+
 # =========================================================
 # PRODUCTION DASHBOARD COUNTERS
 # =========================================================
@@ -435,22 +450,24 @@ class PlannedOrderListView(APIView):
             production_plan__organization=request.user.organization
         ).select_related("product", "production_plan").order_by("-planned_start")
 
-        serializer = PlannedOrderSerializer(orders, many=True)
-        return Response(serializer.data)
 
+# ────────────────────────────────────────────────
+# Other views (kept mostly as-is, minor cleanups)
+# ────────────────────────────────────────────────
+# apps/production/views.py — add at the bottom
 
 class PlannedOrderCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         product_id = request.data.get("product")
-        quantity_str = request.data.get("quantity")
+        quantity = request.data.get("quantity")
 
-        if not product_id or not quantity_str:
+        if not product_id or not quantity:
             return Response({"error": "product and quantity are required"}, status=400)
 
         try:
-            qty = Decimal(quantity_str)
+            qty = Decimal(str(quantity))
             if qty <= 0:
                 raise ValueError
         except:
@@ -481,6 +498,15 @@ class PlannedOrderCreateView(APIView):
         )
 
         return Response(PlannedOrderSerializer(po).data, status=201)
+class PlannedOrderListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        orders = PlannedOrder.objects.filter(
+            production_plan__organization=request.user.organization
+        ).select_related("product", "production_plan").order_by("-planned_start")
+        serializer = PlannedOrderSerializer(orders, many=True)
+        return Response(serializer.data)
 
 
 # =========================================================
@@ -511,6 +537,17 @@ class ConvertToMOView(APIView):
             status="draft"
         )
 
+        # Optional: copy routing to MO operations
+        routing = Routing.objects.filter(product=planned.product, is_active=True).first()
+        if routing:
+            for op in routing.operations.all():
+                MOOperation.objects.create(
+                    manufacturing_order=mo,
+                    work_center=op.work_center,
+                    operation_name=op.operation_name,
+                    sequence=op.sequence,
+                    status="pending"
+                )
         # Get routing and create operations
         routing = Routing.objects.filter(
             product=planned.product,
@@ -543,9 +580,6 @@ class ConvertToMOView(APIView):
         }, status=201)
 
 
-# =========================================================
-# MANUFACTURING ORDERS - LIST, START, COMPLETE
-# =========================================================
 class ManufacturingOrderListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -553,7 +587,6 @@ class ManufacturingOrderListView(APIView):
         orders = ManufacturingOrder.objects.filter(
             planned_order__production_plan__organization=request.user.organization
         ).select_related("product", "planned_order").order_by("-id")
-
         serializer = ManufacturingOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -599,11 +632,167 @@ class ManufacturingOrderCompleteView(APIView):
         mo.finish_date = request.data.get("finish_date") or timezone.now().date()
         mo.save()
 
-        # Update finished goods stock
+        # Update stock
         item = mo.product
-        item.current_stock = (item.current_stock or Decimal('0')) + mo.quantity
-        item.save()
+        item.current_stock = (Decimal(str(item.current_stock or '0')) + mo.quantity)
+        item.save(update_fields=['current_stock'])
 
+        return Response({"detail": "Production completed — finished goods stock updated"})
+# Add this to the end of views.py
+
+class ProductionDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        org = request.user.organization
+        data = {
+            "production_plans": ProductionPlan.objects.filter(organization=org).count(),
+            "planned_orders": PlannedOrder.objects.filter(
+                production_plan__organization=org
+            ).count(),
+            "running_production": ManufacturingOrder.objects.filter(
+                planned_order__production_plan__organization=org,
+                status="in_progress"
+            ).count(),
+            "completed_production": ManufacturingOrder.objects.filter(
+                planned_order__production_plan__organization=org,
+                status="done"
+            ).count(),
+        }
+        return Response(data)
+from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import ItemProcess, DepartmentTransaction
+from .serializers import (
+    ItemProcessSerializer,
+    ItemProcessCreateUpdateSerializer,
+    DepartmentTransactionListSerializer,
+    DepartmentTransactionCreateSerializer
+)
+
+from rest_framework.decorators import api_view
+
+@api_view(["PATCH"])
+def start_transaction(request, pk):
+    txn = DepartmentTransaction.objects.get(id=pk)
+
+    txn.status = "in_progress"
+    txn.started_at = timezone.now()
+    txn.save()
+
+    return Response({"message": "Started"})
+from apps.inventory.models import StockLedger
+
+@api_view(["PATCH"])
+def complete_transaction(request, pk):
+    txn = DepartmentTransaction.objects.get(id=pk)
+
+    txn.status = "completed"
+    txn.completed_at = timezone.now()
+    txn.save()
+
+    current_step = txn.process_step
+
+    next_step = ItemProcessStep.objects.filter(
+        process=current_step.process,
+        sequence__gt=current_step.sequence
+    ).order_by("sequence").first()
+
+    if next_step:
+        # ✅ Move to next department
+        DepartmentTransaction.objects.create(
+            organization=txn.organization,
+            manufacturing_order=txn.manufacturing_order,
+            process_step=next_step,
+            current_department=next_step.department,
+            item=txn.item,
+            quantity=txn.quantity,
+            status="pending"
+        )
+
+        # ✅ IN entry for next department
+        StockLedger.objects.create(
+            item=txn.item,
+            quantity=txn.quantity,
+            transaction_type="IN",
+            department=next_step.department,
+            reference=f"Transfer from {txn.current_department.name}",
+            created_by=request.user
+        )
+
+    else:
+        # ✅ Final step → Finished Goods
+        StockLedger.objects.create(
+            item=txn.item,
+            quantity=txn.quantity,
+            transaction_type="IN",
+            department=None,
+            reference="Production Completed",
+            created_by=request.user
+        )
+
+    return Response({"message": "Completed"})
+class ItemProcessCreateView(generics.CreateAPIView):
+    queryset = ItemProcess.objects.none()
+    serializer_class = ItemProcessCreateUpdateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ItemProcess.objects.filter(organization=self.request.user.organization)
+
+    # def perform_create(self, serializer):
+    #     serializer.save(organization=self.request.user.organization)
+
+
+class DepartmentTransactionsByDeptView(generics.ListAPIView):
+    serializer_class = DepartmentTransactionListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        dept_id = self.kwargs.get("dept_id")
+        return DepartmentTransaction.objects.filter(
+            organization=self.request.user.organization,
+            current_department_id=dept_id,
+            status__in=["pending", "in_progress"]
+        ).select_related("item", "current_department", "next_department")
+
+
+class DepartmentTransactionCreateView(generics.CreateAPIView):
+    serializer_class = DepartmentTransactionCreateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        item = serializer.validated_data.get("item")
+        department = serializer.validated_data.get("current_department")
+        qty = serializer.validated_data.get("quantity")
+
+        # ✅ Check stock
+        available_stock = item.get_department_stock(department.id)
+
+        if qty > available_stock:
+            raise ValidationError({
+                "error": f"Not enough stock in {department.name}. Available: {available_stock}"
+            })
+
+        # ✅ Create transaction
+        txn = serializer.save(
+            organization=self.request.user.organization,
+            created_by=self.request.user,
+            status="in_progress",
+            started_at=timezone.now()
+        )
+
+        # ✅ OUT entry (stock reduction)
+        StockLedger.objects.create(
+            item=item,
+            quantity=qty,
+            transaction_type="OUT",
+            department=department,
+            reference=f"Dept Issue #{txn.id}",
+            created_by=self.request.user
+        )
+        
         return Response({"detail": "Production completed — finished goods stock updated"})
 
 
