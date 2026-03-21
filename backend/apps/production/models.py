@@ -7,6 +7,8 @@ from apps.inventory.models import Item
 from apps.organizations.models import Organization
 from apps.sales.models import SalesOrder
 from apps.hr.models import Department
+from apps.inventory.models import Machine
+
 
 User = settings.AUTH_USER_MODEL
 
@@ -15,21 +17,21 @@ User = settings.AUTH_USER_MODEL
 # Work Centers & Routing (existing - kept mostly as-is)
 # ────────────────────────────────────────────────
 
-class WorkCenter(models.Model):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    name = models.CharField(max_length=200)
-    code = models.CharField(max_length=50, unique=True)
-    capacity_per_day_hours = models.DecimalField(max_digits=6, decimal_places=2, default=8.00)
-    number_of_machines = models.PositiveSmallIntegerField(default=1)
-    efficiency_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('85.00'))
-    created_at = models.DateTimeField(auto_now_add=True,null=True, blank=True)
+# class WorkCenter(models.Model):
+#     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+#     name = models.CharField(max_length=200)
+#     code = models.CharField(max_length=50, unique=True)
+#     capacity_per_day_hours = models.DecimalField(max_digits=6, decimal_places=2, default=8.00)
+#     number_of_machines = models.PositiveSmallIntegerField(default=1)
+#     efficiency_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('85.00'))
+#     created_at = models.DateTimeField(auto_now_add=True,null=True, blank=True)
 
-    class Meta:
-        verbose_name = "Work Center"
-        verbose_name_plural = "Work Centers"
+#     class Meta:
+#         verbose_name = "Work Center"
+#         verbose_name_plural = "Work Centers"
 
-    def __str__(self):
-        return f"{self.name} ({self.code})"
+#     def __str__(self):
+#         return f"{self.name} ({self.code})"
 
 
 class Routing(models.Model):
@@ -67,22 +69,37 @@ from apps.inventory.models import Machine
 #     def __str__(self):
 #         return self.name
 
+class BillOfMaterial(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    product = models.ForeignKey(Item, on_delete=models.CASCADE)
+    version = models.CharField(max_length=20, default="v1")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # ← Add this line
+    is_active = models.BooleanField(default=True, help_text="Set to False to deactivate this BOM version")
 
 class RoutingOperation(models.Model):
-    routing = models.ForeignKey(Routing, on_delete=models.CASCADE, related_name="operations")
-    work_center = models.ForeignKey(WorkCenter, on_delete=models.SET_NULL, null=True)
-    operation_name = models.CharField(max_length=200)
-    sequence = models.PositiveIntegerField()
-    setup_time_hours = models.DecimalField(max_digits=6, decimal_places=2, default=0)
-    machine_time_per_unit = models.DecimalField(max_digits=8, decimal_places=4, default=0)
-    labor_time_per_unit = models.DecimalField(max_digits=8, decimal_places=4, default=0)
 
-    class Meta:
-        ordering = ['sequence']
-        unique_together = [['routing', 'sequence']]
+    routing = models.ForeignKey(
+        Routing,
+        on_delete=models.CASCADE,
+        related_name="operations"
+    )
+
+    machine = models.ForeignKey(  # Changed from work_center to machine
+        Machine, 
+        on_delete=models.CASCADE,
+        help_text="Machine/work center used for this operation"
+    )
+
+    operation_name = models.CharField(max_length=200)
+
+    sequence = models.IntegerField()
+
+    expected_hours = models.DecimalField(max_digits=5, decimal_places=2)
 
     def __str__(self):
-        return f"{self.sequence}. {self.operation_name}"
+        return self.operation_name
 
 
 # ────────────────────────────────────────────────
@@ -257,21 +274,16 @@ class PlannedOrder(models.Model):
         related_name="planned_orders"
     )
 
-class PlannedOrder(models.Model):
-    production_plan = models.ForeignKey(ProductionPlan, on_delete=models.CASCADE, related_name="planned_orders")
     product = models.ForeignKey(Item, on_delete=models.CASCADE)
-    quantity = models.DecimalField(max_digits=12, decimal_places=2)
+
+    quantity = models.PositiveIntegerField()
+
     planned_start = models.DateField()
+
     planned_finish = models.DateField()
-    scheduling_type = models.CharField(
-        max_length=20,
-        choices=[("basic", "Basic Date Scheduling"), ("leadtime", "Lead Time Scheduling")],
-        default="basic"
-    )
+
     status = models.CharField(
         max_length=20,
-        choices=[("draft", "Draft"), ("confirmed", "Confirmed"), ("converted", "Converted")],
-        default="draft"
         choices=STATUS_CHOICES,
         default="planned"
     )
@@ -359,15 +371,30 @@ class ManufacturingOrder(models.Model):
 
 
 class MOOperation(models.Model):
-    manufacturing_order = models.ForeignKey(ManufacturingOrder, on_delete=models.CASCADE, related_name="operations")
-    work_center = models.ForeignKey(WorkCenter, on_delete=models.SET_NULL, null=True)
+
+    manufacturing_order = models.ForeignKey(
+        ManufacturingOrder,
+        on_delete=models.CASCADE,
+        related_name="operations"
+    )
+
+    machine = models.ForeignKey(  # Changed from work_center to machine
+        Machine, 
+        on_delete=models.CASCADE,
+        help_text="Machine assigned for this operation"
+    )
+
     operation_name = models.CharField(max_length=200)
-    sequence = models.PositiveIntegerField(null=True, blank=True)
-    planned_start = models.DateTimeField(null=True, blank=True)
-    planned_finish = models.DateTimeField(null=True, blank=True)
+
+    sequence = models.IntegerField()
+
     status = models.CharField(
         max_length=20,
-        choices=[("pending", "Pending"), ("in_progress", "In Progress"), ("done", "Done")],
+        choices=[
+            ("pending", "Pending"),
+            ("in_progress", "In Progress"),
+            ("done", "Done")
+        ],
         default="pending"
     )
 class BillOfMaterial(models.Model):

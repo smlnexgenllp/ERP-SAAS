@@ -13,10 +13,10 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
 from .models import (
-    ProductionPlan, PlannedOrder, PurchaseRequisition,
+    ProductionPlan, PurchaseRequisition,
     ManufacturingOrder, MOOperation,
-    BillOfMaterial, Routing, RoutingOperation, WorkCenter
-    ProductionPlan, PlannedOrder, ManufacturingOrder,
+    BillOfMaterial, Routing, RoutingOperation
+    , PlannedOrder, ManufacturingOrder,
     BillOfMaterial, Routing, RoutingOperation,MOOperation
 )
 from .serializers import (
@@ -136,7 +136,6 @@ class RunMRPView(APIView):
     def post(self, request):
         org = request.user.organization
         today = timezone.now().date()
-        scheduling_mode = request.data.get("scheduling_mode", "basic")  # or "leadtime"
 
         # Get all confirmed sales orders
         sales_orders = SalesOrder.objects.filter(
@@ -160,47 +159,6 @@ class RunMRPView(APIView):
         # Link sales orders to the plan
         plan.sales_orders.set(sales_orders)
 
-        # 1. Top-level demand from open sales orders
-        demand_qs = SalesOrderItem.objects.filter(
-            sales_order__organization=org,
-            sales_order__status__in=["open", "confirmed"]  # adjust statuses
-        ).values("product_id").annotate(gross_demand=Sum("quantity"))
-
-        net_requirements = defaultdict(Decimal)
-        warnings = []
-
-        def explode_bom(product_id, gross_qty, level=0):
-            try:
-                item = Item.objects.get(id=product_id, organization=org)
-            except Item.DoesNotExist:
-                return
-
-            available = Decimal(str(getattr(item, 'current_stock', 0) or 0))
-            net_req = max(Decimal('0'), gross_qty - available)
-
-            if net_req <= 0:
-                return
-
-            net_requirements[product_id] += net_req
-
-            if getattr(item, 'procurement_type', 'F') == 'E':  # Manufactured
-                bom = BillOfMaterial.objects.filter(
-                    product=item, is_active=True
-                ).order_by('-created_at').first()
-                if bom:
-                    for line in bom.lines.all():
-                        comp_qty = line.quantity * net_req
-                        explode_bom(line.component.id, comp_qty, level + 1)
-
-        # Start explosion
-        for row in demand_qs:
-            prod_id = row["product_id"]
-            gross = row["gross_demand"] or Decimal('0')
-            explode_bom(prod_id, gross)
-
-        # 2. Create proposals
-        created_planned = 0
-        created_req = 0
         # Step 1: Collect top-level demand
         demand_qs = SalesOrderItem.objects.filter(
             sales_order__organization=org,
@@ -312,91 +270,11 @@ class RunMRPView(APIView):
             if total_req <= 0:
                 continue
 
-        for item_id, net_qty in net_requirements.items():
-            if net_qty <= 0:
-                continue
             try:
-                item = Item.objects.get(id=item_id, organization=org)
+                product = Item.objects.get(id=prod_id, organization=org)
             except Item.DoesNotExist:
                 continue
 
-            if getattr(item, 'procurement_type', 'F') == 'E':
-                start, finish = self.calculate_dates(item, net_qty, today, scheduling_mode)
-                PlannedOrder.objects.create(
-                    production_plan=plan,
-                    product=item,
-                    quantity=net_qty,
-                    planned_start=start,
-                    planned_finish=finish,
-                    scheduling_type=scheduling_mode,
-                    status="planned"
-                )
-                created_planned += 1
-
-                if scheduling_mode == "leadtime":
-                    load_warnings = self.estimate_capacity_load(item, net_qty)
-                    warnings.extend(load_warnings)
-            else:
-                req_date = today + timedelta(days=getattr(item, 'planned_delivery_time_days', 7) or 7)
-                PurchaseRequisition.objects.create(
-                    production_plan=plan,
-                    material=item,
-                    quantity=net_qty,
-                    required_date=req_date,
-                    status="open"
-                )
-                created_req += 1
-
-        msg = f"MRP completed – {created_planned} planned orders + {created_req} purchase requisitions"
-        if warnings:
-            msg += " (with capacity warnings)"
-
-        return Response({
-            "detail": msg,
-            "production_plan_id": plan.id,
-            "warnings": warnings
-        }, status=status.HTTP_201_CREATED)
-
-    def calculate_dates(self, item, qty, ref_date, mode):
-        if mode == "leadtime":
-            routing = Routing.objects.filter(product=item, is_active=True).first()
-            if routing and routing.operations.exists():
-                total_hours = Decimal('0')
-                for op in routing.operations.all():
-                    total_hours += op.setup_time_hours + (
-                        (op.machine_time_per_unit + op.labor_time_per_unit) * qty
-                    )
-                days_needed = (total_hours / Decimal('8.0')).to_integral_value() + 1
-                finish = ref_date + timedelta(days=int(days_needed))
-                start = finish - timedelta(days=int(days_needed - 1))
-                return start, finish
-
-        # Basic / fallback
-        days = getattr(item, 'inhouse_production_days' if getattr(item, 'procurement_type', 'F') == 'E' else 'planned_delivery_time_days', 7) or 7
-        finish = ref_date + timedelta(days=days)
-        start = ref_date
-        return start, finish
-
-    def estimate_capacity_load(self, item, qty):
-        warnings = []
-        routing = Routing.objects.filter(product=item, is_active=True).first()
-        if not routing:
-            return warnings
-
-        for op in routing.operations.all():
-            if not op.work_center:
-                continue
-            load_hours = op.setup_time_hours + (
-                (op.machine_time_per_unit + op.labor_time_per_unit) * qty
-            )
-            wc = op.work_center
-            capacity = wc.capacity_per_day_hours * wc.number_of_machines * (wc.efficiency_percentage / Decimal('100'))
-            if load_hours > capacity * Decimal('1.2'):  # 20% overload threshold
-                warnings.append(
-                    f"Capacity overload warning: {item.name} on {wc.name} "
-                    f"({load_hours:.1f}h > {capacity:.1f}h effective)"
-                )
-        return warnings
             # Check if this is a finished good (has BOM) or raw material
             has_bom = BillOfMaterial.objects.filter(
                 product=product,
@@ -532,6 +410,8 @@ class RunMRPView(APIView):
             'warnings': warnings,
             'details': details
         }
+
+
 
 
 # =========================================================
@@ -915,9 +795,6 @@ class DepartmentTransactionCreateView(generics.CreateAPIView):
         
         return Response({"detail": "Production completed — finished goods stock updated"})
 
-# Add to apps/production/views.py
-
-# apps/production/views.py - Fix MachineLoadView
 
 class MachineLoadView(APIView):
     """

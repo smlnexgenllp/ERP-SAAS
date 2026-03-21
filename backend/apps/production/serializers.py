@@ -1,15 +1,14 @@
 # apps/production/serializers.py
 from rest_framework import serializers
 from .models import (
-    WorkCenter, BillOfMaterial, BOMLine, Routing, RoutingOperation,
+     BillOfMaterial, BOMLine, Routing, RoutingOperation,
     ProductionPlan, PlannedOrder, PurchaseRequisition,
     ManufacturingOrder, MOOperation
 )
 
 
-class WorkCenterSerializer(serializers.ModelSerializer):
+# class WorkCenterSerializer(serializers.ModelSerializer):
 
-from rest_framework import serializers
 from .models import *
 from apps.inventory.serializers import MachineSerializer  # Import Machine serializer
 
@@ -86,7 +85,7 @@ class PurchaseRequisitionSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class ManufacturingOrderSerializer(serializers.ModelSerializer):
+# class ManufacturingOrderSerializer(serializers.ModelSerializer):
 class MOOperationSerializer(serializers.ModelSerializer):
     machine_details = MachineBasicSerializer(source='machine', read_only=True)
     
@@ -96,10 +95,7 @@ class MOOperationSerializer(serializers.ModelSerializer):
                   'operation_name', 'sequence', 'expected_hours', 'actual_hours',
                   'status', 'started_at', 'completed_at']
 
-class MOOperationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MOOperation
-        fields = "__all__"
+
 from rest_framework import serializers
 from .models import ItemProcess, ItemProcessStep, DepartmentTransaction
 
