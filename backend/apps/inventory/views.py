@@ -401,9 +401,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.db import IntegrityError
+from rest_framework import serializers
+import logging
 
 from .models import Machine
 from .serializers import MachineSerializer
+from apps.hr.models import Employee
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 class MachineViewSet(viewsets.ModelViewSet):
@@ -426,16 +433,26 @@ class MachineViewSet(viewsets.ModelViewSet):
         Only return machines from the user's organization
         """
         user = self.request.user
+        organization = self._get_user_organization(user)
+        
+        if organization:
+            return Machine.objects.filter(organization=organization)
+        
+        return Machine.objects.none()
 
+    def _get_user_organization(self, user):
+        """Helper method to get user's organization"""
         if hasattr(user, 'organization') and user.organization:
-            return Machine.objects.filter(organization=user.organization)
-
-        # Fallback for employee-based users
+            return user.organization
+        
         try:
             employee = Employee.objects.get(user=user)
-            return Machine.objects.filter(organization=employee.organization)
+            return employee.organization
         except Employee.DoesNotExist:
-            return Machine.objects.none()
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user organization: {str(e)}")
+            return None
 
     def get_object(self):
         """
@@ -449,32 +466,70 @@ class MachineViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        org = None
-
-        if hasattr(user, 'organization') and user.organization:
-            org = user.organization
-        else:
-            try:
-                employee = Employee.objects.get(user=user)
-                org = employee.organization
-            except Employee.DoesNotExist:
-                raise PermissionDenied("No organization associated with this user")
-
-        serializer.save(
-            organization=org,
-            created_by=user
-        )
+        organization = self._get_user_organization(user)
+        
+        if not organization:
+            logger.error(f"No organization found for user: {user.id if user else 'No user'}")
+            raise PermissionDenied("No organization associated with this user")
+        
+        try:
+            serializer.save(
+                organization=organization,
+                created_by=user
+            )
+        except IntegrityError as e:
+            logger.error(f"IntegrityError in machine creation: {str(e)}")
+            if 'unique constraint' in str(e).lower():
+                raise serializers.ValidationError({
+                    'code': 'A machine with this code already exists in your organization.'
+                })
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in machine creation: {str(e)}")
+            raise
 
     def perform_update(self, serializer):
         """
-        Optional: you can add extra checks here (e.g. only creator or admin can edit)
+        Update machine with organization check
         """
-
-        serializer.save()
+        try:
+            serializer.save(organization=self.get_object().organization)
+        except Exception as e:
+            logger.error(f"Error updating machine: {str(e)}")
+            raise
 
     def perform_destroy(self, instance):
         """
-        Optional: extra logic before delete (e.g. check if machine is in use)
+        Check if machine can be deleted before removing
         """
-
-        instance.delete()
+        try:
+            instance.delete()
+        except Exception as e:
+            logger.error(f"Error deleting machine: {str(e)}")
+            raise
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to provide better error messages"""
+        try:
+            # Log the incoming data for debugging
+            logger.info(f"Creating machine with data: {request.data}")
+            
+            return super().create(request, *args, **kwargs)
+        except serializers.ValidationError as e:
+            logger.error(f"Validation error: {str(e.detail) if hasattr(e, 'detail') else str(e)}")
+            return Response(
+                e.detail if hasattr(e, 'detail') else {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except PermissionDenied as e:
+            logger.error(f"Permission denied: {str(e)}")
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error in machine creation: {str(e)}", exc_info=True)
+            return Response(
+                {"detail": f"An error occurred while creating the machine: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
