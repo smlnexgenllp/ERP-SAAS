@@ -17,21 +17,21 @@ User = settings.AUTH_USER_MODEL
 # Work Centers & Routing (existing - kept mostly as-is)
 # ────────────────────────────────────────────────
 
-# class WorkCenter(models.Model):
-#     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-#     name = models.CharField(max_length=200)
-#     code = models.CharField(max_length=50, unique=True)
-#     capacity_per_day_hours = models.DecimalField(max_digits=6, decimal_places=2, default=8.00)
-#     number_of_machines = models.PositiveSmallIntegerField(default=1)
-#     efficiency_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('85.00'))
-#     created_at = models.DateTimeField(auto_now_add=True,null=True, blank=True)
+class WorkCenter(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+    name = models.CharField(max_length=200)
+    code = models.CharField(max_length=50, unique=True)
+    capacity_per_day_hours = models.DecimalField(max_digits=6, decimal_places=2, default=8.00)
+    number_of_machines = models.PositiveSmallIntegerField(default=1)
+    efficiency_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('85.00'))
+    created_at = models.DateTimeField(auto_now_add=True,null=True, blank=True)
 
-#     class Meta:
-#         verbose_name = "Work Center"
-#         verbose_name_plural = "Work Centers"
+    class Meta:
+        verbose_name = "Work Center"
+        verbose_name_plural = "Work Centers"
 
-#     def __str__(self):
-#         return f"{self.name} ({self.code})"
+    def __str__(self):
+        return f"{self.name} ({self.code})"
 
 
 class Routing(models.Model):
@@ -196,11 +196,6 @@ class DepartmentTransaction(models.Model):
         indexes = [
             models.Index(fields=['status', 'current_department']),
         ]
-    machine = models.ForeignKey(  # Changed from work_center to machine
-        Machine, 
-        on_delete=models.CASCADE,
-        help_text="Machine/work center used for this operation"
-    )
 
     def __str__(self):
         return f"{self.item.name} @ {self.current_department.name} ({self.quantity})"
@@ -212,6 +207,7 @@ class DepartmentTransaction(models.Model):
         if not self.current_department:
             return f"{self.item.name} - Raw"
         return f"{self.item.name} - {self.current_department.name}"
+
 
 
 # ────────────────────────────────────────────────

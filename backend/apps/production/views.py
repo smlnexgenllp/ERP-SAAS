@@ -1,38 +1,43 @@
 # apps/production/views.py
+
 from collections import defaultdict
 from decimal import Decimal
 from datetime import timedelta
+
 from django.utils import timezone
-from django.db.models import DecimalField
-from django.db.models import Sum, Q, Value
+from django.db.models import Sum, Q, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.contrib.postgres.aggregates import ArrayAgg
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view
+from rest_framework import generics
 
 from .models import (
     ProductionPlan, PurchaseRequisition,
     ManufacturingOrder, MOOperation,
-    BillOfMaterial, Routing, RoutingOperation
-    , PlannedOrder, ManufacturingOrder,
-    BillOfMaterial, Routing, RoutingOperation,MOOperation
+    BillOfMaterial, Routing, RoutingOperation,
+    PlannedOrder, ItemProcess, ItemProcessStep,
+    DepartmentTransaction
 )
+
 from .serializers import (
     ProductionPlanSerializer, PlannedOrderSerializer,
-    PurchaseRequisitionSerializer, ManufacturingOrderSerializer
+    PurchaseRequisitionSerializer, ManufacturingOrderSerializer,
+    ItemProcessSerializer, ItemProcessCreateUpdateSerializer,
+    DepartmentTransactionListSerializer, DepartmentTransactionCreateSerializer
 )
-from apps.inventory.models import Item, StockLedger
-from apps.sales.models import SalesOrderItem
-from apps.inventory.models import Item
-# Add this import at the top of your views.py with your other imports
+
+from apps.inventory.models import Item, StockLedger, Machine
 from apps.sales.models import SalesOrder, SalesOrderItem
 
 
-# ────────────────────────────────────────────────
-# ITEM SALES SUMMARY (for MRP Planning Board)
-# ────────────────────────────────────────────────
+# =========================================================
+# ITEM SALES SUMMARY
+# =========================================================
 class ItemSalesSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -41,19 +46,10 @@ class ItemSalesSummaryView(APIView):
             SalesOrderItem.objects
             .filter(sales_order__organization=request.user.organization)
             .select_related("product")
-            .values(
-                "product__id",
-                "product__name",
-                "product__code",
-                "product__uom"
-            )
+            .values("product__id", "product__name", "product__code", "product__uom")
             .annotate(
                 total_sales_qty=Sum("quantity"),
-                sales_orders=ArrayAgg(
-                    "sales_order__order_number",
-                    distinct=True,
-                    ordering="sales_order__order_number"
-                ),
+                sales_orders=ArrayAgg("sales_order__order_number", distinct=True),
                 current_stock=Coalesce(
                     Sum(
                         "product__grnitem__received_qty",
@@ -68,26 +64,26 @@ class ItemSalesSummaryView(APIView):
 
         result = []
         for row in data:
-            total_demand = float(row["total_sales_qty"] or 0)
+            demand = float(row["total_sales_qty"] or 0)
             stock = float(row["current_stock"] or 0)
-            row["required_production"] = max(0, total_demand - stock)
+            row["required_production"] = max(0, demand - stock)
             result.append(row)
 
         return Response(result)
 
 
-# ────────────────────────────────────────────────
-# PRODUCTION PLAN - LIST & CREATE
-# ────────────────────────────────────────────────
+# =========================================================
+# PRODUCTION PLAN
+# =========================================================
 class ProductionPlanListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         plans = ProductionPlan.objects.filter(
             organization=request.user.organization
-        ).select_related("sales_order", "created_by").order_by("-created_at")
-        serializer = ProductionPlanSerializer(plans, many=True)
-        return Response(serializer.data)
+        ).prefetch_related("sales_orders").select_related("created_by").order_by("-created_at")
+
+        return Response(ProductionPlanSerializer(plans, many=True).data)
 
 
 class ProductionPlanCreateView(APIView):
@@ -100,36 +96,13 @@ class ProductionPlanCreateView(APIView):
                 organization=request.user.organization,
                 created_by=request.user
             )
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# ────────────────────────────────────────────────
-# MRP RUN - IMPROVED MULTI-LEVEL + MAKE/BUY + SCHEDULING
-# ────────────────────────────────────────────────
-class ProductionPlanListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        plans = ProductionPlan.objects.filter(
-            organization=request.user.organization
-        ).select_related("sales_order", "created_by").order_by("-created_at")
-
-        serializer = ProductionPlanSerializer(plans, many=True)
-        return Response(serializer.data)
-
-
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
 
 
 # =========================================================
-# GLOBAL MRP RUN (Multi-level + Basic Capacity Check)
+# MRP RUN
 # =========================================================
-# apps/production/views.py - Updated RunMRPView
-
-# apps/production/views.py - Complete Updated RunMRPView
-
-# apps/production/views.py - Updated RunMRPView with better BOM explosion
-
 class RunMRPView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -137,296 +110,63 @@ class RunMRPView(APIView):
         org = request.user.organization
         today = timezone.now().date()
 
-        # Get all confirmed sales orders
-        sales_orders = SalesOrder.objects.filter(
-            organization=org,
-            status='approved'
-        )
-        
-        if not sales_orders.exists():
-            return Response({
-                "detail": "No confirmed sales orders found"
-            }, status=status.HTTP_400_BAD_REQUEST)
+        sales_orders = SalesOrder.objects.filter(organization=org, status='approved')
 
-        # Create production plan
+        if not sales_orders.exists():
+            return Response({"detail": "No confirmed sales orders"}, status=400)
+
         plan = ProductionPlan.objects.create(
             organization=org,
             created_by=request.user,
             planned_date=today,
             status="mrp_done"
         )
-        
-        # Link sales orders to the plan
         plan.sales_orders.set(sales_orders)
 
-        # Step 1: Collect top-level demand
         demand_qs = SalesOrderItem.objects.filter(
             sales_order__organization=org,
             sales_order__status='approved'
-        ).values("product_id").annotate(
-            total_demand=Sum("quantity"),
-            sales_order_list=ArrayAgg(
-                "sales_order__order_number",
-                distinct=True
-            )
-        )
+        ).values("product_id").annotate(total_demand=Sum("quantity"))
 
-        # Track requirements
         dependent_demands = defaultdict(Decimal)
-        product_sales_orders = {}
-        current_stock_cache = {}
 
-        def get_stock(product_id):
-            """Get current stock with caching"""
-            if product_id not in current_stock_cache:
-                try:
-                    product = Item.objects.get(id=product_id, organization=org)
-                    current_stock_cache[product_id] = Decimal(str(product.current_stock or '0'))
-                except Item.DoesNotExist:
-                    current_stock_cache[product_id] = Decimal('0')
-            return current_stock_cache[product_id]
+        def explode(product_id, qty):
+            dependent_demands[product_id] += qty
+            bom = BillOfMaterial.objects.filter(product_id=product_id, is_active=True).first()
+            if bom:
+                for line in bom.lines.all():
+                    explode(line.component_id, qty * line.quantity)
 
-        def explode_bom(product_id, gross_demand, level=0, so_list=None):
-            """
-            Recursive BOM explosion with stock consideration
-            Returns net requirement after stock deduction
-            """
-            # Get current stock
-            current_stock = get_stock(product_id)
-            
-            # Calculate net requirement
-            net_requirement = gross_demand - current_stock
-            net_requirement = max(Decimal('0'), net_requirement)
-            
-            if net_requirement <= 0:
-                return Decimal('0')
-            
-            # Add to dependent demands
-            dependent_demands[product_id] += net_requirement
-            
-            if so_list:
-                if product_id not in product_sales_orders:
-                    product_sales_orders[product_id] = set()
-                product_sales_orders[product_id].update(so_list)
-            
-            # Check if this product has BOM (is a finished good)
-            try:
-                product = Item.objects.get(id=product_id, organization=org)
-                bom = BillOfMaterial.objects.filter(
-                    product=product,
-                    organization=org,
-                    is_active=True
-                ).order_by('-created_at').first()
-                
-                if bom:
-                    # This is a finished good - explode its BOM
-                    print(f"Level {level}: {product.name} - Net: {net_requirement}")
-                    for line in bom.lines.all():
-                        comp_qty = line.quantity * net_requirement
-                        print(f"  -> Needs {comp_qty} of {line.material.name}")
-                        explode_bom(line.material_id, comp_qty, level + 1, so_list)
-                    return net_requirement
-                else:
-                    # This is a raw material - don't explode further
-                    print(f"Level {level}: {product.name} (Raw Material) - Net: {net_requirement}")
-                    return net_requirement
-                    
-            except Item.DoesNotExist:
-                print(f"Product {product_id} not found")
-                return Decimal('0')
-
-        # Step 2: Explode BOM for all demands
-        print("\n" + "="*60)
-        print("MRP BOM EXPLOSION")
-        print("="*60)
-        
         for row in demand_qs:
-            product_id = row["product_id"]
-            gross_demand = row["total_demand"] or Decimal('0')
-            sales_order_list = row.get("sales_order_list", [])
-            
-            try:
-                product = Item.objects.get(id=product_id, organization=org)
-                print(f"\nTop Level: {product.name}")
-                print(f"  Gross Demand: {gross_demand}")
-                print(f"  Current Stock: {get_stock(product_id)}")
-                
-                explode_bom(product_id, gross_demand, 0, sales_order_list)
-                
-            except Item.DoesNotExist:
-                print(f"Product {product_id} not found")
-                continue
+            explode(row["product_id"], row["total_demand"] or 0)
 
-        print("\n" + "="*60)
-        print(f"Total products with requirements: {len(dependent_demands)}")
-        print("="*60)
+        for pid, qty in dependent_demands.items():
+            product = Item.objects.get(id=pid)
+            has_bom = BillOfMaterial.objects.filter(product=product, is_active=True).exists()
 
-        # Step 3: Create Planned Orders
-        created_count = 0
-        capacity_warnings = []
-        capacity_details = []
-        
-        for prod_id, total_req in dependent_demands.items():
-            if total_req <= 0:
-                continue
-
-            try:
-                product = Item.objects.get(id=prod_id, organization=org)
-            except Item.DoesNotExist:
-                continue
-
-            # Check if this is a finished good (has BOM) or raw material
-            has_bom = BillOfMaterial.objects.filter(
-                product=product,
-                organization=org,
-                is_active=True
-            ).exists()
-
-            # Determine scheduling type
-            if has_bom:
-                scheduling_type = 'production'
-                # Get routing for lead time calculation
-                routing = Routing.objects.filter(
-                    product=product,
-                    organization=org
-                ).first()
-                
-                # Calculate lead time based on routing
-                if routing:
-                    total_hours = routing.operations.aggregate(
-                        total=Sum('expected_hours')
-                    )['total'] or 0
-                    lead_days = max(1, int((total_hours * float(total_req)) / 8))
-                else:
-                    lead_days = 7
-            else:
-                scheduling_type = 'purchase'
-                lead_days = 3  # Standard lead time for purchased items
-
-            planned_start = today
-            planned_finish = today + timedelta(days=lead_days)
-
-            planned_order = PlannedOrder.objects.create(
+            PlannedOrder.objects.create(
                 production_plan=plan,
                 product=product,
-                quantity=int(total_req),
-                planned_start=planned_start,
-                planned_finish=planned_finish,
-                status="planned",
-                scheduling_type=scheduling_type
+                quantity=qty,
+                planned_start=today,
+                planned_finish=today + timedelta(days=7),
+                scheduling_type='production' if has_bom else 'purchase'
             )
-            created_count += 1
-            
-            print(f"✅ Created {scheduling_type.upper()} Order: {product.name} - {total_req} units")
 
-            # Check capacity only for production orders with routing
-            if has_bom:
-                routing = Routing.objects.filter(product=product, organization=org).first()
-                if routing:
-                    capacity_result = self.check_routing_capacity(
-                        routing, total_req, planned_start, planned_finish, product
-                    )
-                    if capacity_result['warnings']:
-                        capacity_warnings.extend(capacity_result['warnings'])
-                    capacity_details.append(capacity_result['details'])
-
-        response_data = {
-            "detail": f"MRP completed – {created_count} planned orders created",
-            "production_plan_id": plan.id,
-            "sales_orders_processed": sales_orders.count(),
-            "sales_orders_linked": plan.sales_orders.count(),
-            "products_with_demand": len(demand_qs),
-            "total_requirements": len(dependent_demands),
-            "capacity_warnings": capacity_warnings,
-            "capacity_details": capacity_details,
-            "orders_summary": {
-                "total": created_count,
-                "production": len([p for p_id, p in dependent_demands.items() 
-                                  if p > 0 and BillOfMaterial.objects.filter(
-                                      product_id=p_id, is_active=True).exists()]),
-                "purchase": len([p for p_id, p in dependent_demands.items() 
-                                if p > 0 and not BillOfMaterial.objects.filter(
-                                    product_id=p_id, is_active=True).exists()])
-            }
-        }
-
-        if capacity_warnings:
-            response_data["detail"] += " (with capacity warnings)"
-
-        return Response(response_data, status=status.HTTP_201_CREATED)
-
-    def check_routing_capacity(self, routing, quantity, start_date, end_date, product):
-        """Check if machines have enough capacity"""
-        warnings = []
-        details = {
-            'product': product.name,
-            'operations': []
-        }
-        
-        days_span = max((end_date - start_date).days + 1, 1)
-        
-        for operation in routing.operations.all().order_by('sequence'):
-            machine = operation.machine
-            
-            if not machine:
-                continue
-                
-            # Calculate required hours
-            required_hours = float(operation.expected_hours) * float(quantity)
-            daily_required = required_hours / days_span
-            
-            # Get machine's effective capacity
-            effective_capacity = machine.get_effective_capacity(days=days_span)
-            daily_capacity = effective_capacity / days_span
-            
-            # Check machine availability
-            is_available = machine.is_available_for_scheduling(start_date, end_date)
-            
-            operation_check = {
-                'name': operation.operation_name,
-                'machine': machine.name,
-                'required_hours': round(required_hours, 2),
-                'daily_required': round(daily_required, 2),
-                'available_hours': round(effective_capacity, 2),
-                'daily_capacity': round(daily_capacity, 2),
-                'is_available': is_available,
-                'maintenance_status': machine.maintenance_status
-            }
-            
-            if not is_available:
-                warning = f"⚠️ {machine.name} not available ({machine.maintenance_status}) for {product.name}"
-                warnings.append(warning)
-                operation_check['warning'] = warning
-                
-            elif daily_required > daily_capacity:
-                warning = (f"⚠️ {machine.name} capacity exceeded for {product.name}: "
-                          f"need {round(daily_required,1)}h/day, have {round(daily_capacity,1)}h/day")
-                warnings.append(warning)
-                operation_check['warning'] = warning
-                
-            details['operations'].append(operation_check)
-            
-        return {
-            'warnings': warnings,
-            'details': details
-        }
-
-
+        return Response({"detail": "MRP completed"}, status=201)
 
 
 # =========================================================
-# PRODUCTION DASHBOARD COUNTERS
+# DASHBOARD
 # =========================================================
 class ProductionDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         org = request.user.organization
-        data = {
+        return Response({
             "production_plans": ProductionPlan.objects.filter(organization=org).count(),
-            "planned_orders": PlannedOrder.objects.filter(
-                production_plan__organization=org
-            ).count(),
+            "planned_orders": PlannedOrder.objects.filter(production_plan__organization=org).count(),
             "running_production": ManufacturingOrder.objects.filter(
                 planned_order__production_plan__organization=org,
                 status="in_progress"
@@ -435,12 +175,11 @@ class ProductionDashboardView(APIView):
                 planned_order__production_plan__organization=org,
                 status="done"
             ).count(),
-        }
-        return Response(data)
+        })
 
 
 # =========================================================
-# PLANNED ORDERS - LIST & MANUAL CREATE
+# PLANNED ORDERS
 # =========================================================
 class PlannedOrderListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -448,14 +187,142 @@ class PlannedOrderListView(APIView):
     def get(self, request):
         orders = PlannedOrder.objects.filter(
             production_plan__organization=request.user.organization
-        ).select_related("product", "production_plan").order_by("-planned_start")
+        ).select_related("product", "production_plan")
+
+        return Response(PlannedOrderSerializer(orders, many=True).data)
 
 
-# ────────────────────────────────────────────────
-# Other views (kept mostly as-is, minor cleanups)
-# ────────────────────────────────────────────────
-# apps/production/views.py — add at the bottom
+# =========================================================
+# CONVERT TO MO
+# =========================================================
+class ConvertToMOView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request, pk):
+        planned = PlannedOrder.objects.get(id=pk)
+
+        mo = ManufacturingOrder.objects.create(
+            planned_order=planned,
+            product=planned.product,
+            quantity=planned.quantity,
+            status="draft"
+        )
+
+        routing = Routing.objects.filter(product=planned.product).first()
+        if routing:
+            for op in routing.operations.all():
+                MOOperation.objects.create(
+                    manufacturing_order=mo,
+                    work_center=op.work_center,
+                    operation_name=op.operation_name,
+                    sequence=op.sequence
+                )
+
+        planned.status = "converted"
+        planned.save()
+
+        return Response({"detail": "Converted"})
+
+
+# =========================================================
+# MANUFACTURING ORDERS
+# =========================================================
+class ManufacturingOrderListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        orders = ManufacturingOrder.objects.filter(
+            planned_order__production_plan__organization=request.user.organization
+        ).select_related("product", "planned_order")
+
+        return Response(ManufacturingOrderSerializer(orders, many=True).data)
+
+
+# =========================================================
+# DEPARTMENT TRANSACTIONS
+# =========================================================
+@api_view(["PATCH"])
+def start_transaction(request, pk):
+    txn = DepartmentTransaction.objects.get(id=pk)
+    txn.status = "in_progress"
+    txn.started_at = timezone.now()
+    txn.save()
+    return Response({"message": "Started"})
+
+
+@api_view(["PATCH"])
+def complete_transaction(request, pk):
+    txn = DepartmentTransaction.objects.get(id=pk)
+    txn.status = "completed"
+    txn.completed_at = timezone.now()
+    txn.save()
+
+    StockLedger.objects.create(
+        item=txn.item,
+        quantity=txn.quantity,
+        transaction_type="IN",
+        created_by=request.user
+    )
+
+    return Response({"message": "Completed"})
+
+
+# =========================================================
+# ITEM PROCESS
+# =========================================================
+class ItemProcessCreateView(generics.CreateAPIView):
+    serializer_class = ItemProcessCreateUpdateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(organization=self.request.user.organization)
+
+
+class DepartmentTransactionsByDeptView(generics.ListAPIView):
+    serializer_class = DepartmentTransactionListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DepartmentTransaction.objects.filter(
+            organization=self.request.user.organization
+        )
+        
+
+class DepartmentTransactionCreateView(generics.CreateAPIView):
+    serializer_class = DepartmentTransactionCreateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        item = serializer.validated_data.get("item")
+        department = serializer.validated_data.get("current_department")
+        qty = serializer.validated_data.get("quantity")
+
+        # ✅ Check stock
+        available_stock = item.get_department_stock(department.id)
+
+        if qty > available_stock:
+            raise ValidationError({
+                "error": f"Not enough stock in {department.name}. Available: {available_stock}"
+            })
+
+        # ✅ Create transaction
+        txn = serializer.save(
+            organization=self.request.user.organization,
+            created_by=self.request.user,
+            status="in_progress",
+            started_at=timezone.now()
+        )
+
+        # ✅ OUT entry (stock reduction)
+        StockLedger.objects.create(
+            item=item,
+            quantity=qty,
+            transaction_type="OUT",
+            department=department,
+            reference=f"Dept Issue #{txn.id}",
+            created_by=self.request.user
+        )
+        
 class PlannedOrderCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -493,104 +360,10 @@ class PlannedOrderCreateView(APIView):
             quantity=qty,
             planned_start=timezone.now().date(),
             planned_finish=timezone.now().date() + timedelta(days=7),
-            status="planned",
-            scheduling_type="basic" 
+            status="planned"
         )
 
         return Response(PlannedOrderSerializer(po).data, status=201)
-class PlannedOrderListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        orders = PlannedOrder.objects.filter(
-            production_plan__organization=request.user.organization
-        ).select_related("product", "production_plan").order_by("-planned_start")
-        serializer = PlannedOrderSerializer(orders, many=True)
-        return Response(serializer.data)
-
-
-# =========================================================
-# CONVERT PLANNED ORDER → MANUFACTURING ORDER
-# =========================================================
-# Update ConvertToMOView in apps/production/views.py
-
-class ConvertToMOView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk):
-        try:
-            planned = PlannedOrder.objects.get(
-                id=pk,
-                production_plan__organization=request.user.organization
-            )
-        except PlannedOrder.DoesNotExist:
-            return Response({"detail": "Planned order not found"}, status=404)
-
-        if planned.status == "converted":
-            return Response({"detail": "Already converted"}, status=400)
-
-        # Create Manufacturing Order
-        mo = ManufacturingOrder.objects.create(
-            planned_order=planned,
-            product=planned.product,
-            quantity=planned.quantity,
-            status="draft"
-        )
-
-        # Optional: copy routing to MO operations
-        routing = Routing.objects.filter(product=planned.product, is_active=True).first()
-        if routing:
-            for op in routing.operations.all():
-                MOOperation.objects.create(
-                    manufacturing_order=mo,
-                    work_center=op.work_center,
-                    operation_name=op.operation_name,
-                    sequence=op.sequence,
-                    status="pending"
-                )
-        # Get routing and create operations
-        routing = Routing.objects.filter(
-            product=planned.product,
-            organization=request.user.organization
-        ).first()
-
-        operations_created = 0
-        if routing:
-            for op in routing.operations.all().order_by('sequence'):
-                # FIX: Use 'machine' field, not 'work_center'
-                MOOperation.objects.create(
-                    manufacturing_order=mo,
-                    machine=op.machine,  # Changed from work_center to machine
-                    operation_name=op.operation_name,
-                    sequence=op.sequence,
-                    expected_hours=op.expected_hours,
-                    status="pending"
-                )
-                operations_created += 1
-
-        planned.status = "converted"
-        planned.save()
-
-        return Response({
-            "detail": "Converted to Manufacturing Order",
-            "mo_id": mo.id,
-            "operations_count": operations_created,
-            "product": planned.product.name,
-            "quantity": planned.quantity
-        }, status=201)
-
-
-class ManufacturingOrderListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        orders = ManufacturingOrder.objects.filter(
-            planned_order__production_plan__organization=request.user.organization
-        ).select_related("product", "planned_order").order_by("-id")
-        serializer = ManufacturingOrderSerializer(orders, many=True)
-        return Response(serializer.data)
-
-
 class ManufacturingOrderStartView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -639,163 +412,6 @@ class ManufacturingOrderCompleteView(APIView):
 
         return Response({"detail": "Production completed — finished goods stock updated"})
 # Add this to the end of views.py
-
-class ProductionDashboardView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        org = request.user.organization
-        data = {
-            "production_plans": ProductionPlan.objects.filter(organization=org).count(),
-            "planned_orders": PlannedOrder.objects.filter(
-                production_plan__organization=org
-            ).count(),
-            "running_production": ManufacturingOrder.objects.filter(
-                planned_order__production_plan__organization=org,
-                status="in_progress"
-            ).count(),
-            "completed_production": ManufacturingOrder.objects.filter(
-                planned_order__production_plan__organization=org,
-                status="done"
-            ).count(),
-        }
-        return Response(data)
-from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from .models import ItemProcess, DepartmentTransaction
-from .serializers import (
-    ItemProcessSerializer,
-    ItemProcessCreateUpdateSerializer,
-    DepartmentTransactionListSerializer,
-    DepartmentTransactionCreateSerializer
-)
-
-from rest_framework.decorators import api_view
-
-@api_view(["PATCH"])
-def start_transaction(request, pk):
-    txn = DepartmentTransaction.objects.get(id=pk)
-
-    txn.status = "in_progress"
-    txn.started_at = timezone.now()
-    txn.save()
-
-    return Response({"message": "Started"})
-from apps.inventory.models import StockLedger
-
-@api_view(["PATCH"])
-def complete_transaction(request, pk):
-    txn = DepartmentTransaction.objects.get(id=pk)
-
-    txn.status = "completed"
-    txn.completed_at = timezone.now()
-    txn.save()
-
-    current_step = txn.process_step
-
-    next_step = ItemProcessStep.objects.filter(
-        process=current_step.process,
-        sequence__gt=current_step.sequence
-    ).order_by("sequence").first()
-
-    if next_step:
-        # ✅ Move to next department
-        DepartmentTransaction.objects.create(
-            organization=txn.organization,
-            manufacturing_order=txn.manufacturing_order,
-            process_step=next_step,
-            current_department=next_step.department,
-            item=txn.item,
-            quantity=txn.quantity,
-            status="pending"
-        )
-
-        # ✅ IN entry for next department
-        StockLedger.objects.create(
-            item=txn.item,
-            quantity=txn.quantity,
-            transaction_type="IN",
-            department=next_step.department,
-            reference=f"Transfer from {txn.current_department.name}",
-            created_by=request.user
-        )
-
-    else:
-        # ✅ Final step → Finished Goods
-        StockLedger.objects.create(
-            item=txn.item,
-            quantity=txn.quantity,
-            transaction_type="IN",
-            department=None,
-            reference="Production Completed",
-            created_by=request.user
-        )
-
-    return Response({"message": "Completed"})
-class ItemProcessCreateView(generics.CreateAPIView):
-    queryset = ItemProcess.objects.none()
-    serializer_class = ItemProcessCreateUpdateSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return ItemProcess.objects.filter(organization=self.request.user.organization)
-
-    # def perform_create(self, serializer):
-    #     serializer.save(organization=self.request.user.organization)
-
-
-class DepartmentTransactionsByDeptView(generics.ListAPIView):
-    serializer_class = DepartmentTransactionListSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        dept_id = self.kwargs.get("dept_id")
-        return DepartmentTransaction.objects.filter(
-            organization=self.request.user.organization,
-            current_department_id=dept_id,
-            status__in=["pending", "in_progress"]
-        ).select_related("item", "current_department", "next_department")
-
-
-class DepartmentTransactionCreateView(generics.CreateAPIView):
-    serializer_class = DepartmentTransactionCreateSerializer
-    permission_classes = [IsAuthenticated]
-
-    def perform_create(self, serializer):
-        item = serializer.validated_data.get("item")
-        department = serializer.validated_data.get("current_department")
-        qty = serializer.validated_data.get("quantity")
-
-        # ✅ Check stock
-        available_stock = item.get_department_stock(department.id)
-
-        if qty > available_stock:
-            raise ValidationError({
-                "error": f"Not enough stock in {department.name}. Available: {available_stock}"
-            })
-
-        # ✅ Create transaction
-        txn = serializer.save(
-            organization=self.request.user.organization,
-            created_by=self.request.user,
-            status="in_progress",
-            started_at=timezone.now()
-        )
-
-        # ✅ OUT entry (stock reduction)
-        StockLedger.objects.create(
-            item=item,
-            quantity=qty,
-            transaction_type="OUT",
-            department=department,
-            reference=f"Dept Issue #{txn.id}",
-            created_by=self.request.user
-        )
-        
-        return Response({"detail": "Production completed — finished goods stock updated"})
-
-
 class MachineLoadView(APIView):
     """
     Get current load on machines from planned and manufacturing orders
