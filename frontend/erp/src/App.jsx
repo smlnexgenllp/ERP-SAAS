@@ -78,13 +78,9 @@ import ProcessSetup from "./components/modules/production/components/ProcessSetu
 import TransactionForm from "./components/modules/production/components/TransactionForm";
 import DepartmentStockMatrix from "./components/modules/production/pages/DepartmentStockMatrix";
 import TransactionHistory from "./components/modules/production/components/TransactionHistory";
-<<<<<<< HEAD
 import CapacityDashboard from "./components/modules/production/pages/CapacityDashboard";
 import MachineAssignmentForm from "./components/modules/production/components/MachineAssignmentForm";
-=======
 import PlannedOrders from "./components/modules/production/components/PlannedOrder";
-import CapacityDashboard from "./components/modules/production/pages/CapacityDashboard";
->>>>>>> 3ab5926b02753194ce79739822dc1b6f2fc2b26f
 
 
 
