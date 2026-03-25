@@ -3,8 +3,12 @@ from rest_framework import serializers
 from .models import (
     WorkCenter, BillOfMaterial, BOMLine, Routing, RoutingOperation,
     ProductionPlan, PlannedOrder, PurchaseRequisition,
-    ManufacturingOrder, MOOperation
+    ManufacturingOrder, MOOperation,WorkOrder
 )
+from apps.inventory.models import Machine
+from apps.inventory.serializers import MachineSerializer
+
+
 from apps.sales.models import SalesOrder
 
 class WorkCenterSerializer(serializers.ModelSerializer):
@@ -159,4 +163,19 @@ class DepartmentTransactionCreateSerializer(serializers.ModelSerializer):
             "manufacturing_order", "process_step", "current_department",
             "next_department", "item", "quantity"
         ]
-        
+
+class WorkOrderSerializer(serializers.ModelSerializer):
+    machine = MachineSerializer(read_only=True)
+
+    class Meta:
+        model = WorkOrder
+        fields = [
+            'id',
+            'manufacturing_order',
+            'machine',
+            'quantity',
+            'status',
+            'start_date',
+            'finish_date',
+            'created_at'
+        ]

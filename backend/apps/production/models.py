@@ -7,7 +7,7 @@ from apps.inventory.models import Item
 from apps.organizations.models import Organization
 from apps.sales.models import SalesOrder
 from apps.hr.models import Department
-from apps.inventory.models import Machine
+from apps.inventory.models import Machine,Item
 
 
 User = settings.AUTH_USER_MODEL
@@ -94,9 +94,14 @@ class RoutingOperation(models.Model):
 
     operation_name = models.CharField(max_length=200)
 
-    sequence = models.IntegerField()
+    sequence = models.IntegerField(null=False)
 
-    expected_hours = models.DecimalField(max_digits=5, decimal_places=2)
+    expected_hours = models.DecimalField(
+    max_digits=5,
+    decimal_places=2,
+    null=True,
+    blank=True
+)
 
     def __str__(self):
         return self.operation_name
@@ -387,11 +392,13 @@ class BillOfMaterial(models.Model):
     class Meta:
         ordering = ['-created_at']
         unique_together = ['product', 'version']
-    machine = models.ForeignKey(  # Changed from work_center to machine
-        Machine, 
-        on_delete=models.CASCADE,
-        help_text="Machine assigned for this operation"
-    )
+    machine = models.ForeignKey(
+    Machine,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    help_text="Machine assigned for this operation"
+)
 
     def __str__(self):
         return f"BOM {self.version} - {self.product.name}"
@@ -404,3 +411,122 @@ class BOMLine(models.Model):
 
     def __str__(self):
         return f"{self.component} × {self.quantity}"
+
+
+from django.db import models
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from datetime import datetime, timedelta
+
+class ProductionOrder(models.Model):
+    production_plan = models.ForeignKey(
+        ProductionPlan,
+        on_delete=models.CASCADE,
+        related_name='production_orders'
+    )
+    
+    # Product / BOM reference
+    item = models.ForeignKey(
+        Item,
+        on_delete=models.PROTECT,
+        related_name='production_orders',
+        help_text="The item/finished good to produced"
+    )
+    
+    quantity = models.PositiveIntegerField()
+
+    # Operation details
+    operation_name = models.CharField(
+        max_length=200, 
+        help_text="e.g., Turning, Welding, Assembly"
+    )
+    
+    run_time_per_unit_hours = models.DecimalField(
+        max_digits=8, 
+        decimal_places=4, 
+        default=0.0,
+        help_text="Processing time per unit in hours"
+    )
+    
+    # Machine Assignment
+    machine = models.ForeignKey(
+        Machine,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_orders'
+    )
+    
+    # Scheduling
+    planned_start = models.DateTimeField(null=True, blank=True)
+    planned_end = models.DateTimeField(null=True, blank=True)
+    
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('scheduled', 'Scheduled'),
+            ('in_progress', 'In Progress'),
+            ('completed', 'Completed'),
+            ('cancelled', 'Cancelled'),
+        ],
+        default='pending'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['planned_start']
+        verbose_name = "Production Order"
+        verbose_name_plural = "Production Orders"
+
+    def __str__(self):
+        return f"PO-{self.id} | {self.product} - {self.quantity} pcs"
+
+    def clean(self):
+        if self.planned_start and self.planned_end and self.planned_start >= self.planned_end:
+            raise ValidationError("End time must be after start time")
+
+    def get_required_hours(self):
+        """Total machine hours needed for this order"""
+        run_time = float(self.quantity) * float(self.run_time_per_unit_hours)
+        
+        if self.machine:
+            # Safely get setup_time_hours
+            setup_time = float(getattr(self.machine, 'setup_time_hours', 0))
+            return run_time + setup_time
+        
+        return run_time
+
+class WorkOrder(models.Model):
+    manufacturing_order = models.ForeignKey(
+        'ManufacturingOrder',
+        on_delete=models.CASCADE,
+        related_name='work_orders'
+    )
+    machine = models.ForeignKey(
+    'inventory.Machine',      # ← app_label.ModelName
+    on_delete=models.SET_NULL, 
+    null=True, 
+    blank=True,
+    related_name='work_orders'
+)
+    quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(
+        max_length=20,
+        choices=[("draft", "Draft"), ("in_progress", "In Progress"), ("done", "Done")],
+        default="draft"
+    )
+    start_date = models.DateField(null=True, blank=True)
+    finish_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Work Order"
+        verbose_name_plural = "Work Orders"
+
+    def __str__(self):
+        return f"WO-{self.id} | MO-{self.manufacturing_order.id}"

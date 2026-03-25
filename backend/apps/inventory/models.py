@@ -637,14 +637,22 @@ class Machine(models.Model):
         effective = base_capacity * (self.efficiency_percentage / 100) * (self.utilization_percentage / 100)
         return round(effective, 2)
     
+    def to_decimal(self, value):
+        return Decimal(str(value or 0))
+
     def calculate_lead_time(self, quantity, run_time_per_unit):
-        """
-        Calculate total lead time for a quantity
-        Used by MRP for scheduling
-        """
+        quantity = self.to_decimal(quantity)
+        run_time_per_unit = self.to_decimal(run_time_per_unit)
+
         total_run_time = quantity * run_time_per_unit
-        total_time = float(self.default_queue_time_hours) + float(self.setup_time_hours) + total_run_time
-        return round(total_time, 2)
+
+        total_time = (
+            self.to_decimal(self.default_queue_time_hours) +
+            self.to_decimal(self.setup_time_hours) +
+            total_run_time
+        )
+
+        return total_time
     
     def calculate_operation_cost(self, quantity, run_time_per_unit):
         """
