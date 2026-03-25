@@ -11,31 +11,20 @@ User = settings.AUTH_USER_MODEL
 from django.db.models import F
 
 def get_next_number(prefix, org_id, model_class):
-    """
-    Generate sequential number: PREFIX/ORG_ID/YEAR/SEQ (4 digits)
-    Uses the correct date field for each model
-    """
     current_year = timezone.now().year
-
     model_name = model_class.__name__
-
-    # Model-specific date field for year filtering
     if model_name == 'GateEntry':
         date_filter = {'entry_time__year': current_year}
     elif model_name == 'GRN':
         date_filter = {'received_date__year': current_year}
     else:
-        # Default for PurchaseOrder, Item, etc.
         date_filter = {'created_at__year': current_year}
-
     last_entry = model_class.objects.filter(
         organization_id=org_id,
         **date_filter
     ).order_by('-id').first()
-
     seq = 1
     if last_entry:
-        # Select the correct number field based on model
         number_field = (
             getattr(last_entry, 'gate_entry_number', '') if model_name == 'GateEntry' else
             getattr(last_entry, 'po_number', '') if model_name == 'PurchaseOrder' else
@@ -59,7 +48,11 @@ class Item(models.Model):
         ('consumable', 'Consumable'),
         ('finished', 'Finished Goods'),
     ]
-
+    ITEM_TYPE_CHOICES = [
+        ('purchase', 'Purchase Item'),
+        ('production', 'Production Item'),
+    ]
+    
     # NEW: Organization scoping (critical for multi-tenant)
     organization = models.ForeignKey(
     'organizations.Organization',
@@ -68,70 +61,35 @@ class Item(models.Model):
     null=True,          # ← add this
     blank=True          # ← add this
 )
-
     name = models.CharField(max_length=255)
-    code = models.CharField(max_length=50, unique=True)  # unique across whole system
-    # If you want code unique per organization → use this instead:
-    # code = models.CharField(max_length=50, unique=False)
-    # class Meta:
-    #     unique_together = ('organization', 'code')
-
+    code = models.CharField(max_length=50, unique=True)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='raw')
+    
+    item_type = models.CharField(
+        max_length=20,
+        choices=ITEM_TYPE_CHOICES,
+        default='purchase'
+    )
     uom = models.CharField(max_length=20, help_text="Unit of Measurement (e.g. Kg, Nos, Liter)")
     vendors = models.ManyToManyField('finance.Vendor', blank=True, related_name='items')  # adjust app name if needed
     standard_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
     class Meta:
         ordering = ['name']
         verbose_name = "Item"
         verbose_name_plural = "Items"
-        # Optional: make code unique per organization
-        # unique_together = ('organization', 'code')
-
     def __str__(self):
          return f"{self.name} ({self.code})" + (f" - {self.organization.name}" if self.organization else "")
-
-    # ────────────────────── STOCK CALCULATION (from GRN) ──────────────────────
     @property
     def current_stock(self) -> Decimal:
-        """
-        Current physical stock = Sum of received_qty from all APPROVED GRNs
-        This is 100% accurate as long as you only have inward movements via GRN.
-        """
         from .models import GRNItem  # late import to avoid circular import
-
         total = GRNItem.objects.filter(
             item=self,
             grn__status='approved'
         ).aggregate(total=Sum('received_qty'))['total']
-
-        return Decimal(total or '0.00')
-
-    @property
-    def available_stock(self) -> Decimal:
-        """For UI display – never show negative stock"""
-        return max(self.current_stock, Decimal('0.00'))
-
-    @property
-    def stock_value(self) -> Decimal:
-        """Current stock value = current_stock × standard_price"""
-        return self.current_stock * self.standard_price
-
-    def stock_as_of(self, date):
-        """Historical stock on a specific date"""
-        from .models import GRNItem
-        total = GRNItem.objects.filter(
-            item=self,
-            grn__status='approved',
-            grn__received_date__lte=date
-        ).aggregate(total=Sum('received_qty'))['total']
         return Decimal(total or '0.00')
     def get_department_stock(self, department_id=None):
-        """
-        Returns stock based on Stock Ledger
-        """
         from .models import StockLedger
 
         qs = StockLedger.objects.filter(item=self)
@@ -151,6 +109,77 @@ class Item(models.Model):
         )['total']
 
         return Decimal(stock or 0)
+
+    def is_production_item(self):
+        return self.item_type == 'production'
+
+    def is_purchase_item(self):
+        return self.item_type == 'purchase'
+    @property
+    def available_stock(self) -> Decimal:
+        return max(self.current_stock, Decimal('0.00'))
+    @property
+    def stock_value(self) -> Decimal:
+        return self.current_stock * self.standard_price
+    def stock_as_of(self, date):
+        from .models import GRNItem
+        total = GRNItem.objects.filter(
+            item=self,
+            grn__status='approved',
+            grn__received_date__lte=date
+        ).aggregate(total=Sum('received_qty'))['total']
+        return Decimal(total or '0.00')
+    def get_department_stock(self, department_id=None):
+        
+        from .models import StockLedger
+
+        qs = StockLedger.objects.filter(item=self)
+
+        if department_id:
+            qs = qs.filter(department_id=department_id)
+
+        stock = qs.aggregate(
+            total=Sum(
+                Case(
+                    When(transaction_type='IN', then='quantity'),
+                    When(transaction_type='OUT', then=-1 * F('quantity')),
+                    default=Value(0),
+                    output_field=DecimalField()
+                )
+            )
+        )['total']
+
+        return Decimal(stock or 0)
+    
+class ItemDependency(models.Model):
+    """
+    Defines BOM (Bill of Materials)
+    Example: Table → Wood (5 qty)
+    """
+
+    parent_item = models.ForeignKey(
+        Item,
+        related_name='components',
+        on_delete=models.CASCADE
+    )
+
+    child_item = models.ForeignKey(
+        Item,
+        related_name='used_in',
+        on_delete=models.CASCADE
+    )
+
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Quantity required to produce parent item"
+    )
+
+    class Meta:
+        unique_together = ('parent_item', 'child_item')
+
+    def __str__(self):
+        return f"{self.parent_item.name} → {self.child_item.name} ({self.quantity})"
 # ========================= PURCHASE ORDER =========================
 class PurchaseOrder(models.Model):
     STATUS_CHOICES = [

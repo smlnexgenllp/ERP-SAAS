@@ -9,6 +9,7 @@ from apps.inventory.models import Machine
 from apps.inventory.serializers import MachineSerializer
 
 
+from apps.sales.models import SalesOrder
 
 class WorkCenterSerializer(serializers.ModelSerializer):
     class Meta:
@@ -47,11 +48,31 @@ class ProductionPlanSerializer(serializers.ModelSerializer):
         model = ProductionPlan
         fields = "__all__"
 
+# serializers.py
 
 class PlannedOrderSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+
+    sales_orders = serializers.SerializerMethodField()
+
     class Meta:
         model = PlannedOrder
         fields = "__all__"
+
+    def get_sales_orders(self, obj):
+        return [
+            {
+                "id": so.id,
+                "order_number": so.order_number
+            }
+            for so in obj.sales_orders.all()
+        ]
+
+    def create(self, validated_data):
+        sales_orders = validated_data.pop("sales_orders", [])
+        planned_order = PlannedOrder.objects.create(**validated_data)
+        planned_order.sales_orders.set(sales_orders)
+        return planned_order
 
 
 class PurchaseRequisitionSerializer(serializers.ModelSerializer):

@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useRef } from "react";
-import { FiBox, FiSave, FiUsers, FiTag, FiDollarSign, FiList } from "react-icons/fi";
-import { fetchVendors, createItem } from "../../../services/modules/inventoryService";
+import { FiBox, FiSave, FiPlus, FiTrash2, FiDollarSign } from "react-icons/fi";
+import { fetchVendors, fetchItems, createItem } from "../../../services/modules/inventoryService";
 
 const COMMON_UOMS = [
   "kg", "g", "ton", "pcs", "nos", "box", "ltr", "ml", "m", "cm",
   "sqm", "set", "pair", "roll", "bundle", "carton", "pack", "unit",
-  "dozen", "sheet", "liter", "meter", "kilometer", "ea", "ft", "in"
+  "dozen", "sheet", "liter", "meter", "ea", "ft", "in"
 ];
 
 const ItemCreate = () => {
   const [vendors, setVendors] = useState([]);
+  const [allItems, setAllItems] = useState([]); // For dependent items dropdown
   const [loading, setLoading] = useState(false);
-  const [fetchingVendors, setFetchingVendors] = useState(true);
+  const [fetchingData, setFetchingData] = useState(true);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
 
@@ -19,12 +20,13 @@ const ItemCreate = () => {
     name: "",
     code: "",
     category: "raw",
-    uom: [],                // array → will be joined to string
+    item_type: "purchase",
+    uom: "",
     standard_price: "",
-    vendors: [],            // array of IDs
+    vendors: [],
+    components: [],        // [{ child_item: "", quantity: "" }]
   });
 
-  // Dropdown states
   const [uomOpen, setUomOpen] = useState(false);
   const [vendorOpen, setVendorOpen] = useState(false);
 
@@ -32,10 +34,10 @@ const ItemCreate = () => {
   const vendorRef = useRef(null);
 
   useEffect(() => {
-    loadVendors();
+    loadInitialData();
   }, []);
 
-  // Close dropdowns on outside click
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (uomRef.current && !uomRef.current.contains(e.target)) setUomOpen(false);
@@ -45,51 +47,94 @@ const ItemCreate = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const loadVendors = async () => {
-    setFetchingVendors(true);
+  const loadInitialData = async () => {
+    setFetchingData(true);
     try {
-      const res = await fetchVendors();
-      setVendors(res.data || []);
+      const [vendorsRes, itemsRes] = await Promise.all([
+        fetchVendors(),
+        fetchItems()
+      ]);
+      setVendors(vendorsRes.data || []);
+      setAllItems(itemsRes.data || []);
     } catch (err) {
-      console.error("Failed to load vendors:", err);
-      setMessage("Could not load vendors list");
+      console.error("Failed to load data:", err);
+      setMessage("Failed to load vendors or items");
       setMessageType("error");
     } finally {
-      setFetchingVendors(false);
+      setFetchingData(false);
     }
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const toggleSelection = (field, value) => {
-    setFormData((prev) => {
-      const list = prev[field] || [];
-      if (list.includes(value)) {
-        return { ...prev, [field]: list.filter((v) => v !== value) };
-      }
-      return { ...prev, [field]: [...list, value] };
+  const toggleVendor = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      vendors: prev.vendors.includes(id)
+        ? prev.vendors.filter(v => v !== id)
+        : [...prev.vendors, id]
+    }));
+  };
+
+  const toggleUom = (value) => {
+    setFormData(prev => ({ ...prev, uom: value }));
+    setUomOpen(false);
+  };
+
+  // ==================== COMPONENTS (Dependent Items) ====================
+  const addComponent = () => {
+    setFormData(prev => ({
+      ...prev,
+      components: [...prev.components, { child_item: "", quantity: "" }]
+    }));
+  };
+
+  const removeComponent = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      components: prev.components.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleComponentChange = (index, field, value) => {
+    setFormData(prev => {
+      const updated = [...prev.components];
+      updated[index][field] = value;
+      return { ...prev, components: updated };
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Basic client-side validation
-    if (!formData.name.trim()) return setErrorMessage("Item name is required");
-    if (!formData.code.trim()) return setErrorMessage("Item code is required");
-    if (formData.uom.length === 0) return setErrorMessage("Select at least one UOM");
+    if (!formData.name.trim()) return setMessageAndType("Item name is required", "error");
+    if (!formData.code.trim()) return setMessageAndType("Item code is required", "error");
+    if (!formData.uom) return setMessageAndType("Unit of Measure is required", "error");
+
+    if (formData.item_type === "production" && formData.components.length === 0) {
+      return setMessageAndType("Production item must have at least one dependent item", "error");
+    }
 
     setLoading(true);
     setMessage("");
 
     const payload = {
-      ...formData,
-      uom: formData.uom.join(", "),        // backend CharField
-      vendors: formData.vendors,           // ManyToMany → list of IDs
+      name: formData.name.trim(),
+      code: formData.code.trim(),
+      category: formData.category,
+      item_type: formData.item_type,
+      uom: formData.uom,
       standard_price: formData.standard_price ? Number(formData.standard_price) : 0,
+      vendors: formData.vendors,
+      components: formData.components
+        .filter(c => c.child_item && c.quantity)
+        .map(c => ({
+          child_item: Number(c.child_item),
+          quantity: String(c.quantity)
+        }))
     };
 
     try {
@@ -102,184 +147,174 @@ const ItemCreate = () => {
         name: "",
         code: "",
         category: "raw",
-        uom: [],
+        item_type: "purchase",
+        uom: "",
         standard_price: "",
         vendors: [],
+        components: [],
       });
     } catch (error) {
-      const errDetail =
-        error.response?.data?.non_field_errors?.[0] ||
-        error.response?.data?.code?.[0] ||
-        error.response?.data?.detail ||
-        error.message ||
-        "Failed to create item. Check console.";
-      setMessage(errDetail);
+      const errMsg = error.response?.data?.detail || 
+                     error.response?.data?.non_field_errors?.[0] || 
+                     "Failed to create item";
+      setMessage(errMsg);
       setMessageType("error");
-      console.error("Create item error:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const setErrorMessage = (msg) => {
+  const setMessageAndType = (msg, type) => {
     setMessage(msg);
-    setMessageType("error");
+    setMessageType(type);
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-300 p-6 md:p-10">
-      {/* Header */}
       <div className="mb-10">
         <h1 className="text-4xl font-bold text-cyan-300 flex items-center gap-3">
           <FiBox className="text-cyan-400" /> Create New Item
         </h1>
-        <p className="text-cyan-500 mt-1">Add a new inventory item to your catalog</p>
+        <p className="text-cyan-500 mt-1">Add new item with Bill of Materials support</p>
       </div>
 
-      {/* Messages */}
       {message && (
-        <div
-          className={`mb-8 p-4 rounded-xl border ${
-            messageType === "success"
-              ? "bg-green-950 border-green-700 text-green-300"
-              : "bg-red-950 border-red-700 text-red-300"
-          }`}
-        >
+        <div className={`mb-8 p-4 rounded-xl border ${messageType === "success" ? "bg-green-950 border-green-700 text-green-300" : "bg-red-950 border-red-700 text-red-300"}`}>
           {message}
         </div>
       )}
 
-      {/* Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="bg-gray-900/70 border border-cyan-900/50 rounded-2xl p-8 shadow-2xl max-w-4xl mx-auto"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-          <Input label="Item Name *" name="name" value={formData.name} onChange={handleChange} required placeholder="e.g. Stainless Steel Bolt" />
-
-          <Input label="Item Code *" name="code" value={formData.code} onChange={handleChange} required placeholder="e.g. RM-BOLT-001" />
+      <form onSubmit={handleSubmit} className="bg-gray-900/70 border border-cyan-900/50 rounded-2xl p-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Input label="Item Name *" name="name" value={formData.name} onChange={handleChange} required placeholder="e.g. Welded Frame" />
+          <Input label="Item Code *" name="code" value={formData.code} onChange={handleChange} required placeholder="e.g. FRAME-WLD-001" />
 
           <div>
             <label className="block text-cyan-400 text-sm mb-2">Category</label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-2.5 text-cyan-200 focus:outline-none focus:border-cyan-500 transition"
-            >
+            <select name="category" value={formData.category} onChange={handleChange} className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-3 text-cyan-200">
               <option value="raw">Raw Material</option>
               <option value="consumable">Consumable</option>
               <option value="finished">Finished Goods</option>
             </select>
           </div>
 
-          {/* UOM Checkbox Dropdown */}
+          <div>
+            <label className="block text-cyan-400 text-sm mb-2">Item Type *</label>
+            <select name="item_type" value={formData.item_type} onChange={handleChange} className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-3 text-cyan-200">
+              <option value="purchase">Purchase Item</option>
+              <option value="production">Production Item (Has Dependent Items)</option>
+            </select>
+          </div>
+
+          {/* UOM */}
           <div className="relative" ref={uomRef}>
             <label className="block text-cyan-400 text-sm mb-2">Unit of Measure *</label>
-            <button
-              type="button"
-              onClick={() => setUomOpen(!uomOpen)}
-              className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-2.5 text-left text-cyan-200 flex justify-between items-center focus:outline-none focus:border-cyan-500 transition"
-            >
-              <span className="truncate">
-                {formData.uom.length === 0 ? "Select UOM..." : formData.uom.join(", ")}
-              </span>
+            <button type="button" onClick={() => setUomOpen(!uomOpen)} className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-3 text-left text-cyan-200 flex justify-between items-center">
+              <span>{formData.uom || "Select UOM..."}</span>
               <span>{uomOpen ? "▲" : "▼"}</span>
             </button>
-
             {uomOpen && (
-              <div className="absolute z-20 w-full mt-1 bg-gray-800 border border-cyan-700 rounded-lg shadow-2xl max-h-64 overflow-y-auto">
-                {COMMON_UOMS.map((uom) => (
-                  <label
-                    key={uom}
-                    className="flex items-center px-4 py-2.5 hover:bg-gray-700/70 cursor-pointer transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.uom.includes(uom)}
-                      onChange={() => toggleSelection("uom", uom)}
-                      className="w-5 h-5 accent-cyan-500 mr-3 rounded"
-                    />
-                    <span className="text-cyan-200">{uom}</span>
-                  </label>
+              <div className="absolute z-20 w-full mt-1 bg-gray-800 border border-cyan-700 rounded-lg shadow-xl max-h-64 overflow-auto">
+                {COMMON_UOMS.map(u => (
+                  <div key={u} onClick={() => toggleUom(u)} className="px-4 py-3 hover:bg-gray-700 cursor-pointer">
+                    {u}
+                  </div>
                 ))}
               </div>
             )}
           </div>
 
-          <Input
-            label="Standard Price"
-            name="standard_price"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.standard_price}
-            onChange={handleChange}
-            placeholder="0.00"
-            icon={<FiDollarSign />}
-          />
+          <Input label="Standard Price" name="standard_price" type="number" step="0.01" value={formData.standard_price} onChange={handleChange} placeholder="0.00" />
         </div>
 
-        {/* Vendors Checkbox Dropdown */}
+        {/* Vendors */}
         <div className="mt-8 relative" ref={vendorRef}>
-          <label className="block text-cyan-400 text-sm mb-2">Vendors (multi-select)</label>
-          <button
-            type="button"
-            onClick={() => setVendorOpen(!vendorOpen)}
-            disabled={fetchingVendors}
-            className={`w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-2.5 text-left text-cyan-200 flex justify-between items-center focus:outline-none focus:border-cyan-500 transition ${
-              fetchingVendors ? "opacity-60 cursor-not-allowed" : ""
-            }`}
-          >
-            <span className="truncate">
-              {fetchingVendors
-                ? "Loading vendors..."
-                : formData.vendors.length === 0
-                ? "Select vendors..."
-                : `${formData.vendors.length} vendor${formData.vendors.length > 1 ? "s" : ""} selected`}
-            </span>
+          <label className="block text-cyan-400 text-sm mb-2">Vendors (Optional)</label>
+          <button type="button" onClick={() => setVendorOpen(!vendorOpen)} className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-3 text-left flex justify-between">
+            <span>{formData.vendors.length === 0 ? "Select vendors..." : `${formData.vendors.length} selected`}</span>
             <span>{vendorOpen ? "▲" : "▼"}</span>
           </button>
-
-          {vendorOpen && !fetchingVendors && (
-            <div className="absolute z-20 w-full mt-1 bg-gray-800 border border-cyan-700 rounded-lg shadow-2xl max-h-72 overflow-y-auto">
-              {vendors.length === 0 ? (
-                <div className="px-4 py-6 text-center text-gray-400">No vendors found</div>
-              ) : (
-                vendors.map((vendor) => (
-                  <label
-                    key={vendor.id}
-                    className="flex items-center px-4 py-2.5 hover:bg-gray-700/70 cursor-pointer transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.vendors.includes(vendor.id)}
-                      onChange={() => toggleSelection("vendors", vendor.id)}
-                      className="w-5 h-5 accent-cyan-500 mr-3 rounded"
-                    />
-                    <span className="text-cyan-200">
-                      {vendor.name}
-                      {vendor.code && <span className="text-cyan-500 ml-1">({vendor.code})</span>}
-                    </span>
-                  </label>
-                ))
-              )}
+          {vendorOpen && (
+            <div className="absolute z-20 w-full mt-1 bg-gray-800 border border-cyan-700 rounded-lg shadow-xl max-h-72 overflow-auto">
+              {vendors.map(v => (
+                <label key={v.id} className="flex items-center px-4 py-3 hover:bg-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={formData.vendors.includes(v.id)} onChange={() => toggleVendor(v.id)} className="mr-3" />
+                  {v.name} {v.code && `(${v.code})`}
+                </label>
+              ))}
             </div>
           )}
         </div>
 
+        {/* ==================== DEPENDENT ITEMS SECTION ==================== */}
+        {formData.item_type === "production" && (
+          <div className="mt-12">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-cyan-400">Dependent Items (Bill of Materials)</h3>
+              <button type="button" onClick={addComponent} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 px-5 py-2 rounded-lg text-sm">
+                <FiPlus /> Add Dependent Item
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {formData.components.map((comp, index) => (
+                <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-gray-800 p-5 rounded-xl border border-cyan-900">
+                  <div className="md:col-span-7">
+                    <label className="text-sm text-cyan-500 mb-1 block">Select Dependent Item</label>
+                    <select
+                      value={comp.child_item}
+                      onChange={(e) => handleComponentChange(index, "child_item", e.target.value)}
+                      className="w-full bg-gray-900 border border-cyan-700 rounded-lg px-4 py-3 text-cyan-200"
+                    >
+                      <option value="">-- Select Item --</option>
+                      {allItems.map(item => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} ({item.code}) - {item.uom}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-4">
+                    <label className="text-sm text-cyan-500 mb-1 block">Quantity Required</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={comp.quantity}
+                      onChange={(e) => handleComponentChange(index, "quantity", e.target.value)}
+                      placeholder="e.g. 4.5"
+                      className="w-full bg-gray-900 border border-cyan-700 rounded-lg px-4 py-3 text-cyan-200"
+                    />
+                  </div>
+
+                  <div className="md:col-span-1 flex items-end justify-center">
+                    <button type="button" onClick={() => removeComponent(index)} className="text-red-400 hover:text-red-500 p-2">
+                      <FiTrash2 size={24} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {formData.components.length === 0 && (
+                <div className="text-center py-12 border border-dashed border-cyan-800 rounded-xl text-cyan-500">
+                  No dependent items added yet.<br />Click "Add Dependent Item" to start building BOM.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Submit */}
-        <div className="mt-10 flex justify-end">
+        <div className="mt-12 flex justify-end">
           <button
             type="submit"
             disabled={loading}
-            className={`px-10 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg ${
-              loading
-                ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                : "bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white"
+            className={`px-12 py-4 rounded-2xl font-semibold flex items-center gap-3 text-lg transition-all ${
+              loading ? "bg-gray-700 text-gray-400" : "bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600"
             }`}
           >
-            <FiSave size={20} />
+            <FiSave size={24} />
             {loading ? "Creating..." : "Create Item"}
           </button>
         </div>
@@ -289,15 +324,10 @@ const ItemCreate = () => {
 };
 
 // Reusable Input
-const Input = ({ label, icon, ...props }) => (
+const Input = ({ label, ...props }) => (
   <div>
-    <label className="mb-2 flex items-center gap-2 text-sm text-cyan-400">
-      {icon} {label}
-    </label>
-    <input
-      {...props}
-      className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-2.5 text-cyan-200 outline-none focus:border-cyan-500 transition"
-    />
+    <label className="block text-cyan-400 text-sm mb-2">{label}</label>
+    <input {...props} className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-3 text-cyan-200 focus:border-cyan-500 outline-none" />
   </div>
 );
 

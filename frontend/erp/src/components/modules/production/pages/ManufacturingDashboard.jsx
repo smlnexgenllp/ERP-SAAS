@@ -47,6 +47,18 @@ const Sidebar = ({ active = 'dashboard' }) => {
       path: '/department-transaction',
       key: 'Transactions',
     },
+     {
+      icon: ClipboardList,
+      label: 'Machine Creation',
+      path: '/machines/create',
+      key: 'New machine Add',
+    },
+     {
+      icon: ClipboardList,
+      label: 'Machines',
+      path: '/machines-list',
+      key: 'List of machines',
+    },
     {
       icon: ClipboardList,
       label: 'Transfer History',
@@ -56,7 +68,7 @@ const Sidebar = ({ active = 'dashboard' }) => {
     {
       icon: Package,
       label: 'Planned Orders',
-      path: '/production/planned-orders',
+      path: '/planned-orders', 
       key: 'planned-orders',
     },
     {

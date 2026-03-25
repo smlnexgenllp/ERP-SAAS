@@ -14,6 +14,7 @@ from .views import (
     ManufacturingOrderStartView,
     ManufacturingOrderCompleteView,
     ItemProcessCreateView,
+    RunSingleItemMRPView,
     complete_transaction,
     start_transaction, 
     ManufacturingOrderCompleteView,MachineLoadView,
@@ -29,6 +30,7 @@ from .views import (
 #     ProductionPlanManufacturingOrdersAPIView,
 #     ManufacturingOrderAvailabilityAPIView
 AssignMachinesAPIView,DraftManufacturingOrdersAPIView,AvailableMachinesAPIView
+    RunSingleItemMRPView
 )
 
 urlpatterns = [
@@ -41,6 +43,7 @@ urlpatterns = [
     
     # MRP Run
     path('run-mrp/', RunMRPView.as_view(), name='run-mrp'),
+    path('mrp-item/<int:pk>',RunSingleItemMRPView.as_view(), name='run-single-item-mrp'),
     
     # Planned Orders
     path('planned-orders/', PlannedOrderListView.as_view(), name='planned-order-list'),

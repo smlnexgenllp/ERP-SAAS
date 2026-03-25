@@ -42,18 +42,32 @@ from datetime import datetime
 # =========================================================
 # ITEM SALES SUMMARY
 # =========================================================
+from django.db.models import Sum, Value, DecimalField, Q
+from django.db.models.functions import Coalesce
+from django.contrib.postgres.aggregates import ArrayAgg
+
 class ItemSalesSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        org = request.user.organization
+
         data = (
             SalesOrderItem.objects
-            .filter(sales_order__organization=request.user.organization)
+            .filter(sales_order__organization=org)
             .select_related("product")
-            .values("product__id", "product__name", "product__code", "product__uom")
+            .values(
+                "product__id",
+                "product__name",
+                "product__code",
+                "product__uom"
+            )
             .annotate(
                 total_sales_qty=Sum("quantity"),
-                sales_orders=ArrayAgg("sales_order__order_number", distinct=True),
+
+                sales_orders=ArrayAgg("sales_order__id", distinct=True),
+                sales_order_numbers=ArrayAgg("sales_order__order_number", distinct=True),
+
                 current_stock=Coalesce(
                     Sum(
                         "product__grnitem__received_qty",
@@ -63,18 +77,35 @@ class ItemSalesSummaryView(APIView):
                     Value(0, output_field=DecimalField())
                 )
             )
-            .order_by("-total_sales_qty")
         )
 
         result = []
+
         for row in data:
+            product_id = row["product__id"]
+
+            # 🔥 GET PLANNED QTY
+            planned_qty = PlannedOrder.objects.filter(
+                product_id=product_id,
+                production_plan__organization=org,
+                status__in=["planned", "confirmed"]   # only active
+            ).aggregate(
+                total=Coalesce(Sum("quantity"), 0)
+            )["total"]
+
             demand = float(row["total_sales_qty"] or 0)
             stock = float(row["current_stock"] or 0)
-            row["required_production"] = max(0, demand - stock)
+            planned = float(planned_qty or 0)
+
+            # ✅ FINAL FORMULA
+            required = demand - stock - planned
+
+            row["planned_qty"] = planned
+            row["required_production"] = required if required > 0 else 0
+
             result.append(row)
 
         return Response(result)
-
 
 # =========================================================
 # PRODUCTION PLAN
@@ -107,58 +138,6 @@ class ProductionPlanCreateView(APIView):
 # =========================================================
 # MRP RUN
 # =========================================================
-class RunMRPView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        org = request.user.organization
-        today = timezone.now().date()
-
-        sales_orders = SalesOrder.objects.filter(organization=org, status='approved')
-
-        if not sales_orders.exists():
-            return Response({"detail": "No confirmed sales orders"}, status=400)
-
-        plan = ProductionPlan.objects.create(
-            organization=org,
-            created_by=request.user,
-            planned_date=today,
-            status="mrp_done"
-        )
-        plan.sales_orders.set(sales_orders)
-
-        demand_qs = SalesOrderItem.objects.filter(
-            sales_order__organization=org,
-            sales_order__status='approved'
-        ).values("product_id").annotate(total_demand=Sum("quantity"))
-
-        dependent_demands = defaultdict(Decimal)
-
-        def explode(product_id, qty):
-            dependent_demands[product_id] += qty
-            bom = BillOfMaterial.objects.filter(product_id=product_id, is_active=True).first()
-            if bom:
-                for line in bom.lines.all():
-                    explode(line.component_id, qty * line.quantity)
-
-        for row in demand_qs:
-            explode(row["product_id"], row["total_demand"] or 0)
-
-        for pid, qty in dependent_demands.items():
-            product = Item.objects.get(id=pid)
-            has_bom = BillOfMaterial.objects.filter(product=product, is_active=True).exists()
-
-            PlannedOrder.objects.create(
-                production_plan=plan,
-                product=product,
-                quantity=qty,
-                planned_start=today,
-                planned_finish=today + timedelta(days=7),
-                scheduling_type='production' if has_bom else 'purchase'
-            )
-
-        return Response({"detail": "MRP completed"}, status=201)
-
 
 # =========================================================
 # DASHBOARD
@@ -191,12 +170,31 @@ class PlannedOrderListView(APIView):
     def get(self, request):
         orders = PlannedOrder.objects.filter(
             production_plan__organization=request.user.organization
-        ).select_related("product", "production_plan")
+        ).select_related("product").prefetch_related("sales_orders")
 
-        return Response(PlannedOrderSerializer(orders, many=True).data)
+        data = []
 
+        for o in orders:
+            data.append({
+                "id": o.id,
+                "product_id": o.product.id,
+                "product_name": o.product.name,
+                "quantity": float(o.quantity),
+                "planned_start": o.planned_start.isoformat() if o.planned_start else None,
+                "planned_finish": o.planned_finish.isoformat() if o.planned_finish else None,
+                "status": o.status,
+                "scheduling_type": o.scheduling_type,
 
-# =========================================================
+                "sales_orders": [
+                    {"id": so.id, "order_number": so.order_number}
+                    for so in o.sales_orders.all()
+                ],
+
+                "bom_details": get_bom_status(o.product, o.quantity)   # ← Now correct
+            })
+
+        return Response(data)
+    # =========================================================
 # CONVERT TO MO
 # =========================================================
 class ConvertToMOView(APIView):
@@ -327,47 +325,60 @@ class DepartmentTransactionCreateView(generics.CreateAPIView):
             created_by=self.request.user
         )
         
+from datetime import date, timedelta
+
+from datetime import date, timedelta
+
 class PlannedOrderCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        product_id = request.data.get("product")
-        quantity = request.data.get("quantity")
-
-        if not product_id or not quantity:
-            return Response({"error": "product and quantity are required"}, status=400)
-
         try:
-            qty = Decimal(str(quantity))
-            if qty <= 0:
-                raise ValueError
-        except:
-            return Response({"error": "Invalid quantity"}, status=400)
+            data = request.data
 
-        try:
-            product = Item.objects.get(id=product_id, organization=request.user.organization)
-        except Item.DoesNotExist:
-            return Response({"error": "Product not found"}, status=404)
+            product = data.get("product")
+            quantity = data.get("quantity")
+            sales_orders = data.get("sales_orders", [])
 
-        plan, _ = ProductionPlan.objects.get_or_create(
-            organization=request.user.organization,
-            status="planned",
-            defaults={
-                'created_by': request.user,
-                'planned_date': timezone.now().date(),
-            }
-        )
+            if not product or not quantity:
+                return Response({"error": "Product and quantity required"}, status=400)
 
-        po = PlannedOrder.objects.create(
-            production_plan=plan,
-            product=product,
-            quantity=qty,
-            planned_start=timezone.now().date(),
-            planned_finish=timezone.now().date() + timedelta(days=7),
-            status="planned"
-        )
+            # ✅ FIX: get latest plan instead of .get()
+            production_plan = ProductionPlan.objects.filter(
+                organization=request.user.organization
+            ).order_by("-created_at").first()
 
-        return Response(PlannedOrderSerializer(po).data, status=201)
+            # ✅ If no plan exists → create one
+            if not production_plan:
+                production_plan = ProductionPlan.objects.create(
+                    organization=request.user.organization,
+                    name=f"Auto Plan - {date.today()}",
+                    created_by=request.user
+                )
+
+            # ✅ Create planned order
+            planned_order = PlannedOrder.objects.create(
+                production_plan=production_plan,
+                product_id=product,
+                quantity=int(quantity),
+                planned_start=date.today(),
+                planned_finish=date.today() + timedelta(days=2),
+                status="planned"
+            )
+
+            # ✅ Attach sales orders
+            sales_orders = request.data.get("sales_orders", [])
+
+            valid_sos = SalesOrder.objects.filter(id__in=sales_orders)
+
+            planned_order.sales_orders.set(valid_sos)
+
+            return Response({
+                "id": planned_order.id
+            }, status=201)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 class ManufacturingOrderStartView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -865,3 +876,391 @@ class AssignMachinesAPIView(APIView):
         if count > 0:
             return Response({"success": True, "message": message, "created_count": count})
         return Response({"success": False, "message": message}, status=400)
+    
+# apps/production/views.py
+
+from collections import defaultdict
+from decimal import Decimal
+from datetime import timedelta, date
+import math
+
+from django.utils import timezone
+from django.db.models import Sum, Q
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+
+from .models import (
+    ProductionPlan, PlannedOrder, PurchaseRequisition,
+    BillOfMaterial, Routing, RoutingOperation
+)
+from apps.inventory.models import Item, StockLedger, ItemDependency
+from apps.sales.models import SalesOrder, SalesOrderItem
+
+
+def get_stock_on_hand(item: Item) -> Decimal:
+    """Real stock from StockLedger (IN - OUT - ADJ negative)"""
+    aggregates = StockLedger.objects.filter(item=item).aggregate(
+        total_in=Sum('quantity', filter=Q(transaction_type='IN')),
+        total_out=Sum('quantity', filter=Q(transaction_type='OUT')),
+        total_adj=Sum('quantity', filter=Q(transaction_type='ADJ')),
+    )
+    
+    in_total  = aggregates['total_in']  or Decimal('0')
+    out_total = aggregates['total_out'] or Decimal('0')
+    adj_total = aggregates['total_adj'] or Decimal('0')
+    
+    return Decimal(in_total + adj_total - out_total)
+
+
+def explode_bom(product_id: int, qty: Decimal, demand_dict: dict):
+    """Recursive BOM explosion – accumulates gross dependent demand"""
+    demand_dict[product_id] = demand_dict.get(product_id, Decimal('0')) + qty
+    
+    bom = BillOfMaterial.objects.filter(
+        product_id=product_id,
+        is_active=True
+    ).order_by('-created_at').first()  # latest active version
+    
+    if not bom:
+        return
+    
+    for line in bom.lines.all():
+        component_qty = qty * line.quantity
+        explode_bom(line.component_id, component_qty, demand_dict)
+# Add this at the top of apps/production/views.py (after imports)
+from decimal import Decimal
+from django.db.models import Sum, Q
+from apps.inventory.models import StockLedger
+
+def get_stock_on_hand(item: Item) -> Decimal:
+    """Calculate real available stock from StockLedger"""
+    aggregates = StockLedger.objects.filter(item=item).aggregate(
+        total_in=Sum('quantity', filter=Q(transaction_type='IN')),
+        total_out=Sum('quantity', filter=Q(transaction_type='OUT')),
+        total_adj=Sum('quantity', filter=Q(transaction_type='ADJ')),
+    )
+    
+    in_total = aggregates['total_in'] or Decimal('0')
+    out_total = aggregates['total_out'] or Decimal('0')
+    adj_total = aggregates['total_adj'] or Decimal('0')
+    
+    return Decimal(in_total + adj_total - out_total)
+
+
+def get_bom_status(product, qty):
+    """
+    Returns BOM status using your actual ItemDependency model
+    """
+    # Get all dependent items (components) for this product
+    dependencies = ItemDependency.objects.filter(
+        parent_item=product
+    ).select_related('child_item')
+
+    if not dependencies.exists():
+        return []  # No dependent items
+
+    result = []
+
+    for dep in dependencies:
+        required = Decimal(str(qty)) * dep.quantity
+
+        # Current stock
+        stock = get_stock_on_hand(dep.child_item)
+
+        # Open planned orders for this component
+        planned = PlannedOrder.objects.filter(
+            product=dep.child_item,
+            status__in=["planned", "confirmed"]
+        ).aggregate(total=Sum("quantity"))["total"] or Decimal('0')
+
+        shortage = required - (stock + planned)
+
+        result.append({
+            "component": dep.child_item.name,
+            "component_code": dep.child_item.code,
+            "required": float(required),
+            "stock": float(stock),
+            "planned": float(planned),
+            "shortage": float(max(shortage, 0)),
+            "uom": dep.child_item.uom
+        })
+
+    return result
+def calculate_operation_time(product: Item, qty: Decimal) -> Decimal:
+    """Estimate total production time in hours from routing"""
+    routing = Routing.objects.filter(product=product, is_active=True).first()
+    if not routing:
+        return Decimal('8') * 3  # fallback 3 days × 8h
+    
+    total_hours = Decimal('0')
+    for op in routing.operations.all().order_by('sequence'):
+        if op.expected_hours:
+            total_hours += op.expected_hours * qty
+        # You can add setup + queue time from machine here later
+    
+    return total_hours
+
+
+def get_planned_dates(
+    item: Item,
+    qty: Decimal,
+    ref_date: date,
+    scheduling_type: str = 'lead_time'
+) -> tuple[date, date]:
+    """
+    Returns (planned_start, planned_finish)
+    Backward scheduling is used (finish date first)
+    """
+    if scheduling_type == 'basic_dates':
+        days = item.fixed_lead_time_days or 7
+        finish = ref_date + timedelta(days=days)
+        start = finish - timedelta(days=days)
+        return start, finish
+
+    # Lead time scheduling – based on routing time
+    total_hours = calculate_operation_time(item, qty)
+    
+    # Assume 8 productive hours per day
+    productive_days = math.ceil(total_hours / Decimal('8'))
+    
+    # Add safety buffer (queue/setup/inspection)
+    buffer_days = 2
+    
+    finish = ref_date + timedelta(days=buffer_days)  # need-by date
+    start = finish - timedelta(days=productive_days + buffer_days)
+    
+    return max(start, ref_date), finish
+
+
+class RunMRPView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        org = request.user.organization
+        ref_date = timezone.now().date()  # MRP reference date
+
+        # 1. Check if there is anything to plan
+        if not SalesOrder.objects.filter(
+            organization=org,
+            status='approved'
+        ).exists():
+            return Response({"detail": "No approved sales orders found"}, status=400)
+
+        # 2. Create MRP run header
+        plan = ProductionPlan.objects.create(
+            organization=org,
+            created_by=request.user,
+            planned_date=ref_date,
+            status="mrp_done"
+        )
+
+        # 3. Collect top-level demand (sales orders)
+        top_demand = SalesOrderItem.objects.filter(
+            sales_order__organization=org,
+            sales_order__status='approved'
+        ).values('product_id').annotate(
+            total_demand=Sum('quantity')
+        )
+
+        # 4. Explode BOM → get gross requirements for all levels
+        gross_requirements = defaultdict(Decimal)
+        for row in top_demand:
+            explode_bom(row['product_id'], row['total_demand'] or Decimal('0'), gross_requirements)
+
+        # 5. Netting + proposal generation
+        created_planned = 0
+        created_requisitions = 0
+
+        for product_id, gross_qty in gross_requirements.items():
+            try:
+                product = Item.objects.get(id=product_id, organization=org)
+            except Item.DoesNotExist:
+                continue
+
+            # ── Supply ───────────────────────────────────────
+            on_hand = get_stock_on_hand(product)
+
+            # Open planned orders (not yet converted)
+            open_planned = PlannedOrder.objects.filter(
+                product=product,
+                production_plan__organization=org,
+                status__in=['planned', 'confirmed']
+            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+
+            # Open manufacturing orders (released but not finished)
+            open_mo = ManufacturingOrder.objects.filter(
+                product=product,
+                status__in=['in_progress']
+            ).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+
+            total_supply = on_hand + open_planned + open_mo
+
+            # ── Net Requirement ──────────────────────────────
+            net_qty = max(Decimal('0'), gross_qty - total_supply)
+
+            if net_qty <= 0:
+                continue  # covered by stock / open supply
+
+            # ── Decide make or buy ───────────────────────────
+            has_active_bom = BillOfMaterial.objects.filter(
+                product=product,
+                is_active=True
+            ).exists()
+
+            # ── Scheduling type ──────────────────────────────
+            scheduling = 'lead_time' if has_active_bom else 'basic_dates'
+
+            # ── Calculate dates (backward scheduling) ────────
+            start_date, finish_date = get_planned_dates(
+                product, net_qty, ref_date, scheduling
+            )
+
+            # ── Create proposal ──────────────────────────────
+            if has_active_bom:
+                # Manufactured item → Planned Order
+                PlannedOrder.objects.create(
+                    production_plan=plan,
+                    product=product,
+                    quantity=net_qty,
+                    planned_start=start_date,
+                    planned_finish=finish_date,
+                    scheduling_type='production',
+                    status='planned'
+                )
+                created_planned += 1
+            else:
+                # Purchased / raw material → Purchase Requisition
+                PurchaseRequisition.objects.create(
+                    production_plan=plan,
+                    material=product,
+                    quantity=net_qty,
+                    required_date=finish_date,
+                    status='open'
+                )
+                created_requisitions += 1
+
+        msg = (
+            f"MRP completed. "
+            f"Planned orders: {created_planned} | "
+            f"Purchase requisitions: {created_requisitions}"
+        )
+
+        if created_planned + created_requisitions == 0:
+            msg += " (all demand covered by stock/open orders)"
+
+        return Response({
+            "detail": msg,
+            "production_plan_id": plan.id,
+            "reference_date": ref_date.isoformat(),
+            "gross_items": len(gross_requirements),
+            "net_items_with_requirement": created_planned + created_requisitions
+        }, status=status.HTTP_201_CREATED)
+
+# apps/production/views.py
+
+# apps/production/views.py
+
+class RunSingleItemMRPView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):        # ← Add 'pk' here
+        org = request.user.organization
+        ref_date = timezone.now().date()
+
+        try:
+            product = Item.objects.get(id=pk, organization=org)
+        except Item.DoesNotExist:
+            return Response({"error": "Product not found"}, status=404)
+
+        # 1. Calculate net requirement from approved sales orders
+        sales_items = SalesOrderItem.objects.filter(
+            product=product,
+            sales_order__status="approved",
+            sales_order__organization=org
+        ).select_related('sales_order')
+
+        demand = sales_items.aggregate(total=Sum("quantity"))["total"] or Decimal('0')
+        stock = get_stock_on_hand(product)
+
+        planned_qty = PlannedOrder.objects.filter(
+            product=product,
+            status__in=["planned", "confirmed"]
+        ).aggregate(total=Sum("quantity"))["total"] or Decimal('0')
+
+        required = Decimal(str(demand)) - Decimal(str(stock)) - Decimal(str(planned_qty))
+
+        if required <= 0:
+            return Response({"detail": "No additional production required"}, status=200)
+
+        # 2. Check for material shortages
+        bom_details = get_bom_status(product, required)
+        has_shortage = any(float(item.get('shortage', 0)) > 0 for item in bom_details)
+
+        if has_shortage:
+            return Response({
+                "detail": "Cannot create Production Order - Material shortage detected",
+                "has_shortage": True,
+                "shortages": [d for d in bom_details if float(d.get('shortage', 0)) > 0]
+            }, status=400)
+
+        # 3. Get or create Production Plan
+        production_plan = ProductionPlan.objects.filter(
+            organization=org
+        ).order_by("-created_at").first()
+
+        if not production_plan:
+            production_plan = ProductionPlan.objects.create(
+                organization=org,
+                created_by=request.user,
+                planned_date=ref_date,
+                status="mrp_done"
+            )
+
+        # 4. Create Planned Order
+        planned_order = PlannedOrder.objects.create(
+            production_plan=production_plan,
+            product=product,
+            quantity=required,
+            planned_start=ref_date,
+            planned_finish=ref_date + timedelta(days=5),
+            status="planned",
+            scheduling_type="production"
+        )
+
+        # Link to Sales Orders
+        so_ids = [item.sales_order_id for item in sales_items]
+        planned_order.sales_orders.set(so_ids)
+
+        # 5. Create ManufacturingOrder (This is your Production Order)
+        manufacturing_order = ManufacturingOrder.objects.create(
+            planned_order=planned_order,
+            product=product,
+            quantity=required,
+            status="draft",
+            start_date=ref_date,
+        )
+        routing = Routing.objects.filter(product=product, is_active=True).first()
+        if routing:
+            for op in routing.operations.all().order_by('sequence'):
+                MOOperation.objects.create(
+                    manufacturing_order=manufacturing_order,
+                    machine=op.machine,
+                    operation_name=op.operation_name,
+                    sequence=op.sequence,
+                    status="pending"
+                )
+
+        # Mark planned order as converted
+        planned_order.status = "converted"
+        planned_order.save()
+
+        return Response({
+            "success": True,
+            "detail": f"Production Order created successfully for {product.name}",
+            "planned_order_id": planned_order.id,
+            "manufacturing_order_id": manufacturing_order.id,
+            "quantity": float(required),
+            "linked_sales_order_ids": so_ids
+        }, status=201)
