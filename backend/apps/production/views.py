@@ -15,13 +15,15 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view
 from rest_framework import generics
+from django.views.generic import ListView, DetailView
+from django.views import View
 
 from .models import (
     ProductionPlan, PurchaseRequisition,
     ManufacturingOrder, MOOperation,
     BillOfMaterial, Routing, RoutingOperation,
     PlannedOrder, ItemProcess, ItemProcessStep,
-    DepartmentTransaction
+    DepartmentTransaction,ProductionOrder
 )
 
 from .serializers import (
@@ -33,8 +35,10 @@ from .serializers import (
 
 from apps.inventory.models import Item, StockLedger, Machine
 from apps.sales.models import SalesOrder, SalesOrderItem
-
-
+from apps.inventory.serializers import MachineSerializer
+from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError
+from datetime import datetime
 # =========================================================
 # ITEM SALES SUMMARY
 # =========================================================
@@ -504,3 +508,360 @@ class MachineLoadView(APIView):
         result.sort(key=lambda x: x['utilization_percentage'], reverse=True)
         
         return Response(result)
+
+# views.py - Simplified version
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+# ====================== PRODUCTION PLAN VIEWS ======================
+
+class ProductionPlanAPIView(APIView):
+    """Get production plans"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        organization = request.user.organization
+        status_filter = request.query_params.getlist('status', [])
+        
+        queryset = ProductionPlan.objects.filter(organization=organization)
+        if status_filter:
+            queryset = queryset.filter(status__in=status_filter)
+        
+        # Get manufacturing orders for each plan
+        data = []
+        for plan in queryset:
+            planned_orders = PlannedOrder.objects.filter(production_plan=plan)
+            manufacturing_orders = ManufacturingOrder.objects.filter(planned_order__in=planned_orders)
+            
+            total_hours = sum(float(mo.required_hours or 0) for mo in manufacturing_orders)
+            
+            data.append({
+                'id': plan.id,
+                'name': str(plan),
+                'status': plan.status,
+                'created_at': plan.created_at,
+                'order_count': manufacturing_orders.count(),
+                'total_hours': round(total_hours, 2)
+            })
+        
+        return Response(data)
+
+
+class ProductionPlanDetailAPIView(APIView):
+    """Get production plan details"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, pk):
+        organization = request.user.organization
+        plan = get_object_or_404(ProductionPlan, pk=pk, organization=organization)
+        
+        planned_orders = PlannedOrder.objects.filter(production_plan=plan)
+        manufacturing_orders = ManufacturingOrder.objects.filter(planned_order__in=planned_orders)
+        
+        total_hours = sum(float(mo.required_hours or 0) for mo in manufacturing_orders)
+        
+        data = {
+            'order_count': manufacturing_orders.count(),
+            'total_hours': round(total_hours, 2),
+            'products': [
+                {
+                    'name': mo.product.name,
+                    'quantity': float(mo.quantity)
+                }
+                for mo in manufacturing_orders
+            ]
+        }
+        
+        return Response(data)
+
+
+# ====================== MANUFACTURING ORDER VIEWS ======================
+
+class ManufacturingOrderListView(APIView):
+    """Get manufacturing orders for a plan"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, plan_id):
+        organization = request.user.organization
+        plan = get_object_or_404(ProductionPlan, pk=plan_id, organization=organization)
+        
+        planned_orders = PlannedOrder.objects.filter(production_plan=plan)
+        manufacturing_orders = ManufacturingOrder.objects.filter(
+            planned_order__in=planned_orders
+        ).select_related('product', 'machine')
+        
+        data = []
+        for mo in manufacturing_orders:
+            data.append({
+                'id': mo.id,
+                'product': mo.product.name,
+                'quantity': float(mo.quantity),
+                'status': mo.status,
+                'required_hours': float(mo.required_hours or 0),
+                'machine': mo.machine.name if mo.machine else None,
+                'start_date': mo.start_date.isoformat() if mo.start_date else None,
+                'finish_date': mo.finish_date.isoformat() if mo.finish_date else None
+            })
+        
+        return Response(data)
+
+
+# ====================== MACHINE VIEWS ======================
+
+class MachineAPIView(APIView):
+    """Get available machines"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        organization = request.user.organization
+        
+        machines = Machine.objects.filter(
+            organization=organization,
+            is_active=True,
+            maintenance_status='operational'
+        )
+        
+        data = []
+        for machine in machines:
+            # Calculate current load
+            current_orders = ManufacturingOrder.objects.filter(
+                machine=machine,
+                status__in=['in_progress']
+            )
+            current_load = sum(float(order.required_hours or 0) for order in current_orders)
+            
+            data.append({
+                'id': machine.id,
+                'name': machine.name,
+                'code': machine.code,
+                'work_center_type': machine.work_center_type,
+                'work_center_type_display': machine.get_work_center_type_display(),
+                'capacity_per_day_hours': float(machine.capacity_per_day_hours),
+                'efficiency_percentage': float(machine.efficiency_percentage),
+                'utilization_percentage': float(machine.utilization_percentage),
+                'current_load_hours': round(current_load, 2)
+            })
+        
+        return Response(data)
+
+
+class MachineAvailabilityAPIView(APIView):
+    """Check if machine is available for a date range"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, machine_id):
+        organization = request.user.organization
+        machine = get_object_or_404(Machine, id=machine_id, organization=organization)
+        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        required_hours = float(request.query_params.get('required_hours', 0))
+        
+        if not start_date or not end_date:
+            return Response({'error': 'start_date and end_date required'}, status=400)
+        
+        try:
+            start = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Invalid date format'}, status=400)
+        
+        # Calculate capacity
+        days = (end - start).days + 1
+        total_capacity = float(machine.capacity_per_day_hours) * days
+        
+        # Get existing assignments
+        existing_orders = ManufacturingOrder.objects.filter(
+            machine=machine,
+            start_date__lte=end,
+            finish_date__gte=start,
+            status__in=['draft', 'in_progress']
+        )
+        
+        assigned_hours = sum(float(order.required_hours or 0) for order in existing_orders)
+        available_capacity = total_capacity - assigned_hours
+        
+        available = required_hours <= available_capacity
+        
+        return Response({
+            'available': available,
+            'available_capacity': round(available_capacity, 2),
+            'required_hours': round(required_hours, 2),
+            'remaining_capacity': round(available_capacity - required_hours, 2) if available else 0,
+            'reason': f'Available: {available_capacity:.1f} hrs, Required: {required_hours:.1f} hrs' if not available else None
+        })
+
+
+class MachineSuggestDatesAPIView(APIView):
+    """Suggest best dates for machine assignment"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, machine_id):
+        organization = request.user.organization
+        machine = get_object_or_404(Machine, id=machine_id, organization=organization)
+        
+        required_hours = float(request.query_params.get('required_hours', 0))
+        
+        if required_hours <= 0:
+            return Response({
+                'suggested_start_date': (timezone.now().date() + timedelta(days=1)).isoformat(),
+                'suggested_end_date': (timezone.now().date() + timedelta(days=1)).isoformat(),
+                'days_needed': 1
+            })
+        
+        # Start from tomorrow
+        start_date = timezone.now().date() + timedelta(days=1)
+        daily_capacity = float(machine.capacity_per_day_hours)
+        
+        if daily_capacity <= 0:
+            daily_capacity = 8  # Default 8 hours if not set
+        
+        days_needed = max(1, int(required_hours / daily_capacity) + 1)
+        
+        # Find first available slot
+        current_date = start_date
+        available_days = 0
+        
+        for _ in range(30):  # Check next 30 days
+            # Check if machine is free on this day
+            orders_on_day = ManufacturingOrder.objects.filter(
+                machine=machine,
+                start_date__lte=current_date,
+                finish_date__gte=current_date,
+                status__in=['draft', 'in_progress']
+            )
+            
+            if orders_on_day.count() == 0:  # Free day
+                available_days += 1
+                if available_days >= days_needed:
+                    end_date = current_date
+                    break
+            else:
+                available_days = 0
+            
+            current_date += timedelta(days=1)
+        
+        end_date = start_date + timedelta(days=days_needed - 1)
+        
+        return Response({
+            'suggested_start_date': start_date.isoformat(),
+            'suggested_end_date': end_date.isoformat(),
+            'days_needed': days_needed
+        })
+
+
+# ====================== ASSIGN MACHINE VIEW ======================
+
+class AssignMachineAPIView(APIView):
+    """Assign machine to manufacturing order"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, plan_id):
+        organization = request.user.organization
+        plan = get_object_or_404(ProductionPlan, pk=plan_id, organization=organization)
+        
+        machine_id = request.data.get('machine_id')
+        start_date = request.data.get('start_date')
+        end_date = request.data.get('end_date')
+        
+        if not machine_id:
+            return Response({'message': 'Machine ID required'}, status=400)
+        
+        machine = get_object_or_404(Machine, id=machine_id, organization=organization)
+        
+        # Get all manufacturing orders for this plan
+        planned_orders = PlannedOrder.objects.filter(production_plan=plan)
+        manufacturing_orders = ManufacturingOrder.objects.filter(
+            planned_order__in=planned_orders,
+            status='draft'
+        )
+        
+        if not manufacturing_orders.exists():
+            return Response({
+                'message': f'No manufacturing orders found for plan #{plan_id}'
+            }, status=400)
+        
+        # Calculate total hours
+        total_hours = sum(float(mo.required_hours or 0) for mo in manufacturing_orders)
+        
+        # Parse dates
+        if start_date:
+            start = datetime.strptime(start_date, '%Y-%m-%d').date()
+        else:
+            start = timezone.now().date()
+        
+        if end_date:
+            end = datetime.strptime(end_date, '%Y-%m-%d').date()
+        else:
+            # Calculate end date based on capacity
+            daily_capacity = float(machine.capacity_per_day_hours)
+            days_needed = max(1, int(total_hours / daily_capacity) + 1) if daily_capacity > 0 else 1
+            end = start + timedelta(days=days_needed - 1)
+        
+        # Check availability
+        days = (end - start).days + 1
+        total_capacity = float(machine.capacity_per_day_hours) * days
+        
+        existing_orders = ManufacturingOrder.objects.filter(
+            machine=machine,
+            start_date__lte=end,
+            finish_date__gte=start,
+            status__in=['draft', 'in_progress']
+        ).exclude(id__in=[mo.id for mo in manufacturing_orders])
+        
+        assigned_hours = sum(float(order.required_hours or 0) for order in existing_orders)
+        available_capacity = total_capacity - assigned_hours
+        
+        if total_hours > available_capacity:
+            return Response({
+                'message': f'Insufficient capacity. Available: {available_capacity:.1f} hrs, Required: {total_hours:.1f} hrs'
+            }, status=400)
+        
+        # Assign machine to all manufacturing orders
+        for mo in manufacturing_orders:
+            mo.machine = machine
+            mo.start_date = start
+            mo.finish_date = end
+            mo.status = 'in_progress'
+            mo.save()
+        
+        return Response({
+            'message': f'Machine assigned to {manufacturing_orders.count()} manufacturing orders',
+            'plan_id': plan.id,
+            'machine': machine.name,
+            'start_date': start.isoformat(),
+            'end_date': end.isoformat(),
+            'total_hours': round(total_hours, 2)
+        })
+
+from .services import ProductionService
+class DraftManufacturingOrdersAPIView(APIView):
+    def get(self, request):
+        orders = ProductionService.get_draft_manufacturing_orders()
+        serializer = ManufacturingOrderSerializer(orders, many=True)
+        return Response(serializer.data)
+
+
+class AvailableMachinesAPIView(APIView):
+    def get(self, request):
+        machines = Machine.objects.filter(maintenance_status='operational', is_active=True)
+        serializer = MachineSerializer(machines, many=True)
+        return Response(serializer.data)
+
+
+class AssignMachinesAPIView(APIView):
+    def post(self, request):
+        order_id = request.data.get('manufacturing_order_id')
+        machine_id = request.data.get('machine_id')   # New
+
+        count, message = ProductionService.assign_machines_and_create_workorders(order_id, machine_id)
+
+        if count > 0:
+            return Response({"success": True, "message": message, "created_count": count})
+        return Response({"success": False, "message": message}, status=400)
