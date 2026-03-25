@@ -69,14 +69,14 @@ from apps.inventory.models import Machine
 #     def __str__(self):
 #         return self.name
 
-class BillOfMaterial(models.Model):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    product = models.ForeignKey(Item, on_delete=models.CASCADE)
-    version = models.CharField(max_length=20, default="v1")
-    created_at = models.DateTimeField(auto_now_add=True)
+# class BillOfMaterial(models.Model):
+#     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+#     product = models.ForeignKey(Item, on_delete=models.CASCADE)
+#     version = models.CharField(max_length=20, default="v1")
+#     created_at = models.DateTimeField(auto_now_add=True)
     
-    # ← Add this line
-    is_active = models.BooleanField(default=True, help_text="Set to False to deactivate this BOM version")
+#     # ← Add this line
+#     is_active = models.BooleanField(default=True, help_text="Set to False to deactivate this BOM version")
 
 class RoutingOperation(models.Model):
 
@@ -247,8 +247,9 @@ class ProductionPlan(models.Model):
 
 # apps/production/models.py - Updated PlannedOrder with nullable fields
 
+from apps.sales.models import SalesOrder
+
 class PlannedOrder(models.Model):
-    # Status choices for order lifecycle
     STATUS_CHOICES = [
         ("planned", "Planned"),
         ("confirmed", "Confirmed"),
@@ -256,7 +257,6 @@ class PlannedOrder(models.Model):
         ("cancelled", "Cancelled"),
     ]
     
-    # Scheduling type choices
     SCHEDULING_TYPE_CHOICES = [
         ('production', 'Production Order'),
         ('purchase', 'Purchase Order'),
@@ -274,51 +274,35 @@ class PlannedOrder(models.Model):
 
     quantity = models.PositiveIntegerField()
 
-    planned_start = models.DateField()
+    # ✅ ADD THIS FIELD
+    sales_orders = models.ManyToManyField(
+        SalesOrder,
+        blank=True,
+        related_name="planned_orders"
+    )
 
+    planned_start = models.DateField()
     planned_finish = models.DateField()
 
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default="planned"
-    )
-    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="planned")
+
     scheduling_type = models.CharField(
         max_length=20,
         choices=SCHEDULING_TYPE_CHOICES,
         default='production'
     )
-    
-    # Make these fields nullable for existing data
-    notes = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Additional notes about this planned order"
-    )
-    
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        null=True,  # ← Add null=True for existing rows
-        blank=True,
-        help_text="When this planned order was created"
-    )
-    
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        null=True,  # ← Add null=True for existing rows
-        blank=True,
-        help_text="When this planned order was last updated"
-    )
+
+    notes = models.TextField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']
-        verbose_name = "Planned Order"
-        verbose_name_plural = "Planned Orders"
 
     def __str__(self):
-        return f"{self.get_scheduling_type_display()}: {self.product.name} - {self.quantity} units"
-    
+        return f"{self.product.name} - {self.quantity}"
+        
     def save(self, *args, **kwargs):
         """Ensure scheduled dates are consistent"""
         if self.planned_start and self.planned_finish:

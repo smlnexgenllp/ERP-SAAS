@@ -8,6 +8,7 @@ from django.db.models.functions import Coalesce
 from decimal import Decimal
 from .models import (
     Item,
+    ItemDependency,
     PurchaseOrder, PurchaseOrderItem,
     GateEntry, GateEntryItem,
     GRN, GRNItem,
@@ -21,9 +22,43 @@ from apps.hr.models import Department
 
 
 # ========================= ITEM =========================
+class ItemDependencySerializer(serializers.ModelSerializer):
+    child_item_name = serializers.CharField(source='child_item.name', read_only=True)
+    child_item_code = serializers.CharField(source='child_item.code', read_only=True)
+    child_item_uom  = serializers.CharField(source='child_item.uom',  read_only=True, default=None)
+
+    class Meta:
+        model = ItemDependency
+        fields = [
+            'id',
+            'child_item',          # ID of the child
+            'child_item_name',
+            'child_item_code',
+            'child_item_uom',
+            'quantity',
+        ]
+        read_only_fields = ['id']
+
+
 class ItemSerializer(serializers.ModelSerializer):
-    current_stock = serializers.SerializerMethodField()
+    current_stock   = serializers.SerializerMethodField()
     available_stock = serializers.SerializerMethodField()
+
+    # For writing (create/update) - simple input format
+    components_write = serializers.ListSerializer(
+        child=serializers.DictField(),
+        required=False,
+        write_only=True,
+        allow_empty=True,
+        source='components'   # maps to the related_name
+    )
+
+    # For reading (list & detail) - nice detailed output
+    bom_components = ItemDependencySerializer(
+        source='components',
+        many=True,
+        read_only=True
+    )
 
     class Meta:
         model = Item
@@ -32,24 +67,85 @@ class ItemSerializer(serializers.ModelSerializer):
             'name',
             'code',
             'category',
+            'item_type',
             'uom',
             'vendors',
             'standard_price',
+            'organization',
             'created_at',
             'current_stock',
             'available_stock',
+            'bom_components',         # ← now visible in GET
+            'components_write',       # only used when POST/PUT
         ]
         read_only_fields = [
             'id',
             'created_at',
             'current_stock',
             'available_stock',
+            'organization',
+            'bom_components',
         ]
 
     def create(self, validated_data):
         request = self.context["request"]
+        
+        # Pop components before creating main item
+        components_data = validated_data.pop('components', [])
+        
+        # Set organization automatically
         validated_data["organization"] = request.user.organization
-        return super().create(validated_data)
+        
+        # Create the parent item
+        item = super().create(validated_data)
+        
+        # Create BOM (Bill of Materials) entries
+        self._create_components(item, components_data)
+        
+        return item
+
+    def update(self, instance, validated_data):
+        components_data = validated_data.pop('components', None)
+        
+        # Update main fields
+        instance = super().update(instance, validated_data)
+        
+        # If components were sent → replace existing ones
+        if components_data is not None:
+            # Clear old dependencies
+            instance.components.all().delete()
+            # Create new ones
+            self._create_components(instance, components_data)
+        
+        return instance
+
+    def _create_components(self, parent_item, components_data):
+        """Helper to create ItemDependency records"""
+        for comp in components_data:
+            child_id = comp.get('child_item')
+            quantity = comp.get('quantity')
+            
+            if not child_id or not quantity:
+                continue  # or raise error - your choice
+                
+            try:
+                child_item = Item.objects.get(
+                    id=child_id,
+                    organization=parent_item.organization
+                )
+                
+                ItemDependency.objects.create(
+                    parent_item=parent_item,
+                    child_item=child_item,
+                    quantity=quantity
+                )
+            except Item.DoesNotExist:
+                raise serializers.ValidationError(
+                    f"Component item with ID {child_id} not found or belongs to different organization."
+                )
+            except Exception as e:
+                raise serializers.ValidationError(f"Error adding component: {str(e)}")
+            
 
     def get_current_stock(self, obj):
         """
@@ -84,6 +180,30 @@ class ItemSerializer(serializers.ModelSerializer):
         """
         current_stock = self.get_current_stock(obj)
         return max(current_stock, Decimal('0.00'))
+    def validate(self, data):
+        # Optional: extra business rules
+        category = data.get('category')
+        item_type = data.get('item_type')
+        
+        if item_type == 'production' and category == 'raw':
+            raise serializers.ValidationError({
+                "item_type": "Raw materials should not be marked as production items."
+            })
+            
+        return data
+    
+
+
+# # Then in ItemSerializer:
+# class ItemSerializer(serializers.ModelSerializer):
+#     # ...
+#     components = ItemDependencySerializer(
+#         source='components',   # related_name='components'
+#         many=True,
+#         read_only=True
+#     )
+    
+  
 # ========================= PURCHASE ORDER =========================
 class PurchaseOrderItemSerializer(serializers.ModelSerializer):
     # For GET responses → show full item details
