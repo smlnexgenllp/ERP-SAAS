@@ -78,6 +78,8 @@ import ProcessSetup from "./components/modules/production/components/ProcessSetu
 import TransactionForm from "./components/modules/production/components/TransactionForm";
 import DepartmentStockMatrix from "./components/modules/production/pages/DepartmentStockMatrix";
 import TransactionHistory from "./components/modules/production/components/TransactionHistory";
+import CapacityDashboard from "./components/modules/production/pages/CapacityDashboard";
+import MachineAssignmentForm from "./components/modules/production/components/MachineAssignmentForm";
 
 
 
@@ -413,6 +415,10 @@ function App() {
           <Route path="/machines-list" element={<MachineList />} />
           <Route path="/machines/edit/:id" element={<MachineEdit />} />
           <Route path="/transaction-history" element={<TransactionHistory/>} />
+          <Route path='/capacity/dashboard' element={<CapacityDashboard/>} />
+          <Route path='/machine-assign' element={<MachineAssignmentForm/>} />
+
+
         </Routes>
 
       </Router>
