@@ -82,6 +82,7 @@ import CapacityDashboard from "./components/modules/production/pages/CapacityDas
 import MachineAssignmentForm from "./components/modules/production/components/MachineAssignmentForm";
 import PlannedOrders from "./components/modules/production/components/PlannedOrder";
 import ManufacturingOrders from "./components/modules/production/components/ManufacturingOrders";
+import WorkOrderList from "./components/modules/production/components/WorkOrderList";
 
 
 
@@ -423,6 +424,8 @@ function App() {
 
           <Route path="/planned-orders" element={<PlannedOrders />} />
           <Route path="/manufacture-orders" element={<ManufacturingOrders/>}/>
+          <Route path="/workorder-list" element={<WorkOrderList/>}/>
+
         </Routes>
 
       </Router>
