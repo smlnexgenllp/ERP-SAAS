@@ -4,6 +4,7 @@ from .views import (
     DepartmentTransactionCreateView,
     DepartmentTransactionsByDeptView,
     ItemSalesSummaryView,
+    ManufacturingOrderUpdateView,
     ProductionPlanListView,
     ProductionPlanCreateView,
     RunMRPView,
@@ -79,6 +80,10 @@ urlpatterns = [
     path('manufacturing-orders/<int:pk>/complete/', 
          ManufacturingOrderCompleteView.as_view(), 
          name='mo-complete'),
+        # Manufacturing Order Update (for status and dates)
+    path('manufacturing-orders/<int:pk>/', 
+         ManufacturingOrderUpdateView.as_view(), 
+         name='manufacturing-order-update'),
     path('machine-load/', 
          MachineLoadView.as_view(), 
          name='machine-load'),
