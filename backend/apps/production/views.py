@@ -876,6 +876,41 @@ class AssignMachinesAPIView(APIView):
         if count > 0:
             return Response({"success": True, "message": message, "created_count": count})
         return Response({"success": False, "message": message}, status=400)
+
+class MachineAvailabilityCheckAPIView(APIView):
+    def get(self, request):
+        machine_id = request.query_params.get('machine_id')
+        order_id = request.query_params.get('manufacturing_order_id')  # optional, for better estimation
+
+        if not machine_id:
+            return Response({"error": "machine_id is required"}, status=400)
+
+        try:
+            machine = Machine.objects.get(id=machine_id)
+        except Machine.DoesNotExist:
+            return Response({"error": "Machine not found"}, status=404)
+
+        # For simplicity, use today's date + estimated days (or fetch from order)
+        proposed_start = timezone.now().date()
+        proposed_end = proposed_start + timedelta(days=10)  # fallback
+
+        if order_id:
+            try:
+                mo = ManufacturingOrder.objects.get(id=order_id, status='draft')
+                # Reuse your calculation logic here if needed
+                proposed_start = mo.start_date or proposed_start
+                # ... calculate proposed_end similarly
+            except:
+                pass
+
+        busy_info = ProductionService.get_machine_busy_info(machine, proposed_start, proposed_end)
+
+        return Response({
+            "machine_id": machine.id,
+            "machine_name": machine.name,
+            "is_available": not busy_info['is_busy'],
+            **busy_info
+        })        
     
 # apps/production/views.py
 
