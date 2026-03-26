@@ -25,6 +25,13 @@ from .views import (
     MachineAPIView,
     MachineAvailabilityAPIView,
     MachineSuggestDatesAPIView,
+#     ManufacturingOrderAPIView,
+#     ManufacturingOrderDetailAPIView,
+#     AssignMachineToManufacturingOrderAPIView,
+#     ProductionPlanManufacturingOrdersAPIView,
+#     ManufacturingOrderAvailabilityAPIView
+AssignMachinesAPIView,DraftManufacturingOrdersAPIView,AvailableMachinesAPIView,
+    RunSingleItemMRPView,MachineAvailabilityCheckAPIView,
     DraftManufacturingOrdersAPIView,
     AvailableMachinesAPIView,
     AssignMachinesAPIView,

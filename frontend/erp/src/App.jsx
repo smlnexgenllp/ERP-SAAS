@@ -424,6 +424,8 @@ function App() {
 
           <Route path="/planned-orders" element={<PlannedOrders />} />
           <Route path="/manufacture-orders" element={<ManufacturingOrders/>}/>
+          {/* <Route path="/workorder-list" element={<WorkOrderList/>}/> */}
+
         </Routes>
 
       </Router>

@@ -23,14 +23,14 @@ from .models import (
     ManufacturingOrder, MOOperation,
     BillOfMaterial, Routing, RoutingOperation,
     PlannedOrder, ItemProcess, ItemProcessStep,
-    DepartmentTransaction,ProductionOrder
+    DepartmentTransaction,ProductionOrder,WorkOrder
 )
 
 from .serializers import (
     ProductionPlanSerializer, PlannedOrderSerializer,
     PurchaseRequisitionSerializer, ManufacturingOrderSerializer,
     ItemProcessSerializer, ItemProcessCreateUpdateSerializer,
-    DepartmentTransactionListSerializer, DepartmentTransactionCreateSerializer
+    DepartmentTransactionListSerializer, DepartmentTransactionCreateSerializer,WorkOrderSerializer
 )
 
 from apps.inventory.models import Item, StockLedger, Machine
@@ -929,7 +929,8 @@ class AssignMachineAPIView(APIView):
 from .services import ProductionService
 class DraftManufacturingOrdersAPIView(APIView):
     def get(self, request):
-        orders = ProductionService.get_draft_manufacturing_orders()
+        # Redirect logic to the new method
+        orders = ProductionService.get_ready_manufacturing_orders()
         serializer = ManufacturingOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
