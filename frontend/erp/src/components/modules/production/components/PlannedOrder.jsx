@@ -55,7 +55,7 @@ export default function PlannedOrders() {
     setMrpLoading(plannedOrderId);
 
     try {
-      const res = await api.post(`/production/planned-orders/${plannedOrderId}/run-mrp/`);
+      const res = await api.post(`/production/planned-orders/${plannedOrderId}/convert-to-mo/`);
 
       alert(`✅ Manufacturing Order Created Successfully!\n\nMO ID: ${res.data.manufacturing_order_id}`);
 
