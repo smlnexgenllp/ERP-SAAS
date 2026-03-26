@@ -229,15 +229,33 @@ class ConvertToMOView(APIView):
 # =========================================================
 # MANUFACTURING ORDERS
 # =========================================================
-class ManufacturingOrderListView(APIView):
-    permission_classes = [IsAuthenticated]
+# ====================== MANUFACTURING ORDERS ======================
 
-    def get(self, request):
-        orders = ManufacturingOrder.objects.filter(
-            planned_order__production_plan__organization=request.user.organization
-        ).select_related("product", "planned_order")
+# class ManufacturingOrderListView(APIView):
+#     """
+#     List all manufacturing orders.
+#     Optional: Filter by production plan using ?plan_id=123
+#     """
+#     permission_classes = [IsAuthenticated]
 
-        return Response(ManufacturingOrderSerializer(orders, many=True).data)
+#     def get(self, request):
+#         organization = request.user.organization
+#         plan_id = request.query_params.get('plan_id')
+
+#         queryset = ManufacturingOrder.objects.filter(
+#             planned_order__production_plan__organization=organization
+#         ).select_related('product', 'planned_order', 'machine')
+
+#         if plan_id:
+#             queryset = queryset.filter(planned_order__production_plan_id=plan_id)
+
+#         # You can also add more filters if needed
+#         status_filter = request.query_params.get('status')
+#         if status_filter:
+#             queryset = queryset.filter(status=status_filter)
+
+#         serializer = ManufacturingOrderSerializer(queryset, many=True)
+#         return Response(serializer.data)
 
 
 # =========================================================
@@ -594,34 +612,91 @@ class ProductionPlanDetailAPIView(APIView):
 
 # ====================== MANUFACTURING ORDER VIEWS ======================
 
+# =========================================================
+# MANUFACTURING ORDERS
+# =========================================================
+# =========================================================
+# MANUFACTURING ORDERS - FIXED VERSION
+# =========================================================
 class ManufacturingOrderListView(APIView):
-    """Get manufacturing orders for a plan"""
+    """List all manufacturing orders. Supports ?plan_id=xxx filter"""
     permission_classes = [IsAuthenticated]
     
-    def get(self, request, plan_id):
+    def get(self, request):
         organization = request.user.organization
-        plan = get_object_or_404(ProductionPlan, pk=plan_id, organization=organization)
-        
-        planned_orders = PlannedOrder.objects.filter(production_plan=plan)
-        manufacturing_orders = ManufacturingOrder.objects.filter(
-            planned_order__in=planned_orders
-        ).select_related('product', 'machine')
-        
+        plan_id = request.query_params.get('plan_id')
+
+        # Base queryset - Remove 'machine' from select_related since it doesn't exist
+        queryset = ManufacturingOrder.objects.filter(
+            planned_order__production_plan__organization=organization
+        ).select_related('product', 'planned_order')   # ← Removed 'machine'
+
+        if plan_id:
+            queryset = queryset.filter(planned_order__production_plan_id=plan_id)
+
+        # Build response manually to avoid serializer issues
         data = []
-        for mo in manufacturing_orders:
+        for mo in queryset:
             data.append({
                 'id': mo.id,
-                'product': mo.product.name,
+                'product': mo.product.name if mo.product else None,
+                'product_id': mo.product.id if mo.product else None,
                 'quantity': float(mo.quantity),
                 'status': mo.status,
-                'required_hours': float(mo.required_hours or 0),
-                'machine': mo.machine.name if mo.machine else None,
+                'required_hours': float(getattr(mo, 'required_hours', 0) or 0),
+                # Safe access for machine (in case the field exists later)
+                'machine': getattr(mo, 'machine', None).name if getattr(mo, 'machine', None) else None,
+                'machine_id': getattr(mo, 'machine', None).id if getattr(mo, 'machine', None) else None,
                 'start_date': mo.start_date.isoformat() if mo.start_date else None,
-                'finish_date': mo.finish_date.isoformat() if mo.finish_date else None
+                'finish_date': mo.finish_date.isoformat() if mo.finish_date else None,
             })
         
         return Response(data)
+    
+# ====================== UPDATE MANUFACTURING ORDER ======================
+class ManufacturingOrderUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def patch(self, request, pk):
+        try:
+            mo = ManufacturingOrder.objects.get(
+                id=pk,
+                planned_order__production_plan__organization=request.user.organization
+            )
+        except ManufacturingOrder.DoesNotExist:
+            return Response({"detail": "Manufacturing order not found"}, status=404)
+
+        # Allow updating status, start_date, finish_date
+        allowed_fields = ['status', 'start_date', 'finish_date']
+        data = {}
+
+        for field in allowed_fields:
+            if field in request.data:
+                data[field] = request.data[field]
+
+        # Special handling for status change
+        if 'status' in data:
+            new_status = data['status']
+            if new_status not in ['draft', 'in_progress', 'done']:
+                return Response({"detail": "Invalid status"}, status=400)
+
+            # Optional: Add business logic (e.g., only allow draft → in_progress)
+            if mo.status == "done":
+                return Response({"detail": "Cannot change completed order"}, status=400)
+
+        # Update fields
+        for field, value in data.items():
+            setattr(mo, field, value)
+
+        mo.save()
+
+        return Response({
+            "detail": "Manufacturing order updated successfully",
+            "id": mo.id,
+            "status": mo.status,
+            "start_date": mo.start_date,
+            "finish_date": mo.finish_date
+        })
 
 # ====================== MACHINE VIEWS ======================
 
@@ -1300,45 +1375,67 @@ class RunSingleItemMRPView(APIView):
             "quantity": float(required),
             "linked_sales_order_ids": so_ids
         }, status=201)
+# ====================== WORK ORDERS ======================
 
-class InProgressWorkOrdersAPIView(APIView):
+class WorkOrderListView(APIView):
+    """List Work Orders with Pending / Completed tabs"""
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        work_orders = WorkOrder.objects.filter(
-            status='in_progress'
-        ).select_related('manufacturing_order', 'machine', 'manufacturing_order__product')
-        
-        serializer = WorkOrderSerializer(work_orders, many=True)
-        return Response(serializer.data)
+        organization = request.user.organization
+        status_filter = request.query_params.get('status', 'pending')
+
+        queryset = ManufacturingOrder.objects.filter(
+            planned_order__production_plan__organization=organization
+        ).select_related('product', 'planned_order')
+
+        if status_filter == 'pending':
+            queryset = queryset.filter(status__in=['draft', 'in_progress'])
+        elif status_filter == 'completed':
+            queryset = queryset.filter(status='done')
+
+        data = []
+        for wo in queryset:
+            data.append({
+                'id': wo.id,
+                'product': wo.product.name if wo.product else None,
+                'machine_name': getattr(wo, 'machine', None).name if getattr(wo, 'machine', None) else None,
+                'start_date': wo.start_date.isoformat() if wo.start_date else None,
+                'end_date': wo.finish_date.isoformat() if wo.finish_date else None,
+                'sales_order_id': wo.planned_order.sales_orders.first().id if wo.planned_order.sales_orders.exists() else None,
+                'quantity': float(wo.quantity),
+                'department': 'Production',  # You can enhance this later
+                'status': wo.status,
+            })
+
+        return Response(data)
 
 
-class CompleteWorkOrderAPIView(APIView):
-    def post(self, request, pk):
-        work_order = get_object_or_404(WorkOrder, pk=pk, status='in_progress')
-        
-        work_order.status = 'completed'
-        work_order.actual_end_date = timezone.now().date()  # Optional: track actual completion date
-        work_order.save()
-        
+class WorkOrderActionView(APIView):
+    """Approve or Reject Work Order"""
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            wo = ManufacturingOrder.objects.get(
+                id=pk,
+                planned_order__production_plan__organization=request.user.organization
+            )
+        except ManufacturingOrder.DoesNotExist:
+            return Response({"detail": "Work order not found"}, status=404)
+
+        new_status = request.data.get('status')
+        if new_status not in ['approved', 'rejected']:
+            return Response({"detail": "Invalid status. Use 'approved' or 'rejected'"}, status=400)
+
+        if wo.status == 'done':
+            return Response({"detail": "Cannot change completed work order"}, status=400)
+
+        wo.status = 'done' if new_status == 'approved' else 'rejected'
+        wo.save()
+
         return Response({
-            "success": True,
-            "message": f"Work Order #{work_order.id} marked as Completed successfully.",
-            "work_order": WorkOrderSerializer(work_order).data
+            "detail": f"Work order #{pk} has been {new_status}.",
+            "id": wo.id,
+            "status": wo.status
         })
-
-
-class DeleteWorkOrderAPIView(APIView):
-    def delete(self, request, pk):
-        work_order = get_object_or_404(WorkOrder, pk=pk)
-        
-        # Optional: Only allow delete if not completed (or add your own logic)
-        if work_order.status == 'completed':
-            return Response({
-                "success": False,
-                "message": "Cannot delete a completed Work Order."
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        work_order.delete()
-        return Response({
-            "success": True,
-            "message": f"Work Order #{pk} deleted successfully."
-        }, status=status.HTTP_204_NO_CONTENT)

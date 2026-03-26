@@ -82,7 +82,7 @@ import CapacityDashboard from "./components/modules/production/pages/CapacityDas
 import MachineAssignmentForm from "./components/modules/production/components/MachineAssignmentForm";
 import PlannedOrders from "./components/modules/production/components/PlannedOrder";
 import ManufacturingOrders from "./components/modules/production/components/ManufacturingOrders";
-import WorkOrderList from "./components/modules/production/components/WorkOrderList";
+import WorkOrdersList from "./components/modules/production/components/WorkOrdersList";
 
 
 
@@ -420,11 +420,11 @@ function App() {
           <Route path="/transaction-history" element={<TransactionHistory/>} />
           <Route path='/capacity/dashboard' element={<CapacityDashboard/>} />
           <Route path='/machine-assign' element={<MachineAssignmentForm/>} />
-
+          <Route path="/workorder-list" element={<WorkOrdersList/>}/>
 
           <Route path="/planned-orders" element={<PlannedOrders />} />
           <Route path="/manufacture-orders" element={<ManufacturingOrders/>}/>
-          <Route path="/workorder-list" element={<WorkOrderList/>}/>
+          {/* <Route path="/workorder-list" element={<WorkOrderList/>}/> */}
 
         </Routes>
 
