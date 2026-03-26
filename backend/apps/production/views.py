@@ -1374,3 +1374,67 @@ class RunSingleItemMRPView(APIView):
             "quantity": float(required),
             "linked_sales_order_ids": so_ids
         }, status=201)
+# ====================== WORK ORDERS ======================
+
+class WorkOrderListView(APIView):
+    """List Work Orders with Pending / Completed tabs"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        organization = request.user.organization
+        status_filter = request.query_params.get('status', 'pending')
+
+        queryset = ManufacturingOrder.objects.filter(
+            planned_order__production_plan__organization=organization
+        ).select_related('product', 'planned_order')
+
+        if status_filter == 'pending':
+            queryset = queryset.filter(status__in=['draft', 'in_progress'])
+        elif status_filter == 'completed':
+            queryset = queryset.filter(status='done')
+
+        data = []
+        for wo in queryset:
+            data.append({
+                'id': wo.id,
+                'product': wo.product.name if wo.product else None,
+                'machine_name': getattr(wo, 'machine', None).name if getattr(wo, 'machine', None) else None,
+                'start_date': wo.start_date.isoformat() if wo.start_date else None,
+                'end_date': wo.finish_date.isoformat() if wo.finish_date else None,
+                'sales_order_id': wo.planned_order.sales_orders.first().id if wo.planned_order.sales_orders.exists() else None,
+                'quantity': float(wo.quantity),
+                'department': 'Production',  # You can enhance this later
+                'status': wo.status,
+            })
+
+        return Response(data)
+
+
+class WorkOrderActionView(APIView):
+    """Approve or Reject Work Order"""
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            wo = ManufacturingOrder.objects.get(
+                id=pk,
+                planned_order__production_plan__organization=request.user.organization
+            )
+        except ManufacturingOrder.DoesNotExist:
+            return Response({"detail": "Work order not found"}, status=404)
+
+        new_status = request.data.get('status')
+        if new_status not in ['approved', 'rejected']:
+            return Response({"detail": "Invalid status. Use 'approved' or 'rejected'"}, status=400)
+
+        if wo.status == 'done':
+            return Response({"detail": "Cannot change completed work order"}, status=400)
+
+        wo.status = 'done' if new_status == 'approved' else 'rejected'
+        wo.save()
+
+        return Response({
+            "detail": f"Work order #{pk} has been {new_status}.",
+            "id": wo.id,
+            "status": wo.status
+        })
