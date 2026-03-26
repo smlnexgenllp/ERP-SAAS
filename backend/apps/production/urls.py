@@ -29,7 +29,7 @@ from .views import (
 #     AssignMachineToManufacturingOrderAPIView,
 #     ProductionPlanManufacturingOrdersAPIView,
 #     ManufacturingOrderAvailabilityAPIView
-AssignMachinesAPIView,DraftManufacturingOrdersAPIView,AvailableMachinesAPIView
+AssignMachinesAPIView,DraftManufacturingOrdersAPIView,AvailableMachinesAPIView,
     RunSingleItemMRPView
 )
 

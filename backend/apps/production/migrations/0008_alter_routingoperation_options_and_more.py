@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('inventory', '0008_alter_machine_code'),
         ('organizations', '0020_alter_organizationuser_role'),
-        ('production', '0007_update_planned_order_v2'),
+        ('production', '0003_alter_productionorder_options_and_more'),
     ]
 
     operations = [
@@ -22,14 +22,14 @@ class Migration(migrations.Migration):
             name='routingoperation',
             unique_together=set(),
         ),
-        migrations.RemoveField(
-            model_name='mooperation',
-            name='planned_finish',
-        ),
-        migrations.RemoveField(
-            model_name='mooperation',
-            name='planned_start',
-        ),
+        # migrations.RemoveField(
+        #     model_name='mooperation',
+        #     name='planned_finish',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='mooperation',
+        #     name='planned_start',
+        # ),
         migrations.AddField(
             model_name='billofmaterial',
             name='machine',
@@ -77,16 +77,16 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'Work Centers',
             },
         ),
-        migrations.RemoveField(
-            model_name='routingoperation',
-            name='labor_time_per_unit',
-        ),
-        migrations.RemoveField(
-            model_name='routingoperation',
-            name='machine_time_per_unit',
-        ),
-        migrations.RemoveField(
-            model_name='routingoperation',
-            name='setup_time_hours',
-        ),
+        # migrations.RemoveField(
+        #     model_name='routingoperation',
+        #     name='labor_time_per_unit',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='routingoperation',
+        #     name='machine_time_per_unit',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='routingoperation',
+        #     name='setup_time_hours',
+        # ),
     ]
