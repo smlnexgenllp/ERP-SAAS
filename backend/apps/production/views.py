@@ -23,14 +23,14 @@ from .models import (
     ManufacturingOrder, MOOperation,
     BillOfMaterial, Routing, RoutingOperation,
     PlannedOrder, ItemProcess, ItemProcessStep,
-    DepartmentTransaction,ProductionOrder
+    DepartmentTransaction,ProductionOrder,WorkOrder
 )
 
 from .serializers import (
     ProductionPlanSerializer, PlannedOrderSerializer,
     PurchaseRequisitionSerializer, ManufacturingOrderSerializer,
     ItemProcessSerializer, ItemProcessCreateUpdateSerializer,
-    DepartmentTransactionListSerializer, DepartmentTransactionCreateSerializer
+    DepartmentTransactionListSerializer, DepartmentTransactionCreateSerializer,WorkOrderSerializer
 )
 
 from apps.inventory.models import Item, StockLedger, Machine
@@ -854,7 +854,8 @@ class AssignMachineAPIView(APIView):
 from .services import ProductionService
 class DraftManufacturingOrdersAPIView(APIView):
     def get(self, request):
-        orders = ProductionService.get_draft_manufacturing_orders()
+        # Redirect logic to the new method
+        orders = ProductionService.get_ready_manufacturing_orders()
         serializer = ManufacturingOrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -1299,3 +1300,45 @@ class RunSingleItemMRPView(APIView):
             "quantity": float(required),
             "linked_sales_order_ids": so_ids
         }, status=201)
+
+class InProgressWorkOrdersAPIView(APIView):
+    def get(self, request):
+        work_orders = WorkOrder.objects.filter(
+            status='in_progress'
+        ).select_related('manufacturing_order', 'machine', 'manufacturing_order__product')
+        
+        serializer = WorkOrderSerializer(work_orders, many=True)
+        return Response(serializer.data)
+
+
+class CompleteWorkOrderAPIView(APIView):
+    def post(self, request, pk):
+        work_order = get_object_or_404(WorkOrder, pk=pk, status='in_progress')
+        
+        work_order.status = 'completed'
+        work_order.actual_end_date = timezone.now().date()  # Optional: track actual completion date
+        work_order.save()
+        
+        return Response({
+            "success": True,
+            "message": f"Work Order #{work_order.id} marked as Completed successfully.",
+            "work_order": WorkOrderSerializer(work_order).data
+        })
+
+
+class DeleteWorkOrderAPIView(APIView):
+    def delete(self, request, pk):
+        work_order = get_object_or_404(WorkOrder, pk=pk)
+        
+        # Optional: Only allow delete if not completed (or add your own logic)
+        if work_order.status == 'completed':
+            return Response({
+                "success": False,
+                "message": "Cannot delete a completed Work Order."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        work_order.delete()
+        return Response({
+            "success": True,
+            "message": f"Work Order #{pk} deleted successfully."
+        }, status=status.HTTP_204_NO_CONTENT)

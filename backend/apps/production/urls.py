@@ -30,7 +30,9 @@ from .views import (
 #     ProductionPlanManufacturingOrdersAPIView,
 #     ManufacturingOrderAvailabilityAPIView
 AssignMachinesAPIView,DraftManufacturingOrdersAPIView,AvailableMachinesAPIView,
-    RunSingleItemMRPView,MachineAvailabilityCheckAPIView
+    RunSingleItemMRPView,MachineAvailabilityCheckAPIView,InProgressWorkOrdersAPIView,
+    CompleteWorkOrderAPIView,
+    DeleteWorkOrderAPIView,
 )
 
 urlpatterns = [
@@ -151,6 +153,10 @@ urlpatterns = [
     path('machines-list/', AvailableMachinesAPIView.as_view()),
     path('assign-machines/', AssignMachinesAPIView.as_view()),
     path('machine-availability/', MachineAvailabilityCheckAPIView.as_view(), name='machine-availability'),
+    path('in-progress-workorders/', InProgressWorkOrdersAPIView.as_view(), name='in-progress-workorders'),
+    path('workorders/<int:pk>/complete/', CompleteWorkOrderAPIView.as_view(), name='complete-workorder'),
+    path('workorders/<int:pk>/delete/', DeleteWorkOrderAPIView.as_view(), name='delete-workorder'),
+
 
        
 ]
