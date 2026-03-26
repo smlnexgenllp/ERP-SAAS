@@ -4,18 +4,19 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/AuthContext';
 import {
   Factory,
+  BarChart3,
+  ClipboardList,
+  Package,
+  Truck,
+  History,
+  Settings,
+  Users,
+  LogOut,
+  Zap,
   PlayCircle,
   CheckCircle2,
-  Package,
-  ClipboardList,
-  Settings,
-  LogOut,
-  AlertTriangle,
-  Zap,
-  BarChart3,
   Clock,
-  Layers,
-  ArrowRightCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import api from '../../../../services/api';
 
@@ -36,46 +37,46 @@ const Sidebar = ({ active = 'dashboard' }) => {
       key: 'plans',
     },
     {
-      icon: ClipboardList,
-      label: 'Over all Stock',
-      path: '/overall-stock',
-      key: 'stocks',
+      icon: Package,
+      label: 'Planned Orders',
+      path: '/planned-orders',
+      key: 'planned-orders',
     },
     {
-      icon: ClipboardList,
+      icon: PlayCircle,
+      label: 'Manufacturing Orders',
+      path: '/manufacture-orders',
+      key: 'manufacturing-orders',
+    },
+    {
+      icon: Truck,
       label: 'Material Transfer',
       path: '/department-transaction',
       key: 'Transactions',
     },
-     {
-      icon: ClipboardList,
-      label: 'Machine Creation',
-      path: '/machines/create',
-      key: 'New machine Add',
-    },
-     {
-      icon: ClipboardList,
-      label: 'Machines',
-      path: '/machines-list',
-      key: 'List of machines',
-    },
     {
-      icon: ClipboardList,
+      icon: History,
       label: 'Transfer History',
       path: '/transaction-history',
       key: 'History',
     },
     {
-      icon: Package,
-      label: 'Planned Orders',
-      path: '/planned-orders', 
-      key: 'planned-orders',
+      icon: Settings,
+      label: 'Machines',
+      path: '/machines-list',
+      key: 'List of machines',
     },
     {
       icon: Settings,
-      label: 'Manufacturing Orders',
-      path: '/production/manufacturing-orders',
-      key: 'manufacturing-orders',
+      label: 'Add New Machine',
+      path: '/machines/create',
+      key: 'New machine Add',
+    },
+    {
+      icon: ClipboardList,
+      label: 'Overall Stock',
+      path: '/overall-stock',
+      key: 'stocks',
     },
   ];
 
@@ -126,7 +127,7 @@ export default function ManufacturingDashboard() {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState({
-    productionPlans: 0,
+    manufacturingOrders: 0,
     plannedOrders: 0,
     runningProduction: 0,
     completedProduction: 0,
@@ -140,19 +141,18 @@ export default function ManufacturingDashboard() {
     setError(null);
 
     try {
-      const [plansRes, poRes, moRes] = await Promise.all([
-        api.get('/production/production-plans/'),
+      const [poRes, moRes] = await Promise.all([
         api.get('/production/planned-orders/'),
         api.get('/production/manufacturing-orders/'),
       ]);
 
+      const moData = moRes.data || [];
+
       setStats({
-        productionPlans: plansRes.data?.length || 0,
+        manufacturingOrders: moData.length,
         plannedOrders: poRes.data?.length || 0,
-        runningProduction:
-          moRes.data?.filter((mo) => mo.status === 'in_progress')?.length || 0,
-        completedProduction:
-          moRes.data?.filter((mo) => mo.status === 'done')?.length || 0,
+        runningProduction: moData.filter((mo) => mo.status === 'in_progress').length,
+        completedProduction: moData.filter((mo) => mo.status === 'done').length,
       });
     } catch (err) {
       console.error('Dashboard fetch error:', err);
@@ -169,32 +169,16 @@ export default function ManufacturingDashboard() {
   }, [authLoading]);
 
   const handleRunMRP = async () => {
-    if (
-      !window.confirm(
-        'Execute global MRP run?\n\nThis will analyze open demand, explode BOMs, calculate net requirements, and generate planned orders & purchase requisitions.'
-      )
-    ) {
+    if (!window.confirm('Execute global MRP run?\n\nThis will analyze open demand, explode BOMs, and generate planned orders.')) {
       return;
     }
 
     try {
-      const response = await api.post('/production/run-mrp/', {
-        scheduling_mode: 'basic', // can be made dynamic later
-      });
-
+      const response = await api.post('/production/run-mrp/');
       alert(response.data.detail || 'MRP run completed successfully');
-
-      if (response.data.warnings?.length > 0) {
-        alert(
-          'Planning Warnings:\n' + response.data.warnings.join('\n')
-        );
-      }
-
       fetchDashboardData();
     } catch (err) {
-      const msg =
-        err.response?.data?.detail ||
-        'MRP execution failed. Please check server logs.';
+      const msg = err.response?.data?.detail || 'MRP execution failed.';
       alert(msg);
     }
   };
@@ -204,9 +188,7 @@ export default function ManufacturingDashboard() {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-5">
           <div className="animate-spin h-14 w-14 border-4 border-cyan-500 border-t-transparent rounded-full"></div>
-          <p className="text-cyan-400 font-medium text-lg">
-            Loading Manufacturing Dashboard...
-          </p>
+          <p className="text-cyan-400 font-medium text-lg">Loading Manufacturing Dashboard...</p>
         </div>
       </div>
     );
@@ -225,7 +207,7 @@ export default function ManufacturingDashboard() {
             <Factory className="h-10 w-10 text-cyan-500 flex-shrink-0" />
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-cyan-300 tracking-tight">
-                Manufacturing Cockpit
+                Manufacturing Dashboard
               </h1>
               <p className="text-slate-400 text-sm mt-1">
                 {new Date().toLocaleDateString('en-IN', {
@@ -251,24 +233,24 @@ export default function ManufacturingDashboard() {
         {/* Main Content */}
         <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto">
           {error && (
-            <div className="bg-red-950/70 border border-red-800 text-red-200 px-6 py-4 rounded-xl mb-8 flex items-center gap-3 shadow-sm">
+            <div className="bg-red-950/70 border border-red-800 text-red-200 px-6 py-4 rounded-xl mb-8 flex items-center gap-3">
               <AlertTriangle size={20} className="flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* KPI Cards Grid */}
+          {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-            {/* Production Plans */}
+            {/* Manufacturing Orders */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 hover:border-cyan-700/50 transition-all duration-200 shadow-md">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-slate-400 text-sm font-medium uppercase tracking-wide">
-                  Production Plans
+                  Manufacturing Orders
                 </p>
-                <ClipboardList className="h-6 w-6 text-cyan-500 opacity-80" />
+                <PlayCircle className="h-6 w-6 text-cyan-500 opacity-80" />
               </div>
               <p className="text-4xl md:text-5xl font-bold text-white">
-                {stats.productionPlans}
+                {stats.manufacturingOrders}
               </p>
             </div>
 
@@ -285,7 +267,7 @@ export default function ManufacturingDashboard() {
               </p>
             </div>
 
-            {/* In Progress */}
+            {/* Running Production */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 hover:border-amber-700/50 transition-all duration-200 shadow-md">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-slate-400 text-sm font-medium uppercase tracking-wide">
@@ -298,7 +280,7 @@ export default function ManufacturingDashboard() {
               </p>
             </div>
 
-            {/* Completed */}
+            {/* Completed Production */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 hover:border-emerald-700/50 transition-all duration-200 shadow-md">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-slate-400 text-sm font-medium uppercase tracking-wide">
@@ -313,33 +295,26 @@ export default function ManufacturingDashboard() {
           </div>
 
           {/* MRP Quick Action Panel */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-xl p-6 md:p-8 shadow-lg">
+          <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-xl p-8 shadow-lg">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div>
                 <h2 className="text-2xl font-semibold text-cyan-300 mb-2">
                   Material Requirements Planning
                 </h2>
                 <p className="text-slate-400 max-w-2xl">
-                  Run MRP to generate planned production and procurement proposals based on current sales demand, stock levels, and BOM structures.
+                  Run MRP to analyze sales demand, check stock levels, explode BOMs, and generate planned orders automatically.
                 </p>
               </div>
 
               <button
                 onClick={handleRunMRP}
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 px-8 py-4 rounded-xl font-medium text-lg shadow-xl transition-all transform hover:scale-105 min-w-[220px]"
+                className="flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 px-10 py-4 rounded-xl font-medium text-lg shadow-xl transition-all transform hover:scale-105 min-w-[240px]"
               >
-                <Zap size={20} />
+                <Zap size={22} />
                 Execute MRP Run
               </button>
             </div>
           </div>
-
-          {/* You can add more sections here later:
-              - Recent Manufacturing Orders
-              - Capacity Overview
-              - Alerts & Exceptions
-              - Production Progress Charts
-          */}
         </main>
       </div>
     </div>
