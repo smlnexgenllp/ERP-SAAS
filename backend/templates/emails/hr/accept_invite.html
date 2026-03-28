@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join {{ invite.organization.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: linear-gradient(135deg, #f3e7e9 0%, #e6f0fa 100%); }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center py-12">
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- Header -->
+        <div class="bg-blue-600 text-white p-8 text-center">
+            <h1 class="text-3xl font-bold">Welcome aboard!</h1>
+            <p class="mt-2 opacity-90">You've been invited to join</p>
+            <p class="text-xl font-semibold mt-1">{{ invite.organization.name }}</p>
+        </div>
+
+        <div class="p-8">
+            {% if error %}
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <div class="space-y-6">
+                <div>
+                    <p class="text-gray-600 text-sm">You're joining as</p>
+                    <p class="text-2xl font-semibold text-gray-800">{{ invite.full_name }}</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p class="text-gray-500">Email</p>
+                        <p class="font-medium">{{ invite.email }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Role</p>
+                        <p class="font-medium">{{ invite.role|default:"Employee" }}</p>
+                    </div>
+                    {% if invite.phone %}
+                    <div>
+                        <p class="text-gray-500">Phone</p>
+                        <p class="font-medium">{{ invite.phone }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <form method="POST" class="space-y-6">
+                    {% csrf_token %}
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Create Password
+                        </label>
+                        <input 
+                            type="password" 
+                            name="password" 
+                            id="password"
+                            required
+                            minlength="8"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Enter a strong password"
+                        >
+                        <p class="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
+                    </div>
+
+                    <button 
+                        type="submit"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-xl transition duration-200 text-lg"
+                    >
+                        Accept Invitation & Create Account
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="border-t px-8 py-6 text-center text-sm text-gray-500">
+            Having trouble? Contact HR at {{ invite.organization.email|default:"hr@company.com" }}
+        </div>
+    </div>
+</body>
+</html>

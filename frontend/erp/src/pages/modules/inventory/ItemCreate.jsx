@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { FiBox, FiSave, FiPlus, FiTrash2, FiDollarSign } from "react-icons/fi";
+import { FiBox, FiSave, FiPlus, FiTrash2, FiArrowLeft } from "react-icons/fi"; // Added FiArrowLeft
 import { fetchVendors, fetchItems, createItem } from "../../../services/modules/inventoryService";
 
 const COMMON_UOMS = [
@@ -10,7 +10,7 @@ const COMMON_UOMS = [
 
 const ItemCreate = () => {
   const [vendors, setVendors] = useState([]);
-  const [allItems, setAllItems] = useState([]); // For dependent items dropdown
+  const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(true);
   const [message, setMessage] = useState("");
@@ -24,7 +24,7 @@ const ItemCreate = () => {
     uom: "",
     standard_price: "",
     vendors: [],
-    components: [],        // [{ child_item: "", quantity: "" }]
+    components: [],
   });
 
   const [uomOpen, setUomOpen] = useState(false);
@@ -84,7 +84,6 @@ const ItemCreate = () => {
     setUomOpen(false);
   };
 
-  // ==================== COMPONENTS (Dependent Items) ====================
   const addComponent = () => {
     setFormData(prev => ({
       ...prev,
@@ -169,13 +168,32 @@ const ItemCreate = () => {
     setMessageType(type);
   };
 
+  // Back button handler
+  const handleGoBack = () => {
+    window.history.back();           // Simple browser back
+    // Alternative: If using React Router v6
+    // navigate(-1);
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-300 p-6 md:p-10">
-      <div className="mb-10">
-        <h1 className="text-4xl font-bold text-cyan-300 flex items-center gap-3">
-          <FiBox className="text-cyan-400" /> Create New Item
-        </h1>
-        <p className="text-cyan-500 mt-1">Add new item with Bill of Materials support</p>
+      
+      {/* Back Button + Header */}
+      <div className="flex items-center gap-4 mb-10">
+        <button
+          onClick={handleGoBack}
+          className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-cyan-800 rounded-xl text-cyan-300 transition-all hover:text-cyan-200"
+        >
+          <FiArrowLeft size={22} />
+          <span className="font-medium">Back</span>
+        </button>
+
+        <div>
+          <h1 className="text-4xl font-bold text-cyan-300 flex items-center gap-3">
+            <FiBox className="text-cyan-400" /> Create New Item
+          </h1>
+          <p className="text-cyan-500 mt-1">Add new item with Bill of Materials support</p>
+        </div>
       </div>
 
       {message && (
@@ -185,6 +203,8 @@ const ItemCreate = () => {
       )}
 
       <form onSubmit={handleSubmit} className="bg-gray-900/70 border border-cyan-900/50 rounded-2xl p-8 max-w-5xl mx-auto">
+        {/* ... rest of your form remains exactly the same ... */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Input label="Item Name *" name="name" value={formData.name} onChange={handleChange} required placeholder="e.g. Welded Frame" />
           <Input label="Item Code *" name="code" value={formData.code} onChange={handleChange} required placeholder="e.g. FRAME-WLD-001" />
@@ -206,7 +226,7 @@ const ItemCreate = () => {
             </select>
           </div>
 
-          {/* UOM */}
+          {/* UOM Dropdown */}
           <div className="relative" ref={uomRef}>
             <label className="block text-cyan-400 text-sm mb-2">Unit of Measure *</label>
             <button type="button" onClick={() => setUomOpen(!uomOpen)} className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-3 text-left text-cyan-200 flex justify-between items-center">
@@ -227,7 +247,7 @@ const ItemCreate = () => {
           <Input label="Standard Price" name="standard_price" type="number" step="0.01" value={formData.standard_price} onChange={handleChange} placeholder="0.00" />
         </div>
 
-        {/* Vendors */}
+        {/* Vendors Section - unchanged */}
         <div className="mt-8 relative" ref={vendorRef}>
           <label className="block text-cyan-400 text-sm mb-2">Vendors (Optional)</label>
           <button type="button" onClick={() => setVendorOpen(!vendorOpen)} className="w-full bg-gray-800 border border-cyan-800 rounded-lg px-4 py-3 text-left flex justify-between">
@@ -246,7 +266,7 @@ const ItemCreate = () => {
           )}
         </div>
 
-        {/* ==================== DEPENDENT ITEMS SECTION ==================== */}
+        {/* Dependent Items Section - unchanged */}
         {formData.item_type === "production" && (
           <div className="mt-12">
             <div className="flex justify-between items-center mb-4">
@@ -305,7 +325,7 @@ const ItemCreate = () => {
           </div>
         )}
 
-        {/* Submit */}
+        {/* Submit Button */}
         <div className="mt-12 flex justify-end">
           <button
             type="submit"
@@ -323,7 +343,7 @@ const ItemCreate = () => {
   );
 };
 
-// Reusable Input
+// Reusable Input Component (unchanged)
 const Input = ({ label, ...props }) => (
   <div>
     <label className="block text-cyan-400 text-sm mb-2">{label}</label>

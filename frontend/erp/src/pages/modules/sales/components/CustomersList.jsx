@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
-import { Search, Filter, Users, Eye, Edit } from 'lucide-react';
+import { Search, Filter, Users, Eye, Edit, ArrowLeft } from 'lucide-react';
 
 export default function CustomersList() {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ export default function CustomersList() {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/sale/customers/'); // or /sale/customers/ – use your working endpoint
+      const res = await api.get('/sale/customers/');
       setCustomers(res.data);
     } catch (err) {
       console.error('Failed to load customers:', err);
@@ -45,7 +45,7 @@ export default function CustomersList() {
   });
 
   const handleView = (customerId, e) => {
-    e.stopPropagation(); // prevent row click
+    e.stopPropagation();
     navigate(`/sale/customers/${customerId}`);
   };
 
@@ -59,15 +59,31 @@ export default function CustomersList() {
   const truncate = (text, max = 40) =>
     text && text.length > max ? text.substring(0, max) + '...' : text || '—';
 
+  // Back Button Handler
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100">
-      {/* Header */}
+      {/* Header with Back Button */}
       <header className="bg-gray-900/90 backdrop-blur-lg border-b border-cyan-900/50 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sticky top-0 z-10 shadow-2xl">
         <div className="flex items-center gap-4">
-          <Users className="w-9 h-9 text-cyan-400" />
-          <div>
-            <h1 className="text-2xl font-bold text-cyan-300">Customers</h1>
-            <p className="text-sm text-gray-400">Manage all customer records with full details</p>
+          {/* Back Button */}
+          <button
+            onClick={handleGoBack}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
+          >
+            <ArrowLeft size={20} />
+            <span className="font-medium">Back</span>
+          </button>
+
+          <div className="flex items-center gap-4">
+            <Users className="w-9 h-9 text-cyan-400" />
+            <div>
+              <h1 className="text-2xl font-bold text-cyan-300">Customers</h1>
+              <p className="text-sm text-gray-400">Manage all customer records with full details</p>
+            </div>
           </div>
         </div>
 

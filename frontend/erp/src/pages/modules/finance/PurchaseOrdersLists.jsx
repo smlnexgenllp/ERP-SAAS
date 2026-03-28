@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../../services/api";
-import { FiPrinter, FiSearch, FiRefreshCw } from "react-icons/fi";
+import { FiPrinter, FiSearch, FiRefreshCw, FiArrowLeft } from "react-icons/fi";
 
 export default function PurchaseOrdersList() {
   const [pos, setPos] = useState([]);
@@ -8,15 +8,30 @@ export default function PurchaseOrdersList() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-
+ const [departments, setDepartments] = useState({});
   useEffect(() => {
     fetchPurchaseOrders();
+    fetchDepartments();
   }, []);
+const fetchDepartments = async () => {
+  try {
+    const res = await api.get("/hr/departments/"); // adjust if different
 
+    const map = {};
+    res.data.forEach((d) => {
+      map[d.id] = d.name;
+    });
+
+    setDepartments(map);
+  } catch (err) {
+    console.error("Error loading departments", err);
+  }
+};
   const fetchPurchaseOrders = async () => {
     try {
       setLoading(true);
       const res = await api.get("/inventory/purchase-orders/");
+      console.log("Loaded purchase orders:", res.data);
       setPos(res.data || []);
       setFilteredPos(res.data || []);
     } catch (err) {
@@ -61,93 +76,125 @@ export default function PurchaseOrdersList() {
     if (!printWindow) return;
 
     printWindow.document.write(`
-      <html>
-        <head>
-          <title>Purchase Order - ${po.po_number || 'N/A'}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.5; }
-            .container { max-width: 900px; margin: 0 auto; }
-            h1 { text-align: center; margin-bottom: 10px; }
-            .info { display: flex; justify-content: space-between; margin: 30px 0; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #ccc; padding: 10px; }
-            th { background-color: #f8f8f8; text-align: left; }
-            .total-section { margin-top: 30px; text-align: right; }
-            .total-section div { margin: 6px 0; }
-            .grand-total { font-size: 1.3em; font-weight: bold; margin-top: 15px; }
-            .no-print { display: none; }
-            @media print {
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>Purchase Order</h1>
-            <p style="text-align:center;"><strong>PO Number:</strong> ${po.po_number || '—'}</p>
-            <p style="text-align:center;"><strong>Date:</strong> ${new Date(po.created_at || Date.now()).toLocaleDateString('en-IN')}</p>
+<html>
+  <head>
+    <title>Purchase Order - ${po.po_number || 'N/A'}</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.5; }
+      .container { max-width: 900px; margin: 0 auto; }
+      h1 { text-align: center; margin-bottom: 10px; }
+      .info { display: flex; justify-content: space-between; margin: 30px 0; }
+      table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+      th, td { border: 1px solid #ccc; padding: 10px; }
+      th { background-color: #f8f8f8; text-align: left; }
+      .total-section { margin-top: 30px; text-align: right; }
+      .total-section div { margin: 6px 0; }
+      .grand-total { font-size: 1.3em; font-weight: bold; margin-top: 15px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Purchase Order</h1>
 
-            <div class="info">
-              <div>
-                <strong>Department:</strong><br>
-                ${po.department?.name || po.department || '—'}
-              </div>
-              <div style="text-align:right;">
-                <strong>Vendor:</strong><br>
-                ${po.vendor?.name || '—'}<br>
-                ${po.vendor?.contact_person || ''}<br>
-                ${po.vendor?.phone || ''}
-              </div>
-            </div>
+      <p style="text-align:center;">
+        <strong>PO Number:</strong> ${po.po_number || '—'}
+      </p>
 
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Item</th>
-                  <th style="text-align:center;">Qty</th>
-                  <th style="text-align:right;">Unit Price</th>
-                  <th style="text-align:right;">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(po.items || []).map((item, i) => `
-                  <tr>
-                    <td>${i + 1}</td>
-                    <td>${item.item?.name || item.item || '—'}</td>
-                    <td style="text-align:center;">${item.quantity || 0}</td>
-                    <td style="text-align:right;">₹ ${formatAmount(item.standard_price || item.unit_price || 0)}</td>
-                    <td style="text-align:right;">₹ ${formatAmount((item.quantity || 0) * (item.standard_price || item.unit_price || 0))}</td>
-                  </tr>
-                `).join('') || '<tr><td colspan="5" style="text-align:center;">No items found</td></tr>'}
-              </tbody>
-            </table>
+      <p style="text-align:center;">
+        <strong>Date:</strong> ${new Date(po.created_at || Date.now()).toLocaleDateString('en-IN')}
+      </p>
 
-            <div class="total-section">
-              <div>Subtotal: ₹ ${formatAmount(po.subtotal || 0)}</div>
-              <div>Tax (${po.tax_percentage || 0}%): ₹ ${formatAmount(po.tax_amount || 0)}</div>
-              <div class="grand-total">
-                Grand Total: ₹ ${formatAmount(po.total_amount)}
-              </div>
-            </div>
+      <div class="info">
+        <div>
+          <strong>Department:</strong><br>
+          ${departments[po.department] || po.department || '—'}
+        </div>
 
-            <div style="margin-top:60px; text-align:center; color:#555; font-size:0.9em;">
-              Thank you for your business
-            </div>
-          </div>
-        </body>
-      </html>
-    `);
+        <div style="text-align:right;">
+          <strong>Vendor:</strong><br>
+          ${po.vendor_details?.name || '—'}<br>
+          ${po.vendor_details?.phone || ''}<br>
+          ${po.vendor_details?.email || ''}
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Item</th>
+            <th style="text-align:center;">Qty</th>
+            <th style="text-align:right;">Unit Price</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${(po.items || []).map((item, i) => {
+            const qty = Number(item.ordered_qty || 0);
+            const price = Number(item.unit_price || item.rate || 0);
+            const total = qty * price;
+
+            return `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${item.item_details?.name || '—'}</td>
+                <td style="text-align:center;">${qty}</td>
+                <td style="text-align:right;">₹ ${formatAmount(price)}</td>
+                <td style="text-align:right;">₹ ${formatAmount(total)}</td>
+              </tr>
+            `;
+          }).join('') || `
+            <tr>
+              <td colspan="5" style="text-align:center;">No items found</td>
+            </tr>
+          `}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div>Subtotal: ₹ ${formatAmount(po.subtotal || 0)}</div>
+        <div>Tax (${po.tax_percentage || 0}%): ₹ ${formatAmount(po.tax_amount || 0)}</div>
+
+        <div class="grand-total">
+          Grand Total: ₹ ${formatAmount(po.total_amount)}
+        </div>
+      </div>
+
+      <div style="margin-top:60px; text-align:center; color:#555; font-size:0.9em;">
+        Thank you for your business
+      </div>
+    </div>
+  </body>
+</html>
+`);
     printWindow.document.close();
+  };
+
+  // Back Button Handler
+  const handleGoBack = () => {
+    window.history.back();
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-50 p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
+        
+        {/* Back Button + Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
-            All Purchase Orders
-          </h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleGoBack}
+              className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
+            >
+              <FiArrowLeft size={22} />
+              <span className="font-medium">Back</span>
+            </button>
+
+            <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
+              All Purchase Orders
+            </h1>
+          </div>
 
           <div className="flex flex-wrap gap-3">
             <div className="relative">
@@ -215,12 +262,11 @@ export default function PurchaseOrdersList() {
                       className="hover:bg-gray-800/40 transition-colors"
                     >
                       <td className="px-6 py-4 font-medium">{po.po_number || '—'}</td>
-                      <td className="px-6 py-4">
-                        {po.department?.name || po.department || '—'}
-                      </td>
-                      <td className="px-6 py-4">
-                        {po.vendor?.name || '—'}
-                      </td>
+    {departments[po.department] || po.department || '—'}
+
+<td className="px-6 py-4">
+  {po.vendor_details?.name || po.vendor?.name || "—"}
+</td>
                       <td className="px-6 py-4 text-right font-medium text-cyan-200">
                         ₹ {formatAmount(po.total_amount)}
                       </td>

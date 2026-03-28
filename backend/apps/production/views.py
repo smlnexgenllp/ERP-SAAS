@@ -1,14 +1,10 @@
-# apps/production/views.py
-
 from collections import defaultdict
 from decimal import Decimal
 from datetime import timedelta
-
 from django.utils import timezone
 from django.db.models import Sum, Q, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.contrib.postgres.aggregates import ArrayAgg
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,7 +13,6 @@ from rest_framework.decorators import api_view
 from rest_framework import generics
 from django.views.generic import ListView, DetailView
 from django.views import View
-
 from .models import (
     ProductionPlan, PurchaseRequisition,
     ManufacturingOrder, MOOperation,
@@ -25,33 +20,25 @@ from .models import (
     PlannedOrder, ItemProcess, ItemProcessStep,
     DepartmentTransaction,ProductionOrder,WorkOrder
 )
-
 from .serializers import (
     ProductionPlanSerializer, PlannedOrderSerializer,
     PurchaseRequisitionSerializer, ManufacturingOrderSerializer,
     ItemProcessSerializer, ItemProcessCreateUpdateSerializer,
     DepartmentTransactionListSerializer, DepartmentTransactionCreateSerializer,WorkOrderSerializer
 )
-
 from apps.inventory.models import Item, StockLedger, Machine
 from apps.sales.models import SalesOrder, SalesOrderItem
 from apps.inventory.serializers import MachineSerializer
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
 from datetime import datetime
-# =========================================================
-# ITEM SALES SUMMARY
-# =========================================================
 from django.db.models import Sum, Value, DecimalField, Q
 from django.db.models.functions import Coalesce
 from django.contrib.postgres.aggregates import ArrayAgg
-
 class ItemSalesSummaryView(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
         org = request.user.organization
-
         data = (
             SalesOrderItem.objects
             .filter(sales_order__organization=org)
@@ -64,10 +51,8 @@ class ItemSalesSummaryView(APIView):
             )
             .annotate(
                 total_sales_qty=Sum("quantity"),
-
                 sales_orders=ArrayAgg("sales_order__id", distinct=True),
                 sales_order_numbers=ArrayAgg("sales_order__order_number", distinct=True),
-
                 current_stock=Coalesce(
                     Sum(
                         "product__grnitem__received_qty",

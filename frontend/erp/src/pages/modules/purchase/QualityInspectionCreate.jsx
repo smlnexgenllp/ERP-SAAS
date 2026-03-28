@@ -83,95 +83,89 @@ export default function QualityInspectionCreate() {
   };
 
   const submitQC = async () => {
-  if (!selectedGateEntry) {
-    alert("Please select a gate entry");
-    return;
-  }
-
-  const itemsList = selectedGateEntry.items || [];
-  if (itemsList.length === 0) {
-    alert("No items in this gate entry");
-    return;
-  }
-
-  // Validate item_id exists
-  for (let i = 0; i < itemsList.length; i++) {
-    if (!itemsList[i].item_id) {
-      alert(`Item ID missing for row ${i + 1}. Backend serializer must send item_id.`);
+    if (!selectedGateEntry) {
+      alert("Please select a gate entry");
       return;
     }
-  }
 
-  const totalDelivered = itemsList.reduce(
-    (sum, item) => sum + Number(item.delivered_qty || 0),
-    0
-  );
+    const itemsList = selectedGateEntry.items || [];
+    if (itemsList.length === 0) {
+      alert("No items in this gate entry");
+      return;
+    }
 
-  const accepted = Number(form.accepted_qty) || 0;
-  const rejected = Number(form.rejected_qty) || 0;
+    for (let i = 0; i < itemsList.length; i++) {
+      if (!itemsList[i].item_id) {
+        alert(`Item ID missing for row ${i + 1}. Backend serializer must send item_id.`);
+        return;
+      }
+    }
 
-  if (Math.abs(accepted + rejected - totalDelivered) > 0.01) {
-    alert(
-      `Accepted (${accepted}) + Rejected (${rejected}) must equal Delivered (${totalDelivered})`
+    const totalDelivered = itemsList.reduce(
+      (sum, item) => sum + Number(item.delivered_qty || 0),
+      0
     );
-    return;
-  }
 
-  // Proportional distribution
-  let qcItems = itemsList.map((item) => {
-    const delivered = Number(item.delivered_qty || 0);
-    const ratio = totalDelivered > 0 ? delivered / totalDelivered : 0;
+    const accepted = Number(form.accepted_qty) || 0;
+    const rejected = Number(form.rejected_qty) || 0;
 
-    return {
-      item: item.item_id,   // ✅ GUARANTEED INTEGER
-      accepted_qty: Math.round(accepted * ratio),
-      rejected_qty: Math.round(rejected * ratio),
+    if (Math.abs(accepted + rejected - totalDelivered) > 0.01) {
+      alert(
+        `Accepted (${accepted}) + Rejected (${rejected}) must equal Delivered (${totalDelivered})`
+      );
+      return;
+    }
+
+    let qcItems = itemsList.map((item) => {
+      const delivered = Number(item.delivered_qty || 0);
+      const ratio = totalDelivered > 0 ? delivered / totalDelivered : 0;
+
+      return {
+        item: item.item_id,
+        accepted_qty: Math.round(accepted * ratio),
+        rejected_qty: Math.round(rejected * ratio),
+      };
+    });
+
+    const calcTotal = qcItems.reduce(
+      (s, i) => s + i.accepted_qty + i.rejected_qty,
+      0
+    );
+
+    if (calcTotal !== totalDelivered && qcItems.length > 0) {
+      qcItems[qcItems.length - 1].accepted_qty += totalDelivered - calcTotal;
+    }
+
+    const payload = {
+      gate_entry: selectedGateEntry.id,
+      remarks: (form.remarks || "").trim(),
+      items: qcItems,
     };
-  });
 
-  // Fix rounding diff
-  const calcTotal = qcItems.reduce(
-    (s, i) => s + i.accepted_qty + i.rejected_qty,
-    0
-  );
+    try {
+      await api.post("/inventory/quality-inspections/", payload);
+      alert("Quality Inspection submitted successfully!");
 
-  if (calcTotal !== totalDelivered && qcItems.length > 0) {
-    qcItems[qcItems.length - 1].accepted_qty += totalDelivered - calcTotal;
-  }
-
-  const payload = {
-    gate_entry: selectedGateEntry.id,
-    remarks: (form.remarks || "").trim(),
-    items: qcItems,
+      setSelectedGateEntry(null);
+      setForm({ gate_entry: "", accepted_qty: "", rejected_qty: "", remarks: "" });
+      await fetchPendingGateEntries();
+    } catch (err) {
+      console.error("QC failed:", err.response?.data || err);
+      alert(
+        err.response?.data?.non_field_errors?.[0] ||
+        err.response?.data?.detail ||
+        "QC submission failed"
+      );
+    }
   };
-
-  console.log("QC PAYLOAD:", payload);
-
-  try {
-    await api.post("/inventory/quality-inspections/", payload);
-    alert("Quality Inspection submitted successfully!");
-
-    setSelectedGateEntry(null);
-    setForm({ gate_entry: "", accepted_qty: "", rejected_qty: "", remarks: "" });
-    await fetchPendingGateEntries();
-  } catch (err) {
-    console.error("QC failed:", err.response?.data || err);
-    alert(
-      err.response?.data?.non_field_errors?.[0] ||
-      err.response?.data?.detail ||
-      "QC submission failed"
-    );
-  }
-};
 
   const totalDelivered = selectedGateEntry
     ? (selectedGateEntry.items || []).reduce(
-      (sum, item) => sum + Number(item.delivered_qty || 0),
-      0
-    )
+        (sum, item) => sum + Number(item.delivered_qty || 0),
+        0
+      )
     : 0;
 
-  // Safe display helpers
   const getItemName = (item) => {
     if (item.item_name) return item.item_name;
     if (item.item?.name) return item.item.name;
@@ -188,13 +182,15 @@ export default function QualityInspectionCreate() {
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-50 px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        
+        {/* Back Button + Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
+            className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
           >
-            <FiArrowLeft size={20} /> Back
+            <FiArrowLeft size={22} />
+            <span className="font-medium">Back</span>
           </button>
 
           <h1 className="text-3xl md:text-4xl font-bold text-cyan-300 flex items-center gap-3">
