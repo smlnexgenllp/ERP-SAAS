@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FiCheck, FiX, FiRefreshCw, FiChevronDown, FiChevronUp, FiInfo } from "react-icons/fi";
+import { FiCheck, FiX, FiRefreshCw, FiChevronDown, FiChevronUp, FiInfo, FiArrowLeft } from "react-icons/fi";
 import api from "../../../services/api";
 import { useNavigate } from "react-router-dom";
 
@@ -10,8 +10,8 @@ export default function PurchaseOrderApproval() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const [pos, setPos] = useState([]); // All POs
-  const [pendingPos, setPendingPos] = useState([]); // Filtered draft POs
+  const [pos, setPos] = useState([]); 
+  const [pendingPos, setPendingPos] = useState([]); 
   const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
@@ -25,7 +25,6 @@ export default function PurchaseOrderApproval() {
       const res = await api.get("/inventory/purchase-orders/");
       setPos(res.data);
 
-      // Filter only draft/pending for approval
       const pending = res.data.filter(po => 
         po.status?.toLowerCase() === "draft"
       );
@@ -53,7 +52,6 @@ export default function PurchaseOrderApproval() {
       await api.post(`/inventory/purchase-orders/${po.id}/approve/`);
       alert(`PO ${po.po_number} approved successfully!`);
 
-      // Update UI optimistically
       setPendingPos(prev => prev.filter(p => p.id !== po.id));
       setPos(prev => prev.map(p => 
         p.id === po.id ? { ...p, status: "approved" } : p
@@ -76,7 +74,6 @@ export default function PurchaseOrderApproval() {
       await api.post(`/inventory/purchase-orders/${po.id}/reject/`, { reason });
       alert(`PO ${po.po_number} rejected.`);
 
-      // Update UI
       setPendingPos(prev => prev.filter(p => p.id !== po.id));
       setPos(prev => prev.map(p => 
         p.id === po.id ? { ...p, status: "cancelled" } : p
@@ -96,6 +93,11 @@ export default function PurchaseOrderApproval() {
     });
   };
 
+  // Back Button Handler
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+
   if (loading && !pos.length) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -107,15 +109,26 @@ export default function PurchaseOrderApproval() {
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-50 px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        
+        {/* Back Button + Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
-              Purchase Order Approval
-            </h1>
-            <p className="text-cyan-400/70 mt-2">
-              Review and approve/reject pending purchase orders
-            </p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleGoBack}
+              className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
+            >
+              <FiArrowLeft size={22} />
+              <span className="font-medium">Back</span>
+            </button>
+
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
+                Purchase Order Approval
+              </h1>
+              <p className="text-cyan-400/70 mt-1">
+                Review and approve/reject pending purchase orders
+              </p>
+            </div>
           </div>
 
           <button
@@ -213,7 +226,6 @@ export default function PurchaseOrderApproval() {
                           <tr className="bg-gray-900/70">
                             <td colSpan={7} className="p-6">
                               <div className="space-y-6">
-                                {/* Basic Info */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                   <div className="bg-gray-800/50 p-5 rounded-lg border border-cyan-900/30">
                                     <h4 className="text-sm text-cyan-400 mb-2">Department</h4>
@@ -236,7 +248,6 @@ export default function PurchaseOrderApproval() {
                                   </div>
                                 </div>
 
-                                {/* Items Table */}
                                 <div>
                                   <h3 className="text-lg font-semibold text-cyan-300 mb-4">
                                     Items in this Purchase Order

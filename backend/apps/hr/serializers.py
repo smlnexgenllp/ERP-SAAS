@@ -8,6 +8,8 @@ from .models import EmployeeInvite
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
 from .utils import get_project_member_ids
+from datetime import date
+from rest_framework.exceptions import ValidationError
 User = get_user_model()
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -301,7 +303,14 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
         model = LeaveRequest
         fields = ('id','employee','leave_type','start_date','end_date','reason','manager','manager_id','status','applied_at','responded_at','response_note')
         read_only_fields = ('status','applied_at','responded_at','response_note','manager')
+   
 
+    def validate(self, data):
+        if data["start_date"] < date.today():
+            raise ValidationError("Leave cannot be applied for past dates")
+        if data["end_date"] < date.today():
+            raise ValidationError("Leave cannot be applied for past dates")
+        return data
     def create(self, validated_data):
         manager_id = validated_data.pop('manager_id', None)
         request = self.context['request']
@@ -336,7 +345,10 @@ class PermissionRequestSerializer(serializers.ModelSerializer):
         model = PermissionRequest
         fields = ('id','employee','date','time_from','time_to','reason','manager','manager_id','status','applied_at','responded_at','response_note')
         read_only_fields = ('status','applied_at','responded_at','response_note','manager')
-
+    def validate(self, data):
+        if data["date"] < date.today():
+            raise ValidationError("Permission cannot be applied for past date")
+        return data
     def create(self, validated_data):
         manager_id = validated_data.pop('manager_id', None)
         request = self.context['request']
@@ -349,6 +361,7 @@ class PermissionRequestSerializer(serializers.ModelSerializer):
                 mgr = None
             validated_data['manager'] = mgr
         return super().create(validated_data)
+    
 
 class PermissionRequestUpdateSerializer(serializers.ModelSerializer):
     status = serializers.ChoiceField(choices=PermissionRequest._meta.get_field('status').choices)

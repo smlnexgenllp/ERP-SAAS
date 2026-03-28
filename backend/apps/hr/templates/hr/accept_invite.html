@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accept Invitation - {{ invite.organization.name|default:"Company" }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-lg w-full bg-white rounded-3xl shadow-2xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-10 text-center">
+            <h1 class="text-3xl font-bold">Welcome aboard!</h1>
+            <p class="mt-3 text-lg opacity-90">You've been invited to join</p>
+            <p class="text-2xl font-semibold mt-2">{{ invite.organization.name|default:"Our Company" }}</p>
+        </div>
+
+        <div class="p-8">
+            {% if error %}
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl mb-6">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <div class="mb-8">
+                <p class="text-gray-600 text-sm">You are joining as</p>
+                <p class="text-3xl font-semibold text-gray-900">{{ invite.full_name }}</p>
+                <p class="text-gray-500 mt-1">{{ invite.email }}</p>
+            </div>
+
+            <form method="POST" class="space-y-6">
+                {% csrf_token %}
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Create Password
+                    </label>
+                    <input 
+                        type="password" 
+                        name="password" 
+                        id="password"
+                        required
+                        minlength="8"
+                        class="w-full px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                        placeholder="Enter a strong password (min 8 characters)"
+                    >
+                    <p class="text-xs text-gray-500 mt-2">Password must be at least 8 characters long</p>
+                </div>
+
+                <button 
+                    type="submit"
+                    class="w-full bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 py-4 rounded-2xl font-semibold text-lg shadow-md"
+                >
+                    Accept Invitation & Create Account
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-gray-50 px-8 py-6 text-center text-sm text-gray-500 border-t">
+            Need help? Contact your HR team
+        </div>
+    </div>
+
+    <script>
+        // Optional: Show/hide password
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordInput = document.getElementById('password');
+            // You can add eye icon later if needed
+        });
+    </script>
+</body>
+</html>

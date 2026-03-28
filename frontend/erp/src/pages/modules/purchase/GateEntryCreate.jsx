@@ -71,6 +71,8 @@ export default function GateEntryCreate() {
       setPos(eligiblePOs);
       setFilteredPos(eligiblePOs);
       setGateEntries(geRes.data || []);
+      console.log("Loaded POs:", eligiblePOs);
+      console.log("Loaded Gate Entries:", geRes.data);
     } catch (err) {
       console.error("Failed to load data:", err);
       setError("Failed to load required data. Please try again.");
@@ -83,10 +85,11 @@ export default function GateEntryCreate() {
     const term = poSearch.toLowerCase().trim();
     setFilteredPos(
       pos.filter(
-        (po) =>
-          po.po_number?.toLowerCase().includes(term) ||
-          po.vendor?.name?.toLowerCase().includes(term)
-      )
+         (po) =>
+    po.po_number?.toLowerCase().includes(term) ||
+    po.vendor_details?.name?.toLowerCase().includes(term) ||
+    po.vendor?.name?.toLowerCase().includes(term)
+)
     );
   }, [poSearch, pos]);
 
@@ -412,7 +415,9 @@ export default function GateEntryCreate() {
                               {geStatus.created ? null : expandedPoId === po.id ? <FiChevronUp /> : <FiChevronDown />}
                             </td>
                             <td className="px-6 py-5 font-medium">{po.po_number}</td>
-                            <td className="px-6 py-5">{po.vendor?.name || "—"}</td>
+                            <td className="px-6 py-5">
+  {po.vendor_details?.name || po.vendor?.name || "—"}
+</td>
                             <td className="px-6 py-5 text-right font-medium">
                               ₹ {(Number(po.total_amount) || 0).toFixed(2)}
                             </td>

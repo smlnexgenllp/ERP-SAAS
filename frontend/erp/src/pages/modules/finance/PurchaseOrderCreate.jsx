@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FiPlus, FiTrash2, FiSave, FiX } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiSave, FiX, FiArrowLeft } from "react-icons/fi"; // Added FiArrowLeft
 import api from "../../../services/api";
 
 export default function PurchaseOrderCreate() {
@@ -90,27 +90,27 @@ export default function PurchaseOrderCreate() {
 
   // ── Validation & Submit ────────────────────────────────────────
   const validateForm = () => {
-  const newErrors = {};
+    const newErrors = {};
 
-  if (!form.department) newErrors.department = "Department is required";
-  if (!form.vendor) newErrors.vendor = "Vendor is required";
-  if (form.items.length === 0) newErrors.items = "Add at least one item";
+    if (!form.department) newErrors.department = "Department is required";
+    if (!form.vendor) newErrors.vendor = "Vendor is required";
+    if (form.items.length === 0) newErrors.items = "Add at least one item";
 
-  form.items.forEach((item, idx) => {
-    if (!item.item || item.item === "" || isNaN(Number(item.item))) {
-      newErrors[`item_${idx}`] = "Select a valid item";
-    }
-    if (!item.quantity || item.quantity <= 0) {
-      newErrors[`quantity_${idx}`] = "Quantity must be > 0";
-    }
-    if (!item.unit_price || item.unit_price < 0) {
-      newErrors[`unit_price_${idx}`] = "Unit price cannot be negative";
-    }
-  });
+    form.items.forEach((item, idx) => {
+      if (!item.item || item.item === "" || isNaN(Number(item.item))) {
+        newErrors[`item_${idx}`] = "Select a valid item";
+      }
+      if (!item.quantity || item.quantity <= 0) {
+        newErrors[`quantity_${idx}`] = "Quantity must be > 0";
+      }
+      if (!item.unit_price || item.unit_price < 0) {
+        newErrors[`unit_price_${idx}`] = "Unit price cannot be negative";
+      }
+    });
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
@@ -142,13 +142,32 @@ export default function PurchaseOrderCreate() {
     }
   };
 
+  // Back Button Handler
+  const handleGoBack = () => {
+    if (window.confirm("Discard changes and go back?")) {
+      window.history.back();
+    }
+  };
+
   // ── Render ─────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-50 px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-bold text-cyan-300 mb-10">
-          Create Purchase Order
-        </h1>
+        
+        {/* Back Button + Header */}
+        <div className="flex items-center gap-4 mb-10">
+          <button
+            onClick={handleGoBack}
+            className="flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
+          >
+            <FiArrowLeft size={22} />
+            <span className="font-medium">Back</span>
+          </button>
+
+          <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
+            Create Purchase Order
+          </h1>
+        </div>
 
         {/* Main Card */}
         <div className="bg-gray-900/90 border border-cyan-900/60 rounded-xl shadow-xl overflow-hidden">
@@ -221,7 +240,7 @@ export default function PurchaseOrderCreate() {
               </div>
             </div>
 
-            {/* Items Section */}
+            {/* Items Section - unchanged */}
             <div className="mb-10">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-semibold text-cyan-300">Order Items</h3>
@@ -362,11 +381,7 @@ export default function PurchaseOrderCreate() {
             <div className="flex justify-end gap-4 mt-10">
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm("Discard changes and go back?")) {
-                    window.history.back();
-                  }
-                }}
+                onClick={handleGoBack}   // Now using the clean handler
                 className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-cyan-100 rounded-lg transition-colors flex items-center gap-2"
               >
                 <FiX /> Cancel

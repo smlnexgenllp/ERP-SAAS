@@ -14,10 +14,6 @@ export default function PlannedOrders() {
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState(null);
   const [mrpLoading, setMrpLoading] = useState(null);
-
-  // =========================
-  // FETCH PLANNED ORDERS
-  // =========================
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -34,14 +30,10 @@ export default function PlannedOrders() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchOrders();
   }, []);
 
-  // =========================
-  // RUN MRP → CREATE MANUFACTURING ORDER (Based on Planned Order ID)
-  // =========================
   const runMRP = async (plannedOrderId, hasShortage) => {
     if (hasShortage) {
       alert("❌ Cannot create Production Order.\n\nMaterial shortage detected.\nPlease resolve component shortages first.");
@@ -59,7 +51,7 @@ export default function PlannedOrders() {
 
       alert(`✅ Manufacturing Order Created Successfully!\n\nMO ID: ${res.data.manufacturing_order_id}`);
 
-      fetchOrders(); // Refresh list to disable button
+      fetchOrders(); 
     } catch (err) {
       console.error(err);
       const errorMsg = err.response?.data?.detail || "Failed to create Manufacturing Order";
@@ -69,22 +61,13 @@ export default function PlannedOrders() {
     }
   };
 
-  // =========================
-  // TOGGLE BOM DETAILS
-  // =========================
   const toggleRow = (id) => {
     setExpandedRow(expandedRow === id ? null : id);
   };
-
-  // =========================
-  // RENDER
-  // =========================
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-6">
-      {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-cyan-400">Planned Orders (MRP)</h1>
-
         <button
           onClick={fetchOrders}
           className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
@@ -93,8 +76,6 @@ export default function PlannedOrders() {
           Refresh
         </button>
       </div>
-
-      {/* LOADING STATE */}
       {loading ? (
         <div className="flex items-center justify-center py-20 text-cyan-400">
           <RefreshCw className="animate-spin mr-3" size={24} />
@@ -151,15 +132,12 @@ export default function PlannedOrders() {
                             </button>
                           )}
                         </td>
-
                         <td className="p-4 font-medium text-cyan-300">
                           {o.product_name}
                         </td>
-
                         <td className="p-4 text-right font-semibold">
                           {parseFloat(o.quantity).toLocaleString()}
                         </td>
-
                         <td className="p-4">
                           <div className="flex flex-wrap gap-1">
                             {o.sales_orders && o.sales_orders.length > 0 ? (

@@ -205,11 +205,11 @@ export default function CRMDashboard() {
   const quickActions = [
     { icon: Users, label: "All Contacts", description: "View & manage leads", action: () => navigate("/crm/contacts") },
     { icon: UserPlus, label: "Add Contact", description: "Create new lead", action: () => navigate("/crm/contacts/new") },
-    { icon: CalendarDays, label: "Follow-ups", description: "Due reminders",  },
-    { icon: FileText, label: "Opportunities", description: "Deals & pipeline", },
-    { icon: DollarSign, label: "Pipeline Value", description: `₹${stats.pipelineValue.toLocaleString("en-IN")}`,  },
-    { icon: ClipboardList, label: "Tasks", description: "Assign & track tasks",  },
-    { icon: MessageSquare, label: "CRM Chat", description: "Team communication",  highlight: true },
+    // { icon: CalendarDays, label: "Follow-ups", description: "Due reminders",  },
+    // { icon: FileText, label: "Opportunities", description: "Deals & pipeline", },
+    // { icon: DollarSign, label: "Pipeline Value", description: `₹${stats.pipelineValue.toLocaleString("en-IN")}`,  },
+    // { icon: ClipboardList, label: "Tasks", description: "Assign & track tasks",  },
+    // { icon: MessageSquare, label: "CRM Chat", description: "Team communication",  highlight: true },
   ];
 
   return (

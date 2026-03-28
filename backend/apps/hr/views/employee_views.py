@@ -238,38 +238,58 @@ class EmployeeDocumentViewSet(viewsets.ModelViewSet):
         except Employee.DoesNotExist:
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Employee profile not found")
+from django.shortcuts import render
+from django.db import transaction
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 @api_view(['GET', 'POST'])
 def accept_invite_view(request, token):
     try:
         invite = EmployeeInvite.objects.get(token=token, is_accepted=False)
     except EmployeeInvite.DoesNotExist:
-        return Response(
-            {'detail': 'Invalid or expired invitation.'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    if request.method == 'GET':
-        return Response({
-            'full_name': invite.full_name,
-            'email': invite.email,
-            'phone': invite.phone,
-            'role': invite.role,
+        return render(request, 'hr/accept_invite_invalid.html', {
+            'error': 'This invitation link is invalid or has already been used.'
         })
-    if request.method == 'POST':
-        password = request.data.get('password')
 
-        if not password:
-            return Response(
-                {'password': ['This field is required.']},
-                status=400
-            )
+    if request.method == 'GET':
+        return render(request, 'hr/accept_invite.html', {
+            'invite': invite,
+            'full_name': invite.full_name,
+            'organization': invite.organization.name if invite.organization else 'Our Company',
+        })
+
+    # POST - Accept invitation
+    password = request.data.get('password') if request.data else request.POST.get('password')
+
+    if not password:
+        return render(request, 'hr/accept_invite.html', {
+            'invite': invite,
+            'error': 'Password is required.',
+        })
+
+    if len(password) < 8:
+        return render(request, 'hr/accept_invite.html', {
+            'invite': invite,
+            'error': 'Password must be at least 8 characters long.',
+        })
+
+    try:
         with transaction.atomic():
+            # Create User
             user = User.objects.create_user(
                 email=invite.email,
                 password=password,
-                username=invite.email, 
+                username=invite.email,
                 first_name=invite.full_name.split(' ')[0],
-                last_name=' '.join(invite.full_name.split(' ')[1:]) if len(invite.full_name.split(' ')) > 1 else ''
+                last_name=' '.join(invite.full_name.split(' ')[1:]) if len(invite.full_name.split(' ')) > 1 else '',
             )
+
+            # Create Employee
             employee = Employee.objects.create(
                 user=user,
                 full_name=invite.full_name,
@@ -284,14 +304,21 @@ def accept_invite_view(request, token):
                 is_probation=invite.is_probation,
                 organization=invite.organization
             )
+
             # Mark invite as accepted
             invite.is_accepted = True
             invite.save()
 
-        return Response(
-            {'detail': 'Employee account created successfully.'},
-            status=201
-        )
+        return render(request, 'hr/accept_invite_success.html', {
+            'employee': employee,
+            'email': invite.email
+        })
+
+    except Exception as e:
+        return render(request, 'hr/accept_invite.html', {
+            'invite': invite,
+            'error': f'Something went wrong: {str(e)}'
+        })
 
 User = get_user_model()
 class ManagerListView(mixins.ListModelMixin, viewsets.GenericViewSet):

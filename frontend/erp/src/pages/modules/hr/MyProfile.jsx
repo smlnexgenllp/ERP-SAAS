@@ -56,7 +56,7 @@ export default function MyProfile() {
   const [activeTab, setActiveTab] = useState("documents");
   const [statusSubTab, setStatusSubTab] = useState("leaves");
   const [reimbursementTab, setReimbursementTab] = useState("pending");
-
+const todayStr = new Date().toISOString().split("T")[0];
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [showVideosModal, setShowVideosModal] = useState(false);
@@ -1133,6 +1133,7 @@ export default function MyProfile() {
                 <input
                   type="date"
                   className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  min={todayStr}
                   value={leave.from}
                   onChange={(e) => setLeave({ ...leave, from: e.target.value })}
                   required
@@ -1146,6 +1147,7 @@ export default function MyProfile() {
                 <input
                   type="date"
                   className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  min={leave.from || todayStr}
                   value={leave.to}
                   onChange={(e) => setLeave({ ...leave, to: e.target.value })}
                   required
@@ -1185,6 +1187,7 @@ export default function MyProfile() {
               h-24 sm:h-32 resize-none
             "
                   placeholder="Describe your reason for leave"
+                  
                   value={leave.reason}
                   onChange={(e) => setLeave({ ...leave, reason: e.target.value })}
                   required
@@ -1242,6 +1245,7 @@ export default function MyProfile() {
                 <input
                   type="date"
                   className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  min={todayStr}
                   value={permission.date}
                   onChange={(e) => setPermission({ ...permission, date: e.target.value })}
                   required

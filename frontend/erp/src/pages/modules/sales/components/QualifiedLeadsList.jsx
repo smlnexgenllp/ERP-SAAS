@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../../../services/api";
-import { Plus, Search, Filter, Users, FileText, Eye } from "lucide-react";
+import { Plus, Search, Filter, Users, FileText, Eye, ArrowLeft } from "lucide-react";
 
 export default function QualifiedLeadsList() {
   const navigate = useNavigate();
@@ -32,16 +32,32 @@ export default function QualifiedLeadsList() {
       lead.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100">
       <header className="bg-gray-900/90 backdrop-blur-lg border-b border-cyan-900/50 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-2xl">
         <div className="flex items-center gap-4">
-          <Users className="w-9 h-9 text-cyan-400" />
-          <div>
-            <h1 className="text-2xl font-bold text-cyan-300">Qualified Leads</h1>
-            <p className="text-sm text-gray-400">Ready for quotation & conversion</p>
+          {/* Back Button */}
+          <button
+            onClick={handleGoBack}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
+          >
+            <ArrowLeft size={20} />
+            <span className="font-medium">Back</span>
+          </button>
+
+          <div className="flex items-center gap-4">
+            <Users className="w-9 h-9 text-cyan-400" />
+            <div>
+              <h1 className="text-2xl font-bold text-cyan-300">Qualified Leads</h1>
+              <p className="text-sm text-gray-400">Ready for quotation & conversion</p>
+            </div>
           </div>
         </div>
+
         {/* <button
           onClick={() => navigate("/sales/leads/create")}
           className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-lg transition-all"

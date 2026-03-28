@@ -10,18 +10,15 @@ import {
   MessageCircle,
   Users,
 } from 'lucide-react';
-
 export default function QuotationsList() {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [actionLoading, setActionLoading] = useState({}); // { [quotationId]: true/false }
-
   useEffect(() => {
     fetchQuotations();
   }, []);
-
   const fetchQuotations = async () => {
     try {
       setLoading(true);
@@ -33,23 +30,16 @@ export default function QuotationsList() {
       setLoading(false);
     }
   };
-
   const filtered = quotations.filter((q) =>
     q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
     q.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
     q.status?.toLowerCase().includes(search.toLowerCase())
   );
-
-  // ──────────────────────────────────────────────────────────────
-  // Status change (Approve / Reject / Negotiation)
-  // ──────────────────────────────────────────────────────────────
   const handleStatusChange = async (quotationId, newStatus) => {
     if (!window.confirm(`Are you sure you want to set status to "${newStatus.replace('_', ' ')}"?`)) {
       return;
     }
-
     setActionLoading((prev) => ({ ...prev, [quotationId]: true }));
-
     try {
       await api.post(`/sale/quotations/${quotationId}/status/`, {
         status: newStatus,

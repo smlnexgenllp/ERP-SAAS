@@ -153,15 +153,15 @@ export default function SalesDashboard() {
               <span>Quotations</span>
             </button>
 
-            <button
+            {/* <button
               onClick={() => navigate("/sales/reports")}
               className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
             >
               <BarChart3 className="h-5 w-5 text-emerald-400" />
               <span>Reports</span>
-            </button>
+            </button> */}
 
-            {isHead && (
+            {/* {isHead && (
               <button
                 onClick={() => navigate("/sales/team")}
                 className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition mt-4 border-t border-gray-800 pt-4"
@@ -169,7 +169,7 @@ export default function SalesDashboard() {
                 <Users className="h-5 w-5 text-blue-400" />
                 <span>Team</span>
               </button>
-            )}
+            )} */}
           </nav>
 
           <div className="p-4 border-t border-gray-800 mt-auto">
