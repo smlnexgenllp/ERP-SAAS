@@ -269,6 +269,81 @@ class QualityInspectionViewSet(ModelViewSet):
 
         return qs
 
+    # ====================== MANUAL APPROVE ACTION ======================
+    @action(detail=True, methods=['post'], url_path='approve')
+    @transaction.atomic
+    def approve(self, request, pk=None):
+        """
+        Manually approve a Quality Inspection that was created with is_approved=False
+        Example: POST /api/quality-inspections/13/approve/
+        """
+        inspection = self.get_object()
+
+        # Check if already approved
+        if inspection.is_approved:
+            return Response({
+                "detail": "This quality inspection is already approved."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update approval fields
+        inspection.is_approved = True
+        inspection.inspected_by = request.user
+
+        # Update remarks if provided in request
+        if 'remarks' in request.data and request.data['remarks']:
+            inspection.remarks = request.data['remarks']
+
+        # Update related GateEntry status to 'qc_passed'
+        gate = inspection.gate_entry
+        gate.status = 'qc_passed'
+        gate.save(update_fields=['status'])
+
+        # Save inspection changes
+        inspection.save(update_fields=['is_approved', 'inspected_by', 'remarks'])
+
+        # Return updated data
+        serializer = self.get_serializer(inspection)
+        
+        return Response({
+            "message": "Quality Inspection approved successfully.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    # ====================== OPTIONAL: REJECT ACTION ======================
+    @action(detail=True, methods=['post'], url_path='reject')
+    @transaction.atomic
+    def reject(self, request, pk=None):
+        """
+        Manually reject a Quality Inspection
+        Example: POST /api/quality-inspections/13/reject/
+        """
+        inspection = self.get_object()
+
+        if inspection.is_approved:
+            return Response({
+                "detail": "Cannot reject an already approved inspection."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update fields
+        inspection.is_approved = False
+        inspection.inspected_by = request.user
+
+        if 'remarks' in request.data and request.data['remarks']:
+            inspection.remarks = request.data['remarks']
+
+        # Update GateEntry status
+        gate = inspection.gate_entry
+        gate.status = 'qc_rejected'
+        gate.save(update_fields=['status'])
+
+        inspection.save(update_fields=['is_approved', 'inspected_by', 'remarks'])
+
+        serializer = self.get_serializer(inspection)
+
+        return Response({
+            "message": "Quality Inspection rejected.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
 
 # ========================= VENDOR INVOICE =========================
 class VendorInvoiceViewSet(ModelViewSet):

@@ -197,16 +197,25 @@ class PurchaseOrder(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    tax_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     def save(self, *args, **kwargs):
         if not self.po_number:
             self.po_number = get_next_number("PO", self.organization_id, PurchaseOrder)
         super().save(*args, **kwargs)
 
-    def update_total(self):
-        total = sum(i.total_price for i in self.items.all())
-        self.total_amount = total
-        self.save(update_fields=["total_amount"])
+    def update_totals(self):
+        """Calculate and update subtotal, tax, and grand total"""
+        subtotal = sum(item.total_price for item in self.items.all())
+        tax_amount = (subtotal * self.tax_percentage) / Decimal('100')
+        grand_total = subtotal + tax_amount
+
+        self.subtotal = subtotal
+        self.tax_amount = tax_amount
+        self.total_amount = grand_total
+        self.save(update_fields=['subtotal', 'tax_amount', 'total_amount'])
 
     def check_and_close(self):
         all_closed = all(i.received_qty >= i.ordered_qty for i in self.items.all())
@@ -229,7 +238,7 @@ class PurchaseOrderItem(models.Model):
     def save(self, *args, **kwargs):
         self.total_price = self.ordered_qty * self.unit_price
         super().save(*args, **kwargs)
-        self.purchase_order.update_total()
+        self.purchase_order.update_totals()
 
     def __str__(self):
         return f"{self.item} - {self.ordered_qty} {self.item.uom}"

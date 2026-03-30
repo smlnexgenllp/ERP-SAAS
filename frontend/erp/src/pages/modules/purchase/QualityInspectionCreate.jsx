@@ -11,6 +11,7 @@ export default function QualityInspectionCreate() {
   const [selectedGateEntry, setSelectedGateEntry] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [qcValidation, setQcValidation] = useState({ isValid: true, message: "" });
 
   const [form, setForm] = useState({
     gate_entry: "",
@@ -54,6 +55,7 @@ export default function QualityInspectionCreate() {
     if (!geId) {
       setSelectedGateEntry(null);
       setForm({ gate_entry: "", accepted_qty: "", rejected_qty: "", remarks: "" });
+      setQcValidation({ isValid: true, message: "" });
       return;
     }
 
@@ -76,10 +78,46 @@ export default function QualityInspectionCreate() {
       rejected_qty: 0,
       remarks: "",
     });
+    
+    // Validate initial state
+    validateQC(totalDelivered, totalDelivered, 0);
+  };
+
+  const validateQC = (totalDelivered, accepted, rejected) => {
+    const acceptedNum = Number(accepted) || 0;
+    const rejectedNum = Number(rejected) || 0;
+    const total = acceptedNum + rejectedNum;
+    
+    if (Math.abs(total - totalDelivered) > 0.01) {
+      setQcValidation({
+        isValid: false,
+        message: `❌ Not allowed (${acceptedNum} + ${rejectedNum} = ${total} ≠ ${totalDelivered})`
+      });
+      return false;
+    } else {
+      setQcValidation({
+        isValid: true,
+        message: `✅ OK (${total} = ${totalDelivered})`
+      });
+      return true;
+    }
   };
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    const newValue = value === "" ? "" : Number(value);
+    setForm((prev) => ({ ...prev, [field]: newValue }));
+    
+    if (selectedGateEntry) {
+      const totalDelivered = (selectedGateEntry.items || []).reduce(
+        (sum, item) => sum + Number(item.delivered_qty || 0),
+        0
+      );
+      
+      const accepted = field === "accepted_qty" ? newValue : form.accepted_qty;
+      const rejected = field === "rejected_qty" ? newValue : form.rejected_qty;
+      
+      validateQC(totalDelivered, accepted, rejected);
+    }
   };
 
   const submitQC = async () => {
@@ -94,6 +132,7 @@ export default function QualityInspectionCreate() {
       return;
     }
 
+    // Validate item_id exists
     for (let i = 0; i < itemsList.length; i++) {
       if (!itemsList[i].item_id) {
         alert(`Item ID missing for row ${i + 1}. Backend serializer must send item_id.`);
@@ -109,13 +148,16 @@ export default function QualityInspectionCreate() {
     const accepted = Number(form.accepted_qty) || 0;
     const rejected = Number(form.rejected_qty) || 0;
 
+    // Strict validation
     if (Math.abs(accepted + rejected - totalDelivered) > 0.01) {
       alert(
-        `Accepted (${accepted}) + Rejected (${rejected}) must equal Delivered (${totalDelivered})`
+        `❌ Validation Failed!\n\nAccepted (${accepted}) + Rejected (${rejected}) must equal Delivered (${totalDelivered})\n\n` +
+        `Current total: ${accepted + rejected}`
       );
       return;
     }
 
+    // Proportional distribution
     let qcItems = itemsList.map((item) => {
       const delivered = Number(item.delivered_qty || 0);
       const ratio = totalDelivered > 0 ? delivered / totalDelivered : 0;
@@ -127,6 +169,7 @@ export default function QualityInspectionCreate() {
       };
     });
 
+    // Fix rounding diff
     const calcTotal = qcItems.reduce(
       (s, i) => s + i.accepted_qty + i.rejected_qty,
       0
@@ -142,12 +185,15 @@ export default function QualityInspectionCreate() {
       items: qcItems,
     };
 
+    console.log("QC PAYLOAD:", payload);
+
     try {
       await api.post("/inventory/quality-inspections/", payload);
-      alert("Quality Inspection submitted successfully!");
+      alert("✅ Quality Inspection submitted successfully!");
 
       setSelectedGateEntry(null);
       setForm({ gate_entry: "", accepted_qty: "", rejected_qty: "", remarks: "" });
+      setQcValidation({ isValid: true, message: "" });
       await fetchPendingGateEntries();
     } catch (err) {
       console.error("QC failed:", err.response?.data || err);
@@ -161,11 +207,12 @@ export default function QualityInspectionCreate() {
 
   const totalDelivered = selectedGateEntry
     ? (selectedGateEntry.items || []).reduce(
-        (sum, item) => sum + Number(item.delivered_qty || 0),
-        0
-      )
+      (sum, item) => sum + Number(item.delivered_qty || 0),
+      0
+    )
     : 0;
 
+  // Safe display helpers
   const getItemName = (item) => {
     if (item.item_name) return item.item_name;
     if (item.item?.name) return item.item.name;
@@ -182,15 +229,13 @@ export default function QualityInspectionCreate() {
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-50 px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-7xl mx-auto">
-        
-        {/* Back Button + Header */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
+            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
           >
-            <FiArrowLeft size={22} />
-            <span className="font-medium">Back</span>
+            <FiArrowLeft size={20} /> Back
           </button>
 
           <h1 className="text-3xl md:text-4xl font-bold text-cyan-300 flex items-center gap-3">
@@ -304,6 +349,8 @@ export default function QualityInspectionCreate() {
                         <tr className="text-cyan-300/90 text-sm uppercase tracking-wider">
                           <th className="px-6 py-4 text-left">Item</th>
                           <th className="px-6 py-4 text-center">Delivered Qty</th>
+                          <th className="px-6 py-4 text-center">Accepted Qty</th>
+                          <th className="px-6 py-4 text-center">Rejected Qty</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-cyan-900/30">
@@ -312,6 +359,12 @@ export default function QualityInspectionCreate() {
                             <td className="px-6 py-4">{getItemName(item)}</td>
                             <td className="px-6 py-4 text-center font-medium">
                               {Number(item.delivered_qty || 0).toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 text-center text-green-400">
+                              —
+                            </td>
+                            <td className="px-6 py-4 text-center text-red-400">
+                              —
                             </td>
                           </tr>
                         ))}
@@ -323,6 +376,12 @@ export default function QualityInspectionCreate() {
                           </td>
                           <td className="px-6 py-4 text-center text-cyan-300">
                             {totalDelivered.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-center text-green-400">
+                            {Number(form.accepted_qty || 0).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-center text-red-400">
+                            {Number(form.rejected_qty || 0).toLocaleString()}
                           </td>
                         </tr>
                       </tfoot>
@@ -336,7 +395,7 @@ export default function QualityInspectionCreate() {
                     QC Decision
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                       <label className="block text-sm text-cyan-400/90 mb-2 font-medium">
                         Accepted Quantity <span className="text-red-400">*</span>
@@ -366,6 +425,19 @@ export default function QualityInspectionCreate() {
                     </div>
                   </div>
 
+                  {/* QC Validation Status */}
+                  <div className={`mb-6 p-4 rounded-lg ${qcValidation.isValid ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">QC Rule Check:</span>
+                      <span className={`font-mono text-lg ${qcValidation.isValid ? 'text-green-400' : 'text-red-400'}`}>
+                        {qcValidation.message}
+                      </span>
+                    </div>
+                    <div className="text-sm mt-2 text-gray-400">
+                      Rule: <strong className="text-cyan-300">Accepted + Rejected = Delivered Qty</strong>
+                    </div>
+                  </div>
+
                   <div className="mb-8">
                     <label className="block text-sm text-cyan-400/90 mb-2 font-medium">
                       Remarks / Observations (optional)
@@ -382,8 +454,12 @@ export default function QualityInspectionCreate() {
                   <div className="flex justify-end mt-8">
                     <button
                       onClick={submitQC}
-                      disabled={loading || !form.gate_entry}
-                      className="px-10 py-3.5 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-400 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-green-900/30"
+                      disabled={loading || !form.gate_entry || !qcValidation.isValid}
+                      className={`px-10 py-3.5 rounded-xl transition-all flex items-center gap-2 shadow-lg ${
+                        !qcValidation.isValid
+                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                          : 'bg-green-600 hover:bg-green-500 shadow-green-900/30'
+                      }`}
                     >
                       <FiCheckCircle size={20} /> Submit QC
                     </button>

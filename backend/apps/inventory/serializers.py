@@ -246,67 +246,79 @@ class PurchaseOrderItemSerializer(serializers.ModelSerializer):
 
 
 class PurchaseOrderSerializer(serializers.ModelSerializer):
-    # Nested items – now properly writable
-    items = PurchaseOrderItemSerializer(many=True)
-    
-    # Same pattern for vendor
-    vendor_details = VendorSerializer(source='vendor', read_only=True)
+    # Nested Items
+    items = PurchaseOrderItemSerializer(many=True, read_only=True)
+
+    # Vendor - For Writing (ID) and Reading (Full Details)
     vendor = serializers.PrimaryKeyRelatedField(
         queryset=Vendor.objects.all(),
         required=True,
         write_only=True
     )
+    vendor_details = VendorSerializer(source='vendor', read_only=True)
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)   # ← Added for easy display
+
+    # Department - Since it's currently CharField, we add a display name
+    # If you later change department to ForeignKey, this will still work
+    department_name = serializers.SerializerMethodField()                     # ← Added
 
     class Meta:
         model = PurchaseOrder
         fields = [
             'id',
-            'organization',
-            'department',
-            'vendor',           # write: ID
-            'vendor_details',   # read: full object
             'po_number',
             'status',
+            'department',          # Keep original if needed
+            'department_name',     # ← New: Human readable name
+            'vendor',
+            'vendor_name',         # ← New: Easy access to name
+            'vendor_details',      # Full vendor object (optional)
+            'tax_percentage',
+            'subtotal',
+            'tax_amount',
             'total_amount',
             'created_by',
             'created_at',
             'items',
         ]
         read_only_fields = [
-            'id',
-            'po_number',
-            'total_amount',
-            'created_at',
+            'id', 
+            'po_number', 
+            'status', 
+            'created_at', 
             'created_by',
-            'organization',
-            'status',           # if status is changed elsewhere
+            'subtotal', 
+            'tax_amount', 
+            'total_amount',
+            'vendor_name',
+            'department_name',
             'vendor_details',
         ]
+
+    # Method to get department name safely
+    def get_department_name(self, obj):
+        if hasattr(obj.department, 'name'):        # If it's a ForeignKey object
+            return obj.department.name
+        return obj.department or "—"               # If it's still a string/CharField
 
     @transaction.atomic
     def create(self, validated_data):
         request = self.context["request"]
-        
-        # items is now already validated by the nested serializer
         items_data = validated_data.pop('items')
-        
-        # Set automatic fields
+
         validated_data['organization'] = request.user.organization
         validated_data['created_by'] = request.user
-        
-        # vendor is already a Vendor instance (from PrimaryKeyRelatedField)
+
         po = PurchaseOrder.objects.create(**validated_data)
 
-        # Create items – item is already a Item instance
         for item_data in items_data:
             PurchaseOrderItem.objects.create(
                 purchase_order=po,
                 **item_data
             )
 
-        po.update_total()
+        po.update_totals()
         return po
-
 
     # Optional: if you want to keep this method (for list/retrieve)
     def get_remaining_qty(self, obj):
@@ -562,7 +574,7 @@ class QualityInspectionSerializer(serializers.ModelSerializer):
             'is_approved',
             'items'
         ]
-        read_only_fields = ['inspection_date', 'inspected_by', 'is_approved']
+        read_only_fields = ['inspection_date']
 
 
     def validate_gate_entry(self, value):
