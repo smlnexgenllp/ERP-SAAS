@@ -280,3 +280,26 @@ class FollowUp(models.Model):
             self.status = 'completed'
             self.completed_at = timezone.now()
             self.save(update_fields=['status', 'completed_at'])
+            
+from django.db import models
+
+class GSTSettings(models.Model):
+    """Single record for organization GST details"""
+    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=18.00)
+    gstin = models.CharField(max_length=15, blank=True, null=True, help_text="e.g. 33XXXXX1234X")
+    company_name = models.CharField(max_length=255, blank=True)  # Optional
+    address = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "GST Settings"
+        verbose_name_plural = "GST Settings"
+
+    def __str__(self):
+        return f"GST Settings (Rate: {self.gst_rate}%)"
+
+    @classmethod
+    def get_instance(cls):
+        """Get or create the single settings record"""
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj

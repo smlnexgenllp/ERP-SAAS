@@ -6,6 +6,7 @@ from django.core.mail import EmailMessage
 from django.utils import timezone
 from django.core.files.base import ContentFile
 from io import BytesIO
+from .models import GSTSettings
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -49,6 +50,7 @@ class QualifiedLeadDetailView(APIView):
 
 
 class CreateQuotationFromLeadView(APIView):
+    
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -61,7 +63,7 @@ class CreateQuotationFromLeadView(APIView):
         except Contact.DoesNotExist:
             return Response({"detail": "Lead not found or access denied"}, status=404)
 
-        # Extract data with fallbacks
+        # Extract data
         customer_name    = request.data.get("customer_name", lead.full_name or "Valued Customer")
         customer_email   = request.data.get("customer_email", lead.email or "")
         customer_company = request.data.get("customer_company", lead.company or "")
@@ -71,172 +73,186 @@ class CreateQuotationFromLeadView(APIView):
 
         try:
             total = float(request.data.get("total", 0))
-        except (TypeError, ValueError):
+        except:
             total = 0
 
         if not customer_email:
             return Response({"detail": "No email address available"}, status=400)
 
         if not items or total <= 0:
-            return Response({"detail": "Quotation must have items and positive total"}, status=400)
+            return Response({"detail": "Quotation must have items"}, status=400)
 
         # Company info
         org = request.user.organization
-        company_name    = org.name if org else "Your Company"
+        company_name    = org.name if org else "Your Company Name"
         company_address = getattr(org, 'address', "Your Address")
-        company_phone   = getattr(org, 'phone', "+91-000-000-0000")
-        company_email   = getattr(org, 'email', "sales@yourcompany.com")
+        company_phone   = getattr(org, 'phone', "+91-0000000000")
+        company_email   = getattr(org, 'email', "info@company.com")
         prepared_by     = request.user.get_full_name() or request.user.username
 
-        # Quotation identifiers
         today = timezone.now().strftime("%d-%m-%Y")
         quote_number = f"QTN-{timezone.now().strftime('%Y%m')}-{lead.id:04d}"
+        # ✅ Get GST Settings
+        gst_settings = GSTSettings.get_instance()
 
-        # GST (make configurable later)
-        gst_rate = 0.18
+        gst_rate_value = float(gst_settings.gst_rate)  # Decimal → float
+        gst_rate = gst_rate_value / 100
+        gst_rate_display = int(gst_rate_value)
+
+        gstin = gst_settings.gstin or "N/A"
+
+        # Calculations
         gst_amount = total * gst_rate
         grand_total = total + gst_amount
-
-        # Parse validity date (fallback: 30 days)
         try:
             validity_date = timezone.datetime.strptime(validity_date_str, "%Y-%m-%d").date() if validity_date_str else None
-        except ValueError:
+        except:
             validity_date = None
 
-        valid_until = validity_date.strftime("%d-%m-%Y") if validity_date else "30 days from today"
+        valid_until = validity_date.strftime("%d-%m-%Y") if validity_date else "30 days"
 
-        # ─── PDF Generation ───────────────────────────────────────────────
+        # ───────── PDF GENERATION (NEW DESIGN) ─────────
+        # ───────── PROFESSIONAL PDF DESIGN ─────────
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=inch, leftMargin=inch,
-                                topMargin=inch, bottomMargin=inch)
+        doc = SimpleDocTemplate(buffer, pagesize=A4,
+                                rightMargin=40, leftMargin=40,
+                                topMargin=40, bottomMargin=40)
 
         styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name='GreenTitle', textColor=colors.green, fontSize=12, leading=14, spaceAfter=8))
-        styles.add(ParagraphStyle(name='YellowTotal', textColor=colors.black, backColor=colors.yellow,
-                                  fontSize=12, alignment=1, spaceAfter=6))
-        styles.add(ParagraphStyle(name='BoldRight', alignment=2, fontSize=11, leading=13))
+        styles.add(ParagraphStyle(name='Right', alignment=2))
+        styles.add(ParagraphStyle(name='TitleWhite', alignment=1, fontSize=16, textColor=colors.white))
+        styles.add(ParagraphStyle(name='Bold', fontSize=11))
+        styles.add(ParagraphStyle(name='Small', fontSize=9, textColor=colors.grey))
 
         elements = []
 
-        # Header
-        header_data = [[
-            Paragraph(f"<b>{company_name}</b><br/>{company_address}<br/>Phone: {company_phone}<br/>Email: {company_email}", styles['Normal']),
-            Paragraph(
-                f"<font size=14><b>QUOTE</b></font><br/><br/>"
-                f"DATE: {today}<br/>"
-                f"QUOTE #: {quote_number}<br/>"
-                f"VALID UNTIL: {valid_until}<br/>"
-                f"PREPARED BY: {prepared_by}",
-                styles['BoldRight']
-            )
-        ]]
-        header_table = Table(header_data, colWidths=[3.5*inch, 3.5*inch])
-        header_table.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('ALIGN', (1,0), (1,0), 'RIGHT'),
-        ]))
-        elements.append(header_table)
-        elements.append(Spacer(1, 0.4*inch))
+        # ─── HEADER BAR ───
+        header = Table([[
+            Paragraph(f"<b>{company_name}</b>", styles['Normal']),
+            Paragraph("<b>QUOTATION</b>", styles['TitleWhite'])
+        ]], colWidths=[300, 200])
 
-        # Customer
-        elements.append(Paragraph("CUSTOMER", styles['GreenTitle']))
+        header.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#1f4e79")),
+            ('TEXTCOLOR', (0,0), (-1,-1), colors.white),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('FONTSIZE', (0,0), (-1,-1), 14),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+        ]))
+
+        elements.append(header)
+        elements.append(Spacer(1, 15))
+
+        # ─── COMPANY + QUOTE INFO ───
+        info = Table([
+            [
+                Paragraph(f"{company_address}<br/>{company_phone}<br/>{company_email}", styles['Small']),
+                Paragraph(
+                    f"<b>Quotation No:</b> {quote_number}<br/>"
+                    f"<b>Date:</b> {today}<br/>"
+                    f"<b>Valid Until:</b> {valid_until}",
+                    styles['Right']
+                )
+            ]
+        ], colWidths=[300, 200])
+
+        elements.append(info)
+        elements.append(Spacer(1, 20))
+
+        # ─── BILL TO ───
+        elements.append(Paragraph("<b>Bill To:</b>", styles['Bold']))
         elements.append(Paragraph(
-            f"<b>{customer_name}</b><br/>{customer_company}<br/>{customer_email}",
+            f"{customer_name}<br/>{customer_company}<br/>{customer_email}",
             styles['Normal']
         ))
-        elements.append(Spacer(1, 0.3*inch))
+        elements.append(Spacer(1, 15))
 
-        # Items
-        table_data = [["DESCRIPTION", "TAXED", "AMOUNT"]]
-        for item in items:
-            qty = float(item.get('quantity', 1))
-            price = float(item.get('unit_price', 0))
-            line_total = qty * price
+        # ─── ITEMS TABLE ───
+        table_data = [["#", "Description", "Qty", "Unit Price", "Amount"]]
+
+        for i, item in enumerate(items, start=1):
+            qty = float(item.get("quantity", 1))
+            price = float(item.get("unit_price", 0))
+            amount = qty * price
+
             table_data.append([
-                item.get('description', '—'),
-                "Yes",
-                f"₹{line_total:,.2f}"
+                str(i),
+                item.get("description", ""),
+                f"{qty}",
+                f"Rs {price:,.2f}",
+                f"Rs {amount:,.2f}"
             ])
 
-        items_table = Table(table_data, colWidths=[4.2*inch, 1*inch, 1.8*inch])
-        items_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.green),
+        item_table = Table(table_data, colWidths=[30, 220, 50, 90, 90])
+
+        item_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1f4e79")),
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('ALIGN', (0,0), (0,0), 'LEFT'),
-            ('ALIGN', (1,0), (1,-1), 'CENTER'),
-            ('ALIGN', (2,0), (2,-1), 'RIGHT'),
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('FONTSIZE', (0,0), (-1,0), 11),
-            ('FONTSIZE', (0,1), (-1,-1), 10),
+            ('ALIGN', (2,1), (-1,-1), 'CENTER'),
         ]))
-        elements.append(items_table)
-        elements.append(Spacer(1, 0.3*inch))
 
-        # Totals
-        totals_data = [
-            ["Subtotal:", f"₹{total:,.2f}"],
-            ["GST (18%):", f"₹{gst_amount:,.2f}"],
-            ["Grand Total:", f"₹{grand_total:,.2f}"],
-        ]
-        totals_table = Table(totals_data, colWidths=[4*inch, 2*inch])
-        totals_table.setStyle(TableStyle([
-            ('ALIGN', (0,0), (0,-1), 'RIGHT'),
-            ('ALIGN', (1,0), (1,-1), 'RIGHT'),
-            ('FONTNAME', (0,-1), (1,-1), 'Helvetica-Bold'),
-            ('BACKGROUND', (1,-1), (1,-1), colors.yellow),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        elements.append(item_table)
+        elements.append(Spacer(1, 20))
+
+        # ─── GST BOX ───
+        gst_box = Table([
+        ["GST Details"],
+        [f"GST Rate: {gst_rate_display}%"],
+        [f"GST Amount: Rs {gst_amount:,.2f}"],
+        [f"GSTIN: {gstin}"]
+    ])
+
+        gst_box.setStyle(TableStyle([
+            ('BOX', (0,0), (-1,-1), 1, colors.grey),
+            ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
         ]))
-        elements.append(totals_table)
-        elements.append(Spacer(1, 0.4*inch))
 
-        # Terms
-        elements.append(Paragraph("TERMS AND CONDITIONS", styles['Heading2']))
-        terms_text = (
-            "1. This quotation is valid until the date mentioned above.<br/>"
-            "2. Prices are exclusive of taxes unless stated otherwise.<br/>"
-            f"3. {notes or 'No additional notes provided.'}"
-        )
-        elements.append(Paragraph(terms_text, styles['Normal']))
-        elements.append(Spacer(1, 0.5*inch))
+        # ─── TOTALS ───
+        totals = Table([
+            ["Subtotal", f"Rs {total:,.2f}"],
+            [f"GST ({gst_rate_display}%)", f"Rs {gst_amount:,.2f}"],
+            ["Grand Total", f"Rs {grand_total:,.2f}"]
+        ], colWidths=[120, 120])
 
-        # Signature
-        elements.append(Paragraph("Acceptance:", styles['Normal']))
-        elements.append(Spacer(1, 0.3*inch))
-        elements.append(Paragraph("_______________________________", styles['Normal']))
-        elements.append(Paragraph("Customer Signature & Date", styles['Normal']))
+        totals.setStyle(TableStyle([
+            ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
+            ('BACKGROUND', (0,2), (-1,2), colors.HexColor("#2e7d32")),
+            ('TEXTCOLOR', (0,2), (-1,2), colors.white),
+            ('FONTNAME', (0,2), (-1,2), 'Helvetica-Bold'),
+        ]))
 
+        final_table = Table([[gst_box, totals]], colWidths=[260, 200])
+        elements.append(final_table)
+
+        elements.append(Spacer(1, 25))
+
+        # ─── TERMS ───
+        elements.append(Paragraph("<b>Terms & Conditions</b>", styles['Bold']))
+        elements.append(Paragraph(
+            "• Payment within 15 days<br/>"
+            "• Delivery within 7 days<br/>"
+            "• GST as applicable",
+            styles['Normal']
+        ))
+        elements.append(Spacer(1, 40))
+        # ─── SIGNATURE ───
+        elements.append(Paragraph(f"For {company_name}", styles['Right']))
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph("Authorized Signature", styles['Right']))
         doc.build(elements)
         pdf_content = buffer.getvalue()
         buffer.close()
-
-        # Send email
-        subject = f"Quotation {quote_number} - {customer_name}"
-        body = (
-            f"Dear {customer_name},\n\n"
-            f"Please find your quotation attached ({quote_number}).\n"
-            f"Valid until: {valid_until}\n\n"
-            "Feel free to reach out with any questions.\n\n"
-            f"Best regards,\n{prepared_by}\n{company_name}"
-        )
-
+        # ───────── END PDF ─────────
         email = EmailMessage(
-            subject=subject,
-            body=body,
+            subject=f"Quotation {quote_number}",
+            body=f"Dear {customer_name}, please find attached quotation.",
             from_email=company_email,
             to=[customer_email],
         )
         email.attach(f"Quotation_{quote_number}.pdf", pdf_content, "application/pdf")
-
-        try:
-            email.send(fail_silently=False)
-        except Exception as e:
-            return Response(
-                {"detail": f"PDF generated but email failed: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-        # Save quotation
+        email.send()
         quotation = Quotation.objects.create(
             lead=lead,
             quote_number=quote_number,
@@ -255,9 +271,8 @@ class CreateQuotationFromLeadView(APIView):
 
         return Response({
             "detail": "Quotation created and sent",
-            "quotation_id": quotation.id,
-            "quote_number": quote_number
-        }, status=status.HTTP_201_CREATED)
+            "quotation_id": quotation.id
+        }, status=201)
 
 
 class QuotationListView(APIView):
@@ -267,14 +282,10 @@ class QuotationListView(APIView):
         quotations = Quotation.objects.filter(
             lead__organization=request.user.organization
         ).select_related('lead', 'created_by').order_by('-created_at')
-
         serializer = QuotationSerializer(quotations, many=True)
         return Response(serializer.data)
-
-
 class QuotationDetailView(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request, pk):
         try:
             quotation = Quotation.objects.get(
@@ -283,10 +294,8 @@ class QuotationDetailView(APIView):
             )
         except Quotation.DoesNotExist:
             return Response({"detail": "Not found"}, status=404)
-
         serializer = QuotationSerializer(quotation)
         return Response(serializer.data)
-
 
 class QuotationStatusUpdateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -619,3 +628,22 @@ class SalesOrderStatusUpdateView(APIView):
             "detail": "Status updated",
             "status": order.status
         })
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import GSTSettings
+from .serializers import GSTSettingsSerializer
+
+class GSTSettingsAPIView(APIView):
+    def get(self, request):
+        settings = GSTSettings.get_instance()
+        serializer = GSTSettingsSerializer(settings)
+        return Response(serializer.data)
+
+    def post(self, request):
+        settings = GSTSettings.get_instance()
+        serializer = GSTSettingsSerializer(settings, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
