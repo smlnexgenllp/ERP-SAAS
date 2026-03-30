@@ -17,8 +17,8 @@ export default function PurchaseOrdersList() {
     try {
       setLoading(true);
       const res = await api.get("/inventory/purchase-orders/");
-      setPos(res.data || []);
-      setFilteredPos(res.data || []);
+      setPos(res.data.results || res.data || []);
+      setFilteredPos(res.data.results || res.data || []);
     } catch (err) {
       console.error("Failed to load purchase orders:", err);
     } finally {
@@ -30,73 +30,107 @@ export default function PurchaseOrdersList() {
   useEffect(() => {
     let result = [...pos];
 
-    // Status filter
     if (statusFilter !== "all") {
       result = result.filter(po => 
         (po.status || "").toLowerCase() === statusFilter.toLowerCase()
       );
     }
 
-    // Search
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       result = result.filter(po =>
         (po.po_number || "").toLowerCase().includes(term) ||
-        (po.vendor?.name || "").toLowerCase().includes(term) ||
-        (po.department?.name || po.department || "").toLowerCase().includes(term)
+        (po.vendor_name || "").toLowerCase().includes(term) ||
+        (po.department_name || "").toLowerCase().includes(term)
       );
     }
 
     setFilteredPos(result);
   }, [pos, statusFilter, searchTerm]);
 
-  // Safe currency formatting
   const formatAmount = (value) => {
-    const num = Number(value);
-    return isNaN(num) ? "0.00" : num.toFixed(2);
+    const num = Number(value) || 0;
+    return num.toLocaleString('en-IN', { 
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2 
+    });
   };
 
   const handlePrint = (po) => {
     const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    if (!printWindow) {
+      alert("Please allow pop-ups to print the document");
+      return;
+    }
+
+    // Safe data extraction
+    const poNumber = po.po_number || "—";
+    const poDate = po.created_at 
+      ? new Date(po.created_at).toLocaleDateString('en-IN') 
+      : "—";
+
+    const departmentName = po.department_name || po.department || "—";
+    const vendorName = po.vendor_name || "—";
+
+    // Items
+    const itemsHtml = (po.items || []).map((item, i) => {
+      const itemName = item.item_details?.name || "—";
+      const qty = Number(item.ordered_qty || item.quantity || 0);
+      const unitPrice = Number(item.unit_price || 0);
+      const lineTotal = qty * unitPrice;
+
+      return `
+        <tr>
+          <td style="text-align:center; padding:12px; border:1px solid #ccc;">${i + 1}</td>
+          <td style="padding:12px; border:1px solid #ccc;">${itemName}</td>
+          <td style="text-align:center; padding:12px; border:1px solid #ccc;">${qty}</td>
+          <td style="text-align:right; padding:12px; border:1px solid #ccc;">₹ ${formatAmount(unitPrice)}</td>
+          <td style="text-align:right; padding:12px; border:1px solid #ccc; font-weight:500;">
+            ₹ ${formatAmount(lineTotal)}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    const subtotal = Number(po.subtotal || 0);
+    const taxPercentage = Number(po.tax_percentage || 0);
+    const taxAmount = Number(po.tax_amount || 0);
+    const grandTotal = Number(po.total_amount || 0);
 
     printWindow.document.write(`
       <html>
         <head>
-          <title>Purchase Order - ${po.po_number || 'N/A'}</title>
+          <title>Purchase Order - ${poNumber}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.5; }
-            .container { max-width: 900px; margin: 0 auto; }
-            h1 { text-align: center; margin-bottom: 10px; }
-            .info { display: flex; justify-content: space-between; margin: 30px 0; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #ccc; padding: 10px; }
-            th { background-color: #f8f8f8; text-align: left; }
-            .total-section { margin-top: 30px; text-align: right; }
-            .total-section div { margin: 6px 0; }
-            .grand-total { font-size: 1.3em; font-weight: bold; margin-top: 15px; }
-            .no-print { display: none; }
-            @media print {
-              .no-print { display: none; }
-            }
+            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+            h1 { text-align: center; color: #1e3a8a; }
+            .po-header { text-align: center; margin-bottom: 30px; }
+            .info { display: flex; justify-content: space-between; margin: 30px 0; font-size: 1.1em; }
+            table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+            th, td { border: 1px solid #555; padding: 12px; }
+            th { background-color: #1e3a8a; color: white; }
+            .totals { margin-top: 40px; text-align: right; font-size: 1.15em; }
+            .grand-total { font-size: 1.45em; font-weight: bold; color: #1e3a8a; margin-top: 15px; }
+            .footer { margin-top: 80px; text-align: center; color: #666; }
           </style>
         </head>
         <body>
           <div class="container">
-            <h1>Purchase Order</h1>
-            <p style="text-align:center;"><strong>PO Number:</strong> ${po.po_number || '—'}</p>
-            <p style="text-align:center;"><strong>Date:</strong> ${new Date(po.created_at || Date.now()).toLocaleDateString('en-IN')}</p>
+            <h1>PURCHASE ORDER</h1>
+            <div class="po-header">
+              <p><strong>PO Number:</strong> ${poNumber}</p>
+              <p><strong>Date:</strong> ${poDate}</p>
+            </div>
 
             <div class="info">
               <div>
                 <strong>Department:</strong><br>
-                ${po.department?.name || po.department || '—'}
+                ${departmentName}
               </div>
               <div style="text-align:right;">
                 <strong>Vendor:</strong><br>
-                ${po.vendor?.name || '—'}<br>
-                ${po.vendor?.contact_person || ''}<br>
-                ${po.vendor?.phone || ''}
+                ${vendorName}
               </div>
             </div>
 
@@ -104,46 +138,42 @@ export default function PurchaseOrdersList() {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Item</th>
-                  <th style="text-align:center;">Qty</th>
-                  <th style="text-align:right;">Unit Price</th>
-                  <th style="text-align:right;">Total</th>
+                  <th>Item Name</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Total</th>
                 </tr>
               </thead>
               <tbody>
-                ${(po.items || []).map((item, i) => `
-                  <tr>
-                    <td>${i + 1}</td>
-                    <td>${item.item?.name || item.item || '—'}</td>
-                    <td style="text-align:center;">${item.quantity || 0}</td>
-                    <td style="text-align:right;">₹ ${formatAmount(item.standard_price || item.unit_price || 0)}</td>
-                    <td style="text-align:right;">₹ ${formatAmount((item.quantity || 0) * (item.standard_price || item.unit_price || 0))}</td>
-                  </tr>
-                `).join('') || '<tr><td colspan="5" style="text-align:center;">No items found</td></tr>'}
+                ${itemsHtml || '<tr><td colspan="5" style="text-align:center;padding:30px;color:#666;">No items found</td></tr>'}
               </tbody>
             </table>
 
-            <div class="total-section">
-              <div>Subtotal: ₹ ${formatAmount(po.subtotal || 0)}</div>
-              <div>Tax (${po.tax_percentage || 0}%): ₹ ${formatAmount(po.tax_amount || 0)}</div>
+            <div class="totals">
+              <div>Subtotal: ₹ ${formatAmount(subtotal)}</div>
+              <div>Tax (${taxPercentage}%): ₹ ${formatAmount(taxAmount)}</div>
               <div class="grand-total">
-                Grand Total: ₹ ${formatAmount(po.total_amount)}
+                Grand Total: ₹ ${formatAmount(grandTotal)}
               </div>
             </div>
 
-            <div style="margin-top:60px; text-align:center; color:#555; font-size:0.9em;">
-              Thank you for your business
+            <div class="footer">
+              This is a computer generated document.<br>
+              Thank you for your business.
             </div>
           </div>
         </body>
       </html>
     `);
+
     printWindow.document.close();
+    setTimeout(() => printWindow.print(), 600);
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-50 p-6 md:p-8">
+    <div className="min-h-screen bg-gray-950 text-cyan-50 p-6 md:p-8 font-mono">
       <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
             All Purchase Orders
@@ -154,10 +184,10 @@ export default function PurchaseOrdersList() {
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400" />
               <input
                 type="text"
-                placeholder="Search PO # / Vendor..."
+                placeholder="Search PO # / Vendor / Department..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-gray-800 border border-gray-700 pl-10 pr-4 py-2 rounded-lg w-64 focus:outline-none focus:border-cyan-600"
+                className="bg-gray-800 border border-gray-700 pl-10 pr-4 py-2 rounded-lg w-72 focus:outline-none focus:border-cyan-600"
               />
             </div>
 
@@ -173,13 +203,14 @@ export default function PurchaseOrdersList() {
 
             <button
               onClick={fetchPurchaseOrders}
-              className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+              className="bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg flex items-center gap-2 transition-colors"
             >
               <FiRefreshCw /> Refresh
             </button>
           </div>
         </div>
 
+        {/* Main Table */}
         <div className="bg-gray-900 border border-cyan-900/50 rounded-xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -203,47 +234,38 @@ export default function PurchaseOrdersList() {
                 ) : filteredPos.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-12 text-gray-500">
-                      {searchTerm 
-                        ? "No purchase orders found matching your search"
-                        : "No purchase orders found"}
+                      No purchase orders found
                     </td>
                   </tr>
                 ) : (
                   filteredPos.map((po) => (
-                    <tr 
-                      key={po.id} 
-                      className="hover:bg-gray-800/40 transition-colors"
-                    >
+                    <tr key={po.id} className="hover:bg-gray-800/40 transition-colors">
                       <td className="px-6 py-4 font-medium">{po.po_number || '—'}</td>
-                      <td className="px-6 py-4">
-                        {po.department?.name || po.department || '—'}
-                      </td>
-                      <td className="px-6 py-4">
-                        {po.vendor?.name || '—'}
-                      </td>
+                      <td className="px-6 py-4">{po.department_name || po.department || '—'}</td>
+                      <td className="px-6 py-4">{po.vendor_name || '—'}</td>
                       <td className="px-6 py-4 text-right font-medium text-cyan-200">
                         ₹ {formatAmount(po.total_amount)}
                       </td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                            (po.status || "").toLowerCase() === "approved"
+                            po.status === "approved"
                               ? "bg-green-900/60 text-green-300"
-                              : (po.status || "").toLowerCase() === "draft"
+                              : po.status === "draft"
                               ? "bg-yellow-900/60 text-yellow-300"
                               : "bg-gray-700 text-gray-300"
                           }`}
                         >
-                          {(po.status || "UNKNOWN").toUpperCase()}
+                          {(po.status || "DRAFT").toUpperCase()}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => handlePrint(po)}
                           className="text-cyan-400 hover:text-cyan-300 transition-colors p-2"
-                          title="Print PO"
+                          title="Print Purchase Order"
                         >
-                          <FiPrinter size={20} />
+                          <FiPrinter size={22} />
                         </button>
                       </td>
                     </tr>

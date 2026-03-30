@@ -113,34 +113,42 @@ export default function PurchaseOrderCreate() {
 };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+  if (!validateForm()) return;
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const payload = {
-        vendor: form.vendor,
-        department: form.department,
-        tax_percentage: form.tax_percentage,
-        items: form.items.map(item => ({
-          item: item.item,
-          ordered_qty: item.quantity,
-          unit_price: item.unit_price,
-        })),
-      };
+  try {
+    const payload = {
+      vendor: Number(form.vendor),
+      department: form.department,
+      tax_percentage: Number(form.tax_percentage) || 0,
+      items: form.items.map(item => ({
+        item: Number(item.item),
+        ordered_qty: Number(item.quantity),
+        unit_price: Number(item.unit_price),
+      })),
+    };
 
-      await api.post("/inventory/purchase-orders/", payload);
-      
-      alert("Purchase Order created successfully!");
-      setForm({ vendor: "", department: "", tax_percentage: 0, items: [] });
-      setErrors({});
-    } catch (err) {
-      console.error("PO creation error:", err?.response?.data || err);
-      alert("Failed to create Purchase Order. Please check the form.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    await api.post("/inventory/purchase-orders/", payload);
+    
+    alert("Purchase Order created successfully!");
+    
+    // Reset form
+    setForm({
+      vendor: "",
+      department: "",
+      tax_percentage: 0,
+      items: [],
+    });
+    setErrors({});
+  } catch (err) {
+    console.error("PO creation error:", err?.response?.data || err);
+    const errorMsg = err.response?.data?.detail || "Failed to create Purchase Order";
+    alert(errorMsg);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ── Render ─────────────────────────────────────────────────────
   return (
