@@ -6,6 +6,7 @@ from .views import (
     CustomerListView,
     CustomerUpdateView,
     FollowUpListCreateView,
+    GSTSettingsAPIView,
     QualifiedLeadsListView,
     QualifiedLeadDetailView,
     QuotationListView,
@@ -33,5 +34,7 @@ path('customers/<int:pk>/edit/', CustomerUpdateView.as_view(), name='customer-up
 path('sales-orders/create/', SalesOrderCreateView.as_view(), name='sales-order-create'),
 path('sales-orders/', SalesOrderListView.as_view(), name='sales-order-list'),
 path('sales-orders/<int:pk>/', SalesOrderDeleteView.as_view(), name='sales-order-delete'),
+path('gst-settings/', GSTSettingsAPIView.as_view(), name='gst-settings'),
+
 path('sales-orders/<int:pk>/status/', SalesOrderStatusUpdateView.as_view(), name='sales-order-status'),
 ]

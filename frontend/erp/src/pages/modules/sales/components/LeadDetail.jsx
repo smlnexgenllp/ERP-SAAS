@@ -1,4 +1,3 @@
-// src/pages/sales/LeadDetail.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../../../services/api";
@@ -15,7 +14,6 @@ import {
 export default function LeadDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,6 +22,16 @@ export default function LeadDetail() {
   const [formMessage, setFormMessage] = useState("");
   const [inventoryItems, setInventoryItems] = useState([]);
 
+  // Organization & GST Details
+  const [organization, setOrganization] = useState({
+    company_name: "",
+    address: "",
+    gstin: "",
+    pan: "",
+    phone: "",
+    email: "",
+  });
+
   const [formData, setFormData] = useState({
     customer_name: "",
     customer_email: "",
@@ -31,11 +39,11 @@ export default function LeadDetail() {
     validity_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       .toISOString()
       .split("T")[0],
-    items: [{ 
-      description: "", 
-      quantity: 1, 
+    items: [{
+      description: "",
+      quantity: 1,
       unit_price: 0,
-      inventory_id: null   // ← New: Track selected inventory item
+      inventory_id: null
     }],
     notes: "",
     gst_percentage: 18,
@@ -50,8 +58,8 @@ export default function LeadDetail() {
         setLead(res.data);
       } catch (err) {
         console.error("Failed to load lead:", err);
-        setError(err.response?.status === 404 
-          ? "This lead was not found or you don't have access to it." 
+        setError(err.response?.status === 404
+          ? "This lead was not found or you don't have access to it."
           : "Failed to load lead details. Please try again.");
       } finally {
         setLoading(false);
@@ -59,6 +67,32 @@ export default function LeadDetail() {
     };
     fetchLead();
   }, [id]);
+
+  // Fetch Organization + GST Settings
+  useEffect(() => {
+    const fetchOrganization = async () => {
+      try {
+        const res = await api.get("/sale/gst-settings/"); // Reuse or adjust endpoint if you have separate org endpoint
+        if (res.data) {
+          setOrganization({
+            company_name: res.data.company_name || "Your Company Name",
+            address: res.data.address || "",
+            gstin: res.data.gstin || "",
+            pan: res.data.pan || "",
+            phone: res.data.phone || "",
+            email: res.data.email || "",
+          });
+          setFormData(prev => ({
+            ...prev,
+            gst_percentage: res.data.gst_rate || 18,
+          }));
+        }
+      } catch (err) {
+        console.log("Using default organization details");
+      }
+    };
+    fetchOrganization();
+  }, []);
 
   // Pre-fill customer info
   useEffect(() => {
@@ -93,11 +127,9 @@ export default function LeadDetail() {
     const subtotal = formData.items.reduce((sum, item) => {
       return sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0);
     }, 0);
-
     const gstRate = Number(formData.gst_percentage) || 0;
     const gstAmount = (subtotal * gstRate) / 100;
     const grandTotal = subtotal + gstAmount;
-
     return { subtotal, gstAmount, grandTotal, gstRate };
   }, [formData.items, formData.gst_percentage]);
 
@@ -123,33 +155,29 @@ export default function LeadDetail() {
     setFormData(prev => ({ ...prev, items: updatedItems }));
   };
 
-  // Fixed: Proper selection handling
   const selectInventoryItem = (index, itemId) => {
     const selectedId = Number(itemId);
     if (!selectedId) return;
-
     const selected = inventoryItems.find(it => it.id === selectedId);
     if (!selected) return;
-
     const updatedItems = [...formData.items];
     updatedItems[index] = {
       ...updatedItems[index],
       description: `${selected.name} (${selected.code || "N/A"})`,
       unit_price: Number(selected.standard_price) || 0,
-      inventory_id: selectedId   // Important for tracking
+      inventory_id: selectedId
     };
-
     setFormData(prev => ({ ...prev, items: updatedItems }));
   };
 
   const addNewItem = () => {
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, { 
-        description: "", 
-        quantity: 1, 
+      items: [...prev.items, {
+        description: "",
+        quantity: 1,
         unit_price: 0,
-        inventory_id: null 
+        inventory_id: null
       }],
     }));
   };
@@ -158,8 +186,8 @@ export default function LeadDetail() {
     const remaining = formData.items.filter((_, i) => i !== index);
     setFormData(prev => ({
       ...prev,
-      items: remaining.length > 0 
-        ? remaining 
+      items: remaining.length > 0
+        ? remaining
         : [{ description: "", quantity: 1, unit_price: 0, inventory_id: null }]
     }));
   };
@@ -170,10 +198,8 @@ export default function LeadDetail() {
       setFormMessage("Please add at least one valid item.");
       return;
     }
-
     setSubmitting(true);
     setFormMessage("");
-
     try {
       const payload = {
         lead_id: id,
@@ -181,11 +207,10 @@ export default function LeadDetail() {
         total: subtotal,
         gst_percentage: gstRate,
         gst_amount: gstAmount,
+        organization: organization, // Sending org details to backend if needed
       };
-
       await api.post("/sale/quotations/create-from-lead/", payload);
       setFormMessage("Quotation created and sent successfully!");
-
       setTimeout(() => {
         setShowQuotationForm(false);
       }, 1800);
@@ -198,7 +223,6 @@ export default function LeadDetail() {
   };
 
   // ==================== RENDER ====================
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 flex items-center justify-center">
@@ -278,14 +302,31 @@ export default function LeadDetail() {
             </h2>
 
             {formMessage && (
-              <div className={`p-4 rounded-xl mb-6 ${formMessage.includes("success") 
-                ? "bg-green-900/50 border border-green-700 text-green-300" 
+              <div className={`p-4 rounded-xl mb-6 ${formMessage.includes("success")
+                ? "bg-green-900/50 border border-green-700 text-green-300"
                 : "bg-red-900/50 border border-red-700 text-red-300"}`}>
                 {formMessage}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-10">
+              {/* Organization (Seller) Details - Quotation Header Style */}
+              <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-6">
+                <h3 className="text-lg font-semibold text-amber-300 mb-4">From (Your Organization)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                  <div>
+                    <p className="font-medium text-gray-200">{organization.company_name}</p>
+                    <p className="text-gray-400">{organization.address}</p>
+                  </div>
+                  <div className="text-right md:text-left">
+                    <p><span className="text-gray-400">GSTIN:</span> <span className="font-mono">{organization.gstin || "—"}</span></p>
+                    {organization.pan && <p><span className="text-gray-400">PAN:</span> {organization.pan}</p>}
+                    <p><span className="text-gray-400">Phone:</span> {organization.phone}</p>
+                    <p><span className="text-gray-400">Email:</span> {organization.email}</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Customer Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
@@ -329,7 +370,7 @@ export default function LeadDetail() {
                 <p className="text-sm text-gray-500 ml-4">Change as required</p>
               </div>
 
-              {/* Items Table */}
+              {/* Items Table - Same as before */}
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-semibold text-cyan-300 flex items-center gap-2">
@@ -340,7 +381,6 @@ export default function LeadDetail() {
                     <Plus size={18} /> Add Item
                   </button>
                 </div>
-
                 <div className="overflow-x-auto rounded-lg border border-gray-700">
                   <table className="min-w-full divide-y divide-gray-700">
                     <thead className="bg-gray-800">
