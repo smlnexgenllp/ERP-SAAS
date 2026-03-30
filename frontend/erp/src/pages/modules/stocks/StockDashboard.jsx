@@ -1,10 +1,10 @@
-// src/pages/StockDashboard.jsx  (or wherever you place it)
+// src/pages/StockDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../services/api'; // your axios / api instance
+import api from '../../../services/api';
 import { 
   FiPackage, FiAlertTriangle, FiDollarSign, FiClock, 
-  FiArrowUpRight, FiArrowDownRight, FiRefreshCw 
+  FiArrowUpRight, FiArrowDownRight, FiRefreshCw, FiArrowLeft 
 } from 'react-icons/fi';
 import { format } from 'date-fns';
 
@@ -32,24 +32,18 @@ export default function StockDashboard() {
     setError(null);
 
     try {
-      // Fetch all items with stock info
       const itemsRes = await api.get('/stock/items/');
-      const items = itemsRes.data.results || itemsRes.data; // handle paginated or direct array
+      const items = itemsRes.data.results || itemsRes.data;
 
-      // Calculate stats
       const lowStockCount = items.filter(item => item.available_stock <= 10).length;
       const stockValue = items.reduce(
-        (sum, item) => sum + (Number(item.current_stock) * Number(item.standard_price || 0)),
+        (sum, item) => sum + (Number(item.current_stock || 0) * Number(item.standard_price || 0)),
         0
       );
 
-      // Fetch recent movements (last 10-20)
-      const ledgerRes = await api.get('/stock/ledger/', {
-        params: { limit: 15 }
-      });
+      const ledgerRes = await api.get('/stock/ledger/', { params: { limit: 15 } });
       const movements = ledgerRes.data.results || ledgerRes.data;
 
-      // Quick 30-day summary
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -87,6 +81,12 @@ export default function StockDashboard() {
     }
   };
 
+  // Back Button Handler
+  const handleGoBack = () => {
+    navigate(-1);        // Goes back to previous page
+    // Alternative: navigate('/dashboard'); // if you want to go to a specific page
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -115,11 +115,24 @@ export default function StockDashboard() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
-          <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-            <FiPackage className="text-cyan-500" /> Stock Dashboard
-          </h1>
+        
+        {/* Header with Back Button */}
+        <div className="flex items-center gap-4 mb-10">
+          <button
+            onClick={handleGoBack}
+            className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
+          >
+            <FiArrowLeft size={22} />
+            <span className="font-medium">Back</span>
+          </button>
+
+          <div className="flex-1">
+            <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
+              <FiPackage className="text-cyan-500" /> Stock Dashboard
+            </h1>
+            <p className="text-cyan-500 mt-1">Overview of current stock levels and movements</p>
+          </div>
+
           <button
             onClick={fetchStockDashboardData}
             className="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-cyan-300 border border-gray-700"
@@ -219,25 +232,21 @@ export default function StockDashboard() {
           <ActionCard 
             title="New GRN"
             desc="Receive materials from approved QC"
-            // onClick={() => navigate('/grn/create')}
             color="cyan"
           />
           <ActionCard 
             title="Stock Items"
             desc="View all items & current levels"
-            // onClick={() => navigate('/stock/items')}
             color="blue"
           />
           <ActionCard 
             title="Low Stock"
             desc="Items needing reorder"
-            // onClick={() => navigate('/stock/items?low_stock=true')}
             color="orange"
           />
           <ActionCard 
             title="Full Ledger"
             desc="Complete stock movement history"
-            // onClick={() => navigate('/stock/ledger')}
             color="purple"
           />
         </div>
@@ -246,7 +255,7 @@ export default function StockDashboard() {
   );
 }
 
-// Reusable Components
+// Reusable Components (unchanged)
 function StatCard({ icon, title, value, alert = false }) {
   return (
     <div className={`bg-gray-900 p-5 rounded-xl border ${alert ? 'border-orange-600/40' : 'border-gray-800'} hover:border-gray-700 transition-all`}>

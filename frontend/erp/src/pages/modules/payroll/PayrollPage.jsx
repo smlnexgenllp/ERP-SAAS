@@ -118,7 +118,7 @@ const PayrollPage = () => {
               'Salary Setup',
               'Attendance & Payroll',
               
-              'Payroll History',
+              // 'Payroll History',
             ].map((tab, index) => (
               <button
                 key={tab}

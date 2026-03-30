@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../../services/api";
-import { FiPrinter, FiSearch, FiRefreshCw } from "react-icons/fi";
+import { FiPrinter, FiSearch, FiRefreshCw, FiArrowLeft } from "react-icons/fi";
 
 export default function PurchaseOrdersList() {
   const [pos, setPos] = useState([]);
@@ -8,17 +8,32 @@ export default function PurchaseOrdersList() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-
+ const [departments, setDepartments] = useState({});
   useEffect(() => {
     fetchPurchaseOrders();
+    fetchDepartments();
   }, []);
+const fetchDepartments = async () => {
+  try {
+    const res = await api.get("/hr/departments/"); // adjust if different
 
+    const map = {};
+    res.data.forEach((d) => {
+      map[d.id] = d.name;
+    });
+
+    setDepartments(map);
+  } catch (err) {
+    console.error("Error loading departments", err);
+  }
+};
   const fetchPurchaseOrders = async () => {
     try {
       setLoading(true);
       const res = await api.get("/inventory/purchase-orders/");
-      setPos(res.data.results || res.data || []);
-      setFilteredPos(res.data.results || res.data || []);
+      console.log("Loaded purchase orders:", res.data);
+      setPos(res.data || []);
+      setFilteredPos(res.data || []);
     } catch (err) {
       console.error("Failed to load purchase orders:", err);
     } finally {
@@ -98,86 +113,123 @@ export default function PurchaseOrdersList() {
     const grandTotal = Number(po.total_amount || 0);
 
     printWindow.document.write(`
-      <html>
-        <head>
-          <title>Purchase Order - ${poNumber}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-            .container { max-width: 1000px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-            h1 { text-align: center; color: #1e3a8a; }
-            .po-header { text-align: center; margin-bottom: 30px; }
-            .info { display: flex; justify-content: space-between; margin: 30px 0; font-size: 1.1em; }
-            table { width: 100%; border-collapse: collapse; margin: 25px 0; }
-            th, td { border: 1px solid #555; padding: 12px; }
-            th { background-color: #1e3a8a; color: white; }
-            .totals { margin-top: 40px; text-align: right; font-size: 1.15em; }
-            .grand-total { font-size: 1.45em; font-weight: bold; color: #1e3a8a; margin-top: 15px; }
-            .footer { margin-top: 80px; text-align: center; color: #666; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>PURCHASE ORDER</h1>
-            <div class="po-header">
-              <p><strong>PO Number:</strong> ${poNumber}</p>
-              <p><strong>Date:</strong> ${poDate}</p>
-            </div>
+<html>
+  <head>
+    <title>Purchase Order - ${po.po_number || 'N/A'}</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.5; }
+      .container { max-width: 900px; margin: 0 auto; }
+      h1 { text-align: center; margin-bottom: 10px; }
+      .info { display: flex; justify-content: space-between; margin: 30px 0; }
+      table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+      th, td { border: 1px solid #ccc; padding: 10px; }
+      th { background-color: #f8f8f8; text-align: left; }
+      .total-section { margin-top: 30px; text-align: right; }
+      .total-section div { margin: 6px 0; }
+      .grand-total { font-size: 1.3em; font-weight: bold; margin-top: 15px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Purchase Order</h1>
 
-            <div class="info">
-              <div>
-                <strong>Department:</strong><br>
-                ${departmentName}
-              </div>
-              <div style="text-align:right;">
-                <strong>Vendor:</strong><br>
-                ${vendorName}
-              </div>
-            </div>
+      <p style="text-align:center;">
+        <strong>PO Number:</strong> ${po.po_number || '—'}
+      </p>
 
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Item Name</th>
-                  <th>Qty</th>
-                  <th>Unit Price</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsHtml || '<tr><td colspan="5" style="text-align:center;padding:30px;color:#666;">No items found</td></tr>'}
-              </tbody>
-            </table>
+      <p style="text-align:center;">
+        <strong>Date:</strong> ${new Date(po.created_at || Date.now()).toLocaleDateString('en-IN')}
+      </p>
 
-            <div class="totals">
-              <div>Subtotal: ₹ ${formatAmount(subtotal)}</div>
-              <div>Tax (${taxPercentage}%): ₹ ${formatAmount(taxAmount)}</div>
-              <div class="grand-total">
-                Grand Total: ₹ ${formatAmount(grandTotal)}
-              </div>
-            </div>
+      <div class="info">
+        <div>
+          <strong>Department:</strong><br>
+          ${departments[po.department] || po.department || '—'}
+        </div>
 
-            <div class="footer">
-              This is a computer generated document.<br>
-              Thank you for your business.
-            </div>
-          </div>
-        </body>
-      </html>
-    `);
+        <div style="text-align:right;">
+          <strong>Vendor:</strong><br>
+          ${po.vendor_details?.name || '—'}<br>
+          ${po.vendor_details?.phone || ''}<br>
+          ${po.vendor_details?.email || ''}
+        </div>
+      </div>
 
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Item</th>
+            <th style="text-align:center;">Qty</th>
+            <th style="text-align:right;">Unit Price</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${(po.items || []).map((item, i) => {
+            const qty = Number(item.ordered_qty || 0);
+            const price = Number(item.unit_price || item.rate || 0);
+            const total = qty * price;
+
+            return `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${item.item_details?.name || '—'}</td>
+                <td style="text-align:center;">${qty}</td>
+                <td style="text-align:right;">₹ ${formatAmount(price)}</td>
+                <td style="text-align:right;">₹ ${formatAmount(total)}</td>
+              </tr>
+            `;
+          }).join('') || `
+            <tr>
+              <td colspan="5" style="text-align:center;">No items found</td>
+            </tr>
+          `}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div>Subtotal: ₹ ${formatAmount(po.subtotal || 0)}</div>
+        <div>Tax (${po.tax_percentage || 0}%): ₹ ${formatAmount(po.tax_amount || 0)}</div>
+
+        <div class="grand-total">
+          Grand Total: ₹ ${formatAmount(po.total_amount)}
+        </div>
+      </div>
+
+      <div style="margin-top:60px; text-align:center; color:#555; font-size:0.9em;">
+        Thank you for your business
+      </div>
+    </div>
+  </body>
+</html>
+`);
     printWindow.document.close();
-    setTimeout(() => printWindow.print(), 600);
+  };
+
+  // Back Button Handler
+  const handleGoBack = () => {
+    window.history.back();
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-cyan-50 p-6 md:p-8 font-mono">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
-            All Purchase Orders
-          </h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleGoBack}
+              className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
+            >
+              <FiArrowLeft size={22} />
+              <span className="font-medium">Back</span>
+            </button>
+
+            <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
+              All Purchase Orders
+            </h1>
+          </div>
 
           <div className="flex flex-wrap gap-3">
             <div className="relative">
@@ -241,8 +293,12 @@ export default function PurchaseOrdersList() {
                   filteredPos.map((po) => (
                     <tr key={po.id} className="hover:bg-gray-800/40 transition-colors">
                       <td className="px-6 py-4 font-medium">{po.po_number || '—'}</td>
-                      <td className="px-6 py-4">{po.department_name || po.department || '—'}</td>
-                      <td className="px-6 py-4">{po.vendor_name || '—'}</td>
+                      <td className="px-6 py-4">
+                        {po.department?.name || po.department || '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        {po.vendor?.name || '—'}
+                      </td>
                       <td className="px-6 py-4 text-right font-medium text-cyan-200">
                         ₹ {formatAmount(po.total_amount)}
                       </td>

@@ -13,6 +13,7 @@ import {
   XCircle,
   AlertCircle,
   Plus,
+  ArrowLeft,
 } from "lucide-react";
 
 export default function SalesOrderList() {
@@ -26,19 +27,19 @@ export default function SalesOrderList() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
-
+   const [customers, setCustomers]=useState({});
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [orderToApprove, setOrderToApprove] = useState(null);
   const [approveAction, setApproveAction] = useState("");
 
   useEffect(() => {
     fetchOrders();
+    fetchCustomer();
   }, []);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-
       const res = await api.get("/sale/sales-orders/");
       setOrders(res.data);
     } catch (error) {
@@ -48,6 +49,20 @@ export default function SalesOrderList() {
     }
   };
 
+  const fetchCustomer = async () => {
+  try {
+    const res = await api.get("/sale/customers/");
+
+    const map = {};
+    res.data.forEach((c) => {
+      map[c.id] = c; // store full object
+    });
+
+    setCustomers(map);
+  } catch (error) {
+    console.error("Error loading customers", error);
+  }
+};
   const filteredOrders = orders.filter((order) => {
     const search = searchTerm.toLowerCase();
 
@@ -64,7 +79,6 @@ export default function SalesOrderList() {
   });
 
   /* ---------------- DELETE ---------------- */
-
   const handleDeleteClick = (order) => {
     setOrderToDelete(order);
     setShowDeleteModal(true);
@@ -85,7 +99,6 @@ export default function SalesOrderList() {
   };
 
   /* ---------------- APPROVE / REJECT ---------------- */
-
   const handleApprovalClick = (order, action) => {
     setOrderToApprove(order);
     setApproveAction(action);
@@ -102,7 +115,6 @@ export default function SalesOrderList() {
       );
 
       fetchOrders();
-
       setShowApproveModal(false);
     } catch (error) {
       alert("Failed to update status");
@@ -110,7 +122,6 @@ export default function SalesOrderList() {
   };
 
   /* ---------------- STATUS BADGE ---------------- */
-
   const getStatusBadge = (status) => {
     const map = {
       draft: "bg-gray-700 text-gray-300",
@@ -124,32 +135,38 @@ export default function SalesOrderList() {
     };
 
     return (
-      <span
-        className={`px-3 py-1 text-xs rounded-full ${map[status]}`}
-      >
-        {status?.toUpperCase()}
+      <span className={`px-3 py-1 text-xs rounded-full ${map[status] || "bg-gray-700 text-gray-300"}`}>
+        {status?.toUpperCase() || "UNKNOWN"}
       </span>
     );
+  };
+
+  // Back Button Handler
+  const handleGoBack = () => {
+    navigate(-1);
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-200">
 
-      {/* HEADER */}
+      {/* HEADER with Back Button */}
+      <header className="flex items-center justify-between p-6 border-b border-gray-800 bg-gray-900/90 backdrop-blur-lg sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleGoBack}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-cyan-300 hover:text-white transition-all active:scale-95"
+          >
+            <ArrowLeft size={20} />
+            <span className="font-medium">Back</span>
+          </button>
 
-      <header className="flex justify-between items-center p-6 border-b border-gray-800">
-
-        <div className="flex items-center gap-3">
-
-          <FileText className="text-cyan-400" />
-
-          <div>
-            <h1 className="text-2xl font-bold">Sales Orders</h1>
-            <p className="text-gray-400 text-sm">
-              Manage customer orders
-            </p>
+          <div className="flex items-center gap-3">
+            <FileText className="text-cyan-400" size={28} />
+            <div>
+              <h1 className="text-2xl font-bold">Sales Orders</h1>
+              <p className="text-gray-400 text-sm">Manage customer orders</p>
+            </div>
           </div>
-
         </div>
 
         {/* <button
@@ -162,32 +179,24 @@ export default function SalesOrderList() {
       </header>
 
       {/* FILTERS */}
-
       <div className="p-6 flex gap-4 flex-wrap">
-
         <div className="relative flex-1">
-
           <Search className="absolute left-3 top-3 text-gray-500" />
-
           <input
             className="bg-gray-900 border border-gray-700 pl-10 pr-4 py-2 rounded-lg w-full"
             placeholder="Search orders..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-
         </div>
 
         <div className="relative">
-
           <Filter className="absolute left-3 top-3 text-gray-500" />
-
           <select
             className="bg-gray-900 border border-gray-700 pl-10 pr-4 py-2 rounded-lg"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-
             <option value="">All Status</option>
             <option value="draft">Draft</option>
             <option value="confirmed">Confirmed</option>
@@ -197,32 +206,20 @@ export default function SalesOrderList() {
             <option value="shipped">Shipped</option>
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
-
           </select>
-
         </div>
-
       </div>
 
       {/* TABLE */}
-
       <div className="p-6">
-
         {loading ? (
-          <div className="text-center py-20">
-            Loading orders...
-          </div>
+          <div className="text-center py-20">Loading orders...</div>
         ) : filteredOrders.length === 0 ? (
-          <div className="text-center text-gray-400 py-20">
-            No orders found
-          </div>
+          <div className="text-center text-gray-400 py-20">No orders found</div>
         ) : (
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
-
             <table className="w-full">
-
               <thead className="bg-gray-800 text-gray-300">
-
                 <tr>
                   <th className="p-4 text-left">Order #</th>
                   <th className="p-4 text-left">Customer</th>
@@ -231,63 +228,31 @@ export default function SalesOrderList() {
                   <th className="p-4 text-center">Status</th>
                   <th className="p-4 text-center">Actions</th>
                 </tr>
-
               </thead>
 
               <tbody>
-
                 {filteredOrders.map((order) => (
-
                   <tr
                     key={order.id}
                     className="border-t border-gray-800 hover:bg-gray-800"
                   >
-
-                    <td className="p-4 font-medium">
-                      {order.order_number}
-                    </td>
-
+                    <td className="p-4 font-medium">{order.order_number}</td>
                     <td className="p-4">
-                      {order.customer?.full_name}
-                    </td>
-
+  {customers[order.customer]?.full_name || "Unknown"}
+</td>
                     <td className="p-4">
                       {new Date(order.order_date).toLocaleDateString()}
                     </td>
-
                     <td className="p-4 text-right text-green-400">
                       ₹{Number(order.grand_total).toLocaleString()}
                     </td>
-
                     <td className="p-4 text-center">
                       {getStatusBadge(order.status)}
                     </td>
-
                     <td className="p-4 flex gap-3 justify-center">
-
-                      {/* <button
-                        onClick={() =>
-                          navigate(`/sale/orders/${order.id}`)
-                        }
-                        className="text-cyan-400"
-                      >
-                        <Eye size={18} />
-                      </button> */}
-
-                      {/* <button
-                        onClick={() =>
-                          navigate(`/sale/orders/${order.id}/edit`)
-                        }
-                        className="text-purple-400"
-                      >
-                        <Edit size={18} />
-                      </button> */}
-
                       {["draft", "confirmed"].includes(order.status) && (
                         <button
-                          onClick={() =>
-                            handleApprovalClick(order, "approve")
-                          }
+                          onClick={() => handleApprovalClick(order, "approve")}
                           className="text-green-400"
                         >
                           <CheckCircle size={18} />
@@ -296,9 +261,7 @@ export default function SalesOrderList() {
 
                       {["draft", "confirmed"].includes(order.status) && (
                         <button
-                          onClick={() =>
-                            handleApprovalClick(order, "reject")
-                          }
+                          onClick={() => handleApprovalClick(order, "reject")}
                           className="text-red-400"
                         >
                           <XCircle size={18} />
@@ -311,110 +274,74 @@ export default function SalesOrderList() {
                       >
                         <Trash2 size={18} />
                       </button>
-
                     </td>
-
                   </tr>
-
                 ))}
-
               </tbody>
-
             </table>
-
           </div>
         )}
-
       </div>
 
       {/* DELETE MODAL */}
-
       {showDeleteModal && (
-
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
-
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-gray-900 p-6 rounded-lg w-96">
-
             <h2 className="text-xl mb-4 flex gap-2 items-center text-red-400">
               <AlertCircle size={20} />
               Delete Order
             </h2>
-
             <p className="mb-6">
-              Delete order {orderToDelete?.order_number} ?
+              Delete order {orderToDelete?.order_number}?
             </p>
-
             <div className="flex justify-end gap-3">
-
               <button
                 onClick={() => setShowDeleteModal(false)}
                 className="px-4 py-2 bg-gray-700 rounded"
               >
                 Cancel
               </button>
-
               <button
                 onClick={confirmDelete}
                 className="px-4 py-2 bg-red-600 rounded"
               >
                 Delete
               </button>
-
             </div>
-
           </div>
-
         </div>
       )}
 
       {/* APPROVE MODAL */}
-
       {showApproveModal && (
-
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
-
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-gray-900 p-6 rounded-lg w-96">
-
             <h2 className="text-xl mb-4">
-              {approveAction === "approve"
-                ? "Approve Order"
-                : "Reject Order"}
+              {approveAction === "approve" ? "Approve Order" : "Reject Order"}
             </h2>
-
             <p className="mb-6">
-              {approveAction === "approve"
-                ? "Approve"
-                : "Reject"}{" "}
-              order {orderToApprove?.order_number} ?
+              {approveAction === "approve" ? "Approve" : "Reject"} order{" "}
+              {orderToApprove?.order_number}?
             </p>
-
             <div className="flex justify-end gap-3">
-
               <button
                 onClick={() => setShowApproveModal(false)}
                 className="px-4 py-2 bg-gray-700 rounded"
               >
                 Cancel
               </button>
-
               <button
                 onClick={confirmApproval}
                 className={`px-4 py-2 rounded ${
-                  approveAction === "approve"
-                    ? "bg-green-600"
-                    : "bg-red-600"
+                  approveAction === "approve" ? "bg-green-600" : "bg-red-600"
                 }`}
               >
                 Confirm
               </button>
-
             </div>
-
           </div>
-
         </div>
       )}
-
     </div>
   );
 }

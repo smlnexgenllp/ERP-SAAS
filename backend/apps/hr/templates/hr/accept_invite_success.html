@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Created Successfully</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-green-50 flex items-center justify-center p-6">
+    <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-10 text-center">
+        <div class="w-24 h-24 bg-green-100 text-green-600 rounded-full mx-auto flex items-center justify-center text-6xl mb-6">
+            ✓
+        </div>
+        
+        <h1 class="text-4xl font-bold text-gray-800 mb-4">Account Created!</h1>
+        <p class="text-xl text-gray-600 mb-8">
+            Welcome <strong>{{ employee.full_name }}</strong>!
+        </p>
+        
+        <div class="bg-gray-50 rounded-2xl p-6 mb-8">
+            <p class="text-sm text-gray-500">Your login email</p>
+            <p class="text-lg font-medium text-gray-800">{{ email }}</p>
+        </div>
+
+        <a href="/login/" 
+           class="block w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 rounded-2xl text-lg transition-all">
+            Go to Login Page
+        </a>
+
+        <p class="text-sm text-gray-500 mt-8">
+            You can now login with your email and the password you just created.
+        </p>
+    </div>
+</body>
+</html>

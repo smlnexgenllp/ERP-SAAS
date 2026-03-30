@@ -5,7 +5,13 @@ from rest_framework import serializers
 from apps.crm.models import Customer
 from rest_framework import serializers
 from .models import SalesOrder, SalesOrderItem
+from rest_framework import serializers
+from .models import GSTSettings
 
+class GSTSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GSTSettings
+        fields = ['gst_rate', 'gstin', 'company_name', 'address']
 
 class SalesOrderItemSerializer(serializers.ModelSerializer):
 
