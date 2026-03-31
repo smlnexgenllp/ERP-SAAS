@@ -216,7 +216,7 @@ export default function LeadDetail() {
       }, 1800);
     } catch (err) {
       console.error(err);
-      setFormMessage(err.response?.data?.detail || "Failed to create quotation.");
+      setFormMessage(err.response?.data?.detail || "Failed to create quotation(Already created for this mail ID).");
     } finally {
       setSubmitting(false);
     }
@@ -311,7 +311,7 @@ export default function LeadDetail() {
 
             <form onSubmit={handleSubmit} className="space-y-10">
               {/* Organization (Seller) Details - Quotation Header Style */}
-              <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-6">
+              {/* <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-6">
                 <h3 className="text-lg font-semibold text-amber-300 mb-4">From (Your Organization)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
                   <div>
@@ -325,7 +325,7 @@ export default function LeadDetail() {
                     <p><span className="text-gray-400">Email:</span> {organization.email}</p>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Customer Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

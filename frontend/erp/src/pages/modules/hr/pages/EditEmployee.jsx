@@ -8,6 +8,8 @@ export default function EditEmployee({ employeeId, onSuccess }) {
   const [designations, setDesignations] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [photoPreview, setPhotoPreview] = useState(null);
+
   /* ---------------- Fetch Data ---------------- */
   useEffect(() => {
     const loadData = async () => {
@@ -19,22 +21,25 @@ export default function EditEmployee({ employeeId, onSuccess }) {
           api.get("/hr/designations/"),
         ]);
 
+        const emp = empRes.data;
+
         setFormData({
-          ...empRes.data,
-
-          // ✅ FIX: send IDs only
-          department: empRes.data.department?.id || "",
-          designation: empRes.data.designation?.id || "",
-          reporting_to: empRes.data.reporting_to?.id || "",
-
-          // ✅ FIX: proper boolean conversion
-          is_active: !!empRes.data.is_active,
-          is_probation: !!empRes.data.is_probation,
+          ...emp,
+          department: emp.department?.id || "",
+          designation: emp.designation?.id || "",
+          reporting_to: emp.reporting_to?.id || "",
+          is_active: !!emp.is_active,
+          is_probation: !!emp.is_probation,
         });
 
+        // ✅ existing image preview
+        if (emp.photo) {
+          setPhotoPreview(emp.photo);
+        }
+
         setEmployees(allEmpRes.data.results || allEmpRes.data);
-        setDepartments(deptRes.data);
-        setDesignations(desigRes.data);
+        setDepartments(deptRes.data || []);
+        setDesignations(desigRes.data || []);
       } catch (err) {
         console.error("Load error:", err);
       } finally {
@@ -47,110 +52,132 @@ export default function EditEmployee({ employeeId, onSuccess }) {
 
   /* ---------------- Handle Change ---------------- */
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type, checked, files } = e.target;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    if (type === "file") {
+      const file = files[0];
+
+      setFormData((prev) => ({
+        ...prev,
+        [name]: file,
+      }));
+
+      if (file) {
+        setPhotoPreview(URL.createObjectURL(file));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      }));
+    }
   };
 
   /* ---------------- Submit ---------------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ✅ Clone payload
-    const payload = {
-      ...formData,
-      ctc: formData.ctc ? Number(formData.ctc) : null,
-    };
-
-    // 🚨 IMPORTANT FIX: remove photo if not file
-    if (!formData.photo || typeof formData.photo === "string") {
-      delete payload.photo;
-    }
-
     try {
-      console.log("Sending payload:", payload);
+      const form = new FormData();
 
-      await api.patch(`/hr/employees/${employeeId}/`, payload);
+      Object.keys(formData).forEach((key) => {
+        if (
+          formData[key] !== null &&
+          formData[key] !== undefined &&
+          key !== "photo" // handled separately
+        ) {
+          form.append(key, formData[key]);
+        }
+      });
+
+      // ✅ handle photo correctly
+      if (formData.photo && typeof formData.photo !== "string") {
+        form.append("photo", formData.photo);
+      }
+
+      // ✅ convert numeric fields
+      if (formData.ctc) {
+        form.set("ctc", Number(formData.ctc));
+      }
+
+      await api.patch(`/hr/employees/${employeeId}/`, form, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       onSuccess();
     } catch (err) {
-      console.log("ERROR:", err.response?.data);
+      console.error("ERROR:", err.response?.data);
       alert(JSON.stringify(err.response?.data || "Update failed"));
     }
   };
 
-  if (loading) return <p className="text-center">Loading...</p>;
+  if (loading) {
+    return (
+      <div className="text-center text-gray-400 py-10">
+        Loading employee data...
+      </div>
+    );
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-6">
-      <Input
-        label="Full Name"
-        name="full_name"
-        value={formData.full_name || ""}
-        onChange={handleChange}
-      />
+    <form
+      onSubmit={handleSubmit}
+      className="grid grid-cols-2 gap-6 bg-slate-900 p-6 rounded-xl"
+    >
+      {/* ================= PROFILE IMAGE ================= */}
+      <div className="col-span-2 flex items-center gap-6">
+        <div className="w-24 h-24 rounded-full overflow-hidden border border-cyan-600">
+          {photoPreview ? (
+            <img
+              src={photoPreview}
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+              No Image
+            </div>
+          )}
+        </div>
 
-      <Input
-        label="Email"
-        name="email"
-        value={formData.email || ""}
-        onChange={handleChange}
-      />
+        <div>
+          <label className="text-sm text-gray-400 block mb-1">
+            Upload Profile Image
+          </label>
+          <input
+            type="file"
+            name="photo"
+            accept="image/*"
+            onChange={handleChange}
+            className="text-sm text-gray-300"
+          />
+        </div>
+      </div>
 
-      <Input
-        label="Phone"
-        name="phone"
-        value={formData.phone || ""}
-        onChange={handleChange}
-      />
+      {/* ================= BASIC FIELDS ================= */}
+      <Input label="Full Name" name="full_name" value={formData.full_name || ""} onChange={handleChange} />
+      <Input label="Email" name="email" value={formData.email || ""} onChange={handleChange} />
+      <Input label="Phone" name="phone" value={formData.phone || ""} onChange={handleChange} />
+      <Input label="CTC" name="ctc" value={formData.ctc || ""} onChange={handleChange} />
 
-      <Input
-        label="CTC"
-        name="ctc"
-        value={formData.ctc || ""}
-        onChange={handleChange}
-      />
-
-      {/* Department */}
-      <Select
-        label="Department"
-        name="department"
-        value={formData.department || ""}
-        onChange={handleChange}
-      >
+      {/* ================= DROPDOWNS ================= */}
+      <Select label="Department" name="department" value={formData.department || ""} onChange={handleChange}>
         <option value="">—</option>
         {departments.map((d) => (
-          <option key={d.id} value={d.id}>
-            {d.name}
-          </option>
+          <option key={d.id} value={d.id}>{d.name}</option>
         ))}
       </Select>
 
-      {/* Designation */}
-      <Select
-        label="Designation"
-        name="designation"
-        value={formData.designation || ""}
-        onChange={handleChange}
-      >
+      <Select label="Designation" name="designation" value={formData.designation || ""} onChange={handleChange}>
         <option value="">—</option>
         {designations.map((d) => (
-          <option key={d.id} value={d.id}>
-            {d.title}
-          </option>
+          <option key={d.id} value={d.id}>{d.title}</option>
         ))}
       </Select>
 
-      {/* Reporting To */}
-      <Select
-        label="Reporting To"
-        name="reporting_to"
-        value={formData.reporting_to || ""}
-        onChange={handleChange}
-      >
+      <Select label="Reporting To" name="reporting_to" value={formData.reporting_to || ""} onChange={handleChange}>
         <option value="">—</option>
         {employees
           .filter((e) => e.id !== employeeId)
@@ -161,25 +188,12 @@ export default function EditEmployee({ employeeId, onSuccess }) {
           ))}
       </Select>
 
-      {/* Dates */}
-      <Input
-        type="date"
-        label="Date of Joining"
-        name="date_of_joining"
-        value={formData.date_of_joining || ""}
-        onChange={handleChange}
-      />
+      {/* ================= DATES ================= */}
+      <Input type="date" label="Date of Joining" name="date_of_joining" value={formData.date_of_joining || ""} onChange={handleChange} />
+      <Input type="date" label="Date of Birth" name="date_of_birth" value={formData.date_of_birth || ""} onChange={handleChange} />
 
-      <Input
-        type="date"
-        label="Date of Birth"
-        name="date_of_birth"
-        value={formData.date_of_birth || ""}
-        onChange={handleChange}
-      />
-
-      {/* Active */}
-      <label className="flex items-center gap-2 col-span-2">
+      {/* ================= CHECKBOX ================= */}
+      <label className="flex items-center gap-2 col-span-2 text-gray-300">
         <input
           type="checkbox"
           name="is_active"
@@ -189,8 +203,7 @@ export default function EditEmployee({ employeeId, onSuccess }) {
         Active
       </label>
 
-      {/* Probation */}
-      <label className="flex items-center gap-2 col-span-2">
+      <label className="flex items-center gap-2 col-span-2 text-gray-300">
         <input
           type="checkbox"
           name="is_probation"
@@ -200,21 +213,22 @@ export default function EditEmployee({ employeeId, onSuccess }) {
         Probation
       </label>
 
-      <button className="col-span-2 bg-emerald-600 text-black py-3 rounded-lg font-bold hover:bg-emerald-500">
+      {/* ================= BUTTON ================= */}
+      <button className="col-span-2 bg-emerald-600 text-black py-3 rounded-lg font-bold hover:bg-emerald-500 transition">
         Save Changes
       </button>
     </form>
   );
 }
 
-/* ---------------- UI Helpers ---------------- */
+/* ================= UI HELPERS ================= */
 
 const Input = ({ label, ...props }) => (
   <label className="flex flex-col gap-1">
     <span className="text-sm text-gray-400">{label}</span>
     <input
       {...props}
-      className="bg-gray-800 border border-cyan-700 rounded px-3 py-2 text-cyan-200"
+      className="bg-gray-800 border border-cyan-700 rounded px-3 py-2 text-cyan-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
     />
   </label>
 );
@@ -224,7 +238,7 @@ const Select = ({ label, children, ...props }) => (
     <span className="text-sm text-gray-400">{label}</span>
     <select
       {...props}
-      className="bg-gray-800 border border-cyan-700 rounded px-3 py-2 text-cyan-200"
+      className="bg-gray-800 border border-cyan-700 rounded px-3 py-2 text-cyan-200 focus:outline-none focus:ring-1 focus:ring-cyan-500"
     >
       {children}
     </select>
