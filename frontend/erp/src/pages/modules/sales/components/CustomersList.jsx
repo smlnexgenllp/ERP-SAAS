@@ -56,20 +56,18 @@ export default function CustomersList() {
     }
   };
 
-  const truncate = (text, max = 40) =>
-    text && text.length > max ? text.substring(0, max) + '...' : text || '—';
-
-  // Back Button Handler
   const handleGoBack = () => {
     navigate(-1);
   };
 
+  const truncate = (text, max = 35) =>
+    text && text.length > max ? text.substring(0, max) + '...' : text || '—';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100">
-      {/* Header with Back Button */}
+      {/* Header */}
       <header className="bg-gray-900/90 backdrop-blur-lg border-b border-cyan-900/50 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sticky top-0 z-10 shadow-2xl">
         <div className="flex items-center gap-4">
-          {/* Back Button */}
           <button
             onClick={handleGoBack}
             className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
@@ -82,17 +80,10 @@ export default function CustomersList() {
             <Users className="w-9 h-9 text-cyan-400" />
             <div>
               <h1 className="text-2xl font-bold text-cyan-300">Customers</h1>
-              <p className="text-sm text-gray-400">Manage all customer records with full details</p>
+              <p className="text-sm text-gray-400">Manage all customer records</p>
             </div>
           </div>
         </div>
-
-        {/* <button
-          onClick={() => navigate('/sale/customers/create')}
-          className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-lg transition-all"
-        >
-          <Users size={20} /> Add Customer
-        </button> */}
       </header>
 
       <div className="p-6 md:p-8">
@@ -104,7 +95,7 @@ export default function CustomersList() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search name, email, PAN, GSTIN, industry, notes..."
+              placeholder="Search by name, email, phone, or company..."
               className="w-full bg-gray-900/70 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-gray-200 placeholder-gray-500 focus:border-cyan-600 focus:ring-cyan-600"
             />
           </div>
@@ -140,17 +131,12 @@ export default function CustomersList() {
               <table className="min-w-full divide-y divide-gray-800">
                 <thead className="bg-gray-800/70">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Email</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Phone</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Company</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">PAN</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">GSTIN</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Business Type</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Industry</th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-cyan-300">Credit Limit</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Status</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-cyan-300">Actions</th>
+                    <th className="px-6 py-5 text-left text-sm font-semibold text-cyan-300 w-52">Name</th>
+                    <th className="px-6 py-5 text-left text-sm font-semibold text-cyan-300 w-72">Email</th>
+                    <th className="px-6 py-5 text-left text-sm font-semibold text-cyan-300 w-44">Phone</th>
+                    <th className="px-6 py-5 text-left text-sm font-semibold text-cyan-300 w-56">Company</th>
+                    <th className="px-6 py-5 text-left text-sm font-semibold text-cyan-300 w-32">Status</th>
+                    <th className="px-6 py-5 text-center text-sm font-semibold text-cyan-300 w-28">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
@@ -160,36 +146,19 @@ export default function CustomersList() {
                       className="hover:bg-gray-800/50 transition-colors cursor-pointer"
                       onClick={() => navigate(`/sale/customers/${cust.id}`)}
                     >
-                      <td className="px-6 py-4 font-medium text-gray-200">
+                      <td className="px-6 py-5 font-medium text-gray-200">
                         {cust.full_name || '—'}
                       </td>
-                      <td className="px-6 py-4 text-gray-300 break-all">
+                      <td className="px-6 py-5 text-gray-300 break-all">
                         {cust.email || '—'}
                       </td>
-                      <td className="px-6 py-4 text-gray-300">
+                      <td className="px-6 py-5 text-gray-300 whitespace-nowrap">
                         {cust.phone || cust.alternate_phone || '—'}
                       </td>
-                      <td className="px-6 py-4 text-gray-300">
-                        {cust.company || '—'}
+                      <td className="px-6 py-5 text-gray-300">
+                        {truncate(cust.company)}
                       </td>
-                      <td className="px-6 py-4 text-gray-300 uppercase">
-                        {cust.pan_number || '—'}
-                      </td>
-                      <td className="px-6 py-4 text-gray-300 uppercase">
-                        {cust.gstin || '—'}
-                      </td>
-                      <td className="px-6 py-4 text-gray-300">
-                        {cust.business_type
-                          ? cust.business_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-                          : '—'}
-                      </td>
-                      <td className="px-6 py-4 text-gray-300">
-                        {cust.industry || '—'}
-                      </td>
-                      <td className="px-6 py-4 text-right text-emerald-400 font-medium">
-                        ₹{Number(cust.credit_limit || 0).toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
                             cust.status === 'active'
@@ -202,22 +171,23 @@ export default function CustomersList() {
                           {cust.status?.toUpperCase() || 'UNKNOWN'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-center flex items-center justify-center gap-4">
-                        <button
-                          onClick={(e) => handleView(cust.id, e)}
-                          className="text-cyan-400 hover:text-cyan-300 transition"
-                          title="View Full Details"
-                        >
-                          <Eye size={18} />
-                        </button>
-
-                        <button
-                          onClick={(e) => handleEdit(cust.id, e)}
-                          className="text-purple-400 hover:text-purple-300 transition"
-                          title="Edit Customer Details"
-                        >
-                          <Edit size={18} />
-                        </button>
+                      <td className="px-6 py-5 text-center">
+                        <div className="flex items-center justify-center gap-6">
+                          <button
+                            onClick={(e) => handleView(cust.id, e)}
+                            className="text-cyan-400 hover:text-cyan-300 transition-colors"
+                            title="View Details"
+                          >
+                            <Eye size={20} />
+                          </button>
+                          <button
+                            onClick={(e) => handleEdit(cust.id, e)}
+                            className="text-purple-400 hover:text-purple-300 transition-colors"
+                            title="Edit Customer"
+                          >
+                            <Edit size={20} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

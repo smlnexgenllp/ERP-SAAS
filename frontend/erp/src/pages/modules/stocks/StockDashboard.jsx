@@ -1,12 +1,18 @@
 // src/pages/StockDashboard.jsx
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../../../services/api';
-import { 
-  FiPackage, FiAlertTriangle, FiDollarSign, FiClock, 
-  FiArrowUpRight, FiArrowDownRight, FiRefreshCw, FiArrowLeft 
-} from 'react-icons/fi';
-import { format } from 'date-fns';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../../../services/api";
+import {
+  FiPackage,
+  FiAlertTriangle,
+  FiDollarSign,
+  FiClock,
+  FiArrowUpRight,
+  FiArrowDownRight,
+  FiRefreshCw,
+  FiArrowLeft,
+} from "react-icons/fi";
+import { format } from "date-fns";
 
 export default function StockDashboard() {
   const navigate = useNavigate();
@@ -32,27 +38,41 @@ export default function StockDashboard() {
     setError(null);
 
     try {
-      const itemsRes = await api.get('/stock/items/');
+      const itemsRes = await api.get("/stock/items/");
       const items = itemsRes.data.results || itemsRes.data;
 
-      const lowStockCount = items.filter(item => item.available_stock <= 10).length;
+      const lowStockCount = items.filter(
+        (item) => item.available_stock <= 10,
+      ).length;
       const stockValue = items.reduce(
-        (sum, item) => sum + (Number(item.current_stock || 0) * Number(item.standard_price || 0)),
-        0
+        (sum, item) =>
+          sum +
+          Number(item.current_stock || 0) * Number(item.standard_price || 0),
+        0,
       );
 
-      const ledgerRes = await api.get('/stock/ledger/', { params: { limit: 15 } });
+      const ledgerRes = await api.get("/stock/ledger/", {
+        params: { limit: 15 },
+      });
       const movements = ledgerRes.data.results || ledgerRes.data;
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       const recentReceived = movements
-        .filter(m => m.transaction_type === 'IN' && new Date(m.created_at) >= thirtyDaysAgo)
+        .filter(
+          (m) =>
+            m.transaction_type === "IN" &&
+            new Date(m.created_at) >= thirtyDaysAgo,
+        )
         .reduce((sum, m) => sum + Number(m.quantity), 0);
 
       const recentIssued = movements
-        .filter(m => m.transaction_type === 'OUT' && new Date(m.created_at) >= thirtyDaysAgo)
+        .filter(
+          (m) =>
+            m.transaction_type === "OUT" &&
+            new Date(m.created_at) >= thirtyDaysAgo,
+        )
         .reduce((sum, m) => sum + Number(m.quantity), 0);
 
       setStats({
@@ -66,7 +86,9 @@ export default function StockDashboard() {
       setRecentMovements(movements);
     } catch (err) {
       console.error("Stock dashboard failed:", err);
-      setError("Unable to load stock dashboard data. Please check your connection.");
+      setError(
+        "Unable to load stock dashboard data. Please check your connection.",
+      );
     } finally {
       setLoading(false);
     }
@@ -74,16 +96,20 @@ export default function StockDashboard() {
 
   const getTypeStyle = (type) => {
     switch (type) {
-      case 'IN':  return { color: 'text-green-400', icon: <FiArrowUpRight /> };
-      case 'OUT': return { color: 'text-red-400',   icon: <FiArrowDownRight /> };
-      case 'ADJ': return { color: 'text-yellow-400', icon: <FiRefreshCw /> };
-      default:    return { color: 'text-gray-400',   icon: null };
+      case "IN":
+        return { color: "text-green-400", icon: <FiArrowUpRight /> };
+      case "OUT":
+        return { color: "text-red-400", icon: <FiArrowDownRight /> };
+      case "ADJ":
+        return { color: "text-yellow-400", icon: <FiRefreshCw /> };
+      default:
+        return { color: "text-gray-400", icon: null };
     }
   };
 
   // Back Button Handler
   const handleGoBack = () => {
-    navigate(-1);        // Goes back to previous page
+    navigate(-1); // Goes back to previous page
     // Alternative: navigate('/dashboard'); // if you want to go to a specific page
   };
 
@@ -115,7 +141,6 @@ export default function StockDashboard() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
-        
         {/* Header with Back Button */}
         <div className="flex items-center gap-4 mb-10">
           <button
@@ -130,7 +155,9 @@ export default function StockDashboard() {
             <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
               <FiPackage className="text-cyan-500" /> Stock Dashboard
             </h1>
-            <p className="text-cyan-500 mt-1">Overview of current stock levels and movements</p>
+            <p className="text-cyan-500 mt-1">
+              Overview of current stock levels and movements
+            </p>
           </div>
 
           <button
@@ -143,28 +170,28 @@ export default function StockDashboard() {
 
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-12">
-          <StatCard 
+          <StatCard
             icon={<FiPackage className="text-blue-400" />}
             title="Total Items"
             value={stats.total_items}
           />
-          <StatCard 
+          <StatCard
             icon={<FiAlertTriangle className="text-orange-400" />}
             title="Low Stock"
             value={stats.low_stock_items}
             alert={stats.low_stock_items > 0}
           />
-          <StatCard 
+          <StatCard
             icon={<FiDollarSign className="text-emerald-400" />}
             title="Stock Value"
-            value={`₹ ${Number(stats.total_stock_value).toLocaleString('en-IN')}`}
+            value={`₹ ${Number(stats.total_stock_value).toLocaleString("en-IN")}`}
           />
-          <StatCard 
+          <StatCard
             icon={<FiArrowUpRight className="text-green-400" />}
             title="Received (30d)"
             value={stats.recent_received}
           />
-          <StatCard 
+          <StatCard
             icon={<FiArrowDownRight className="text-red-400" />}
             title="Issued (30d)"
             value={stats.recent_issued}
@@ -194,29 +221,38 @@ export default function StockDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentMovements.map(mov => {
+                  {recentMovements.map((mov) => {
                     const style = getTypeStyle(mov.transaction_type);
                     return (
-                      <tr 
-                        key={mov.id} 
+                      <tr
+                        key={mov.id}
                         className="border-t border-gray-800 hover:bg-gray-800/40 transition-colors"
                       >
                         <td className="p-4">
                           <div className="font-medium">{mov.item_name}</div>
-                          <div className="text-xs text-gray-500">{mov.item_code} • {mov.uom}</div>
+                          <div className="text-xs text-gray-500">
+                            {mov.item_code} • {mov.uom}
+                          </div>
                         </td>
                         <td className="p-4 text-center">
-                          <div className={`flex items-center justify-center gap-1.5 ${style.color}`}>
+                          <div
+                            className={`flex items-center justify-center gap-1.5 ${style.color}`}
+                          >
                             {style.icon}
                             {mov.transaction_type}
                           </div>
                         </td>
                         <td className="p-4 text-right font-medium">
-                          {Number(mov.quantity).toLocaleString('en-IN')}
+                          {Number(mov.quantity).toLocaleString("en-IN")}
                         </td>
-                        <td className="p-4 text-gray-300">{mov.reference || '—'}</td>
+                        <td className="p-4 text-gray-300">
+                          {mov.reference || "—"}
+                        </td>
                         <td className="p-4 text-right text-gray-400">
-                          {format(new Date(mov.created_at), 'dd MMM yyyy • hh:mm a')}
+                          {format(
+                            new Date(mov.created_at),
+                            "dd MMM yyyy • hh:mm a",
+                          )}
                         </td>
                       </tr>
                     );
@@ -229,28 +265,35 @@ export default function StockDashboard() {
 
         {/* Quick Navigation */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <ActionCard 
+          <ActionCard
             title="New GRN"
             desc="Receive materials from approved QC"
             color="cyan"
-            onClick={()=>{navigate("/grns/create")}}
+            onClick={() => {
+              navigate("/grns/create");
+            }}
           />
-          <ActionCard 
+          <ActionCard
             title="Stock Items"
             desc="View all items & current levels"
             color="blue"
-            onClick={()=>{navigate("/overall-stock")}}
+            onClick={() => {
+              navigate("/overall-stock");
+            }}
           />
-          <ActionCard 
+          <ActionCard
             title="Low Stock"
             desc="Items needing reorder"
             color="orange"
-            onClick={()=>{navigate("/low-stock")}}
+            onClick={() => {
+              navigate("/low-stock");
+            }}
           />
-          <ActionCard 
+          <ActionCard
             title="Full Ledger"
             desc="Complete stock movement history"
             color="purple"
+            onClick={() => navigate("/full-ledger")} // or your route
           />
         </div>
       </div>
@@ -261,7 +304,9 @@ export default function StockDashboard() {
 // Reusable Components (unchanged)
 function StatCard({ icon, title, value, alert = false }) {
   return (
-    <div className={`bg-gray-900 p-5 rounded-xl border ${alert ? 'border-orange-600/40' : 'border-gray-800'} hover:border-gray-700 transition-all`}>
+    <div
+      className={`bg-gray-900 p-5 rounded-xl border ${alert ? "border-orange-600/40" : "border-gray-800"} hover:border-gray-700 transition-all`}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="text-3xl opacity-90">{icon}</div>
         {alert && <FiAlertTriangle className="text-orange-400" size={20} />}
@@ -274,10 +319,10 @@ function StatCard({ icon, title, value, alert = false }) {
 
 function ActionCard({ title, desc, onClick, color }) {
   const bgColors = {
-    cyan:   'bg-cyan-700/80 hover:bg-cyan-600',
-    blue:   'bg-blue-700/80 hover:bg-blue-600',
-    orange: 'bg-orange-700/80 hover:bg-orange-600',
-    purple: 'bg-purple-700/80 hover:bg-purple-600',
+    cyan: "bg-cyan-700/80 hover:bg-cyan-600",
+    blue: "bg-blue-700/80 hover:bg-blue-600",
+    orange: "bg-orange-700/80 hover:bg-orange-600",
+    purple: "bg-purple-700/80 hover:bg-purple-600",
   };
 
   return (

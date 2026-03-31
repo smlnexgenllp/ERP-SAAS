@@ -85,6 +85,7 @@ import ManufacturingOrders from "./components/modules/production/components/Manu
 import WorkOrdersList from "./components/modules/production/components/WorkOrdersList";
 import LowStockAlerts from "./components/modules/inventory/LowStockAlert";
 import QualityInspectionList from "./pages/modules/purchase/QualityInspectionList";
+import FullStockLedger from "./pages/modules/sales/components/FullStockLedger";
 
 
 
@@ -377,7 +378,7 @@ function App() {
             element={<Navigate to="/hr/payroll" replace />}
           />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-
+          <Route path="/full-ledger" element={<FullStockLedger />} />
           <Route path="/finance/budgets" element={<MonthlyBudgetDashboard />} />
           <Route path="/items/create" element={<ItemCreate />} />
           <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
