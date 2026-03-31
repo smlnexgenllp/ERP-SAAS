@@ -44,7 +44,7 @@ const InventoryDashboard = () => {
     { label: "PO Approval",      icon: Box,                path: "/pending-PO" },
     { label: "GRN",             icon: ClipboardList,      path: "/grns/create" },
     { label: "GRN Approval",      icon: ClipboardList,                path: "/grn/pending-approval" },
-    { label: "Settings",        icon: Settings,           path: "/settings" },
+    // { label: "Settings",        icon: Settings,           path: "/settings" },
   ];
 
   const isOverviewPage = location.pathname === "/inventory/dashboard";

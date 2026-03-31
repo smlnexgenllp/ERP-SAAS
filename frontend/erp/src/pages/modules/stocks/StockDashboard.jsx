@@ -233,16 +233,19 @@ export default function StockDashboard() {
             title="New GRN"
             desc="Receive materials from approved QC"
             color="cyan"
+            onClick={()=>{navigate("/grns/create")}}
           />
           <ActionCard 
             title="Stock Items"
             desc="View all items & current levels"
             color="blue"
+            onClick={()=>{navigate("/overall-stock")}}
           />
           <ActionCard 
             title="Low Stock"
             desc="Items needing reorder"
             color="orange"
+            onClick={()=>{navigate("/low-stock")}}
           />
           <ActionCard 
             title="Full Ledger"
