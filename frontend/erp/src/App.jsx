@@ -83,6 +83,7 @@ import MachineAssignmentForm from "./components/modules/production/components/Ma
 import PlannedOrders from "./components/modules/production/components/PlannedOrder";
 import ManufacturingOrders from "./components/modules/production/components/ManufacturingOrders";
 import WorkOrdersList from "./components/modules/production/components/WorkOrdersList";
+import LowStockAlerts from "./components/modules/inventory/LowStockAlert";
 import QualityInspectionList from "./pages/modules/purchase/QualityInspectionList";
 
 
@@ -392,6 +393,7 @@ function App() {
           <Route path="/gate-entry" element={<GateEntryCreate />} />
           <Route path="/purchase/orders" element={<PurchaseOrdersLists />} />
           <Route path="/pending-PO" element={<PurchaseOrderApproval />} />
+          <Route path="/low-stock" element={<LowStockAlerts/>}/>
           <Route path="/QC-list" element={<QualityInspectionList />} />
 
           <Route path="/inventory/items" element={<StockDashboard />} />
