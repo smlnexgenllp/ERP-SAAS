@@ -45,9 +45,9 @@ export default function SalesDashboard() {
 
         // You should create these endpoints in your Django backend
         const [summaryRes, myItemsRes, teamRes] = await Promise.all([
-          api.get("/api/sales/dashboard/summary/"),
-          api.get("/api/sales/dashboard/my-items/"),
-          isHead ? api.get("/api/sales/dashboard/team-performance/") : Promise.resolve({ data: [] }),
+          api.get("/sales/dashboard/summary/"),
+          api.get("/sales/dashboard/my-items/"),
+          isHead ? api.get("/sales/dashboard/team-performance/") : Promise.resolve({ data: [] }),
         ]);
 
         setSummary(summaryRes.data || summary);
