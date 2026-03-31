@@ -69,7 +69,7 @@ export default function QualifiedLeadsList() {
       lead.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleGoBack = () => navigate(-1);
+  const handleGoBack = () => navigate("/sales/dashboard");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100">
