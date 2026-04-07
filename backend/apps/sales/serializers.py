@@ -7,6 +7,7 @@ from rest_framework import serializers
 from .models import SalesOrder, SalesOrderItem
 from rest_framework import serializers
 from .models import GSTSettings
+from django.db.models import Sum
 
 class GSTSettingsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,6 +25,7 @@ class SalesOrderItemSerializer(serializers.ModelSerializer):
 class SalesOrderSerializer(serializers.ModelSerializer):
 
     items = SalesOrderItemSerializer(many=True)
+    computed_total = serializers.SerializerMethodField()  # ✅ ADD THIS
 
     class Meta:
         model = SalesOrder
@@ -38,10 +40,10 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "order_date"
         ]
 
+    # ✅ CREATE METHOD FIX
     def create(self, validated_data):
 
         items_data = validated_data.pop("items", [])
-
         request = self.context["request"]
 
         order = SalesOrder.objects.create(
@@ -50,13 +52,26 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             **validated_data
         )
 
+        total_subtotal = 0  # ✅ ADD
+
         for item in items_data:
-            SalesOrderItem.objects.create(
+            order_item = SalesOrderItem.objects.create(
                 sales_order=order,
                 **item
             )
+            total_subtotal += order_item.subtotal  # ✅ ADD
+
+        # ✅ UPDATE TOTALS
+        order.subtotal = total_subtotal
+        order.grand_total = total_subtotal - order.discount + order.gst_amount
+        order.save()
 
         return order
+
+    # ✅ FETCH TOTAL FROM ITEMS (for old data also)
+    def get_computed_total(self, obj):
+        total = obj.items.aggregate(total=Sum('subtotal'))['total']
+        return total or 0
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer

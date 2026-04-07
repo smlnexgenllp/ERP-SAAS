@@ -246,6 +246,8 @@ class CreateQuotationFromLeadView(APIView):
         final_section = Table([[gst_box, totals_table]], colWidths=[260, 200])
         elements.append(final_section)
         elements.append(Spacer(1, 25))
+        elements.append(Paragraph("______________________________", styles['RightAlign']))
+        elements.append(Paragraph("Authorized Signature", styles['RightAlign']))
 
         # ===================== TERMS & CONDITIONS =====================
         elements.append(Paragraph("<b>Terms & Conditions:</b>", styles['Bold']))
@@ -673,3 +675,170 @@ class GSTSettingsAPIView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# sales/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
+from django.db.models import Sum, Count
+from django.contrib.auth import get_user_model
+
+User = get_user_model()        
+
+from apps.organizations.models import OrganizationUser  # ← make sure the import path is correct
+
+
+class SalesDashboardSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = timezone.now().date()
+        first_day_this_month = today.replace(day=1)
+
+        # Get user's organization safely
+        org_user = OrganizationUser.objects.filter(user=user, is_active=True).first()
+        organization = org_user.organization if org_user else None
+
+        # Leads Today
+        leads_today = Contact.objects.filter(
+            organization=organization,
+            created_at__date=today,
+            status__in=['new', 'contacted', 'qualified', 'interested']
+        ).count() if organization else 0
+
+        # Active Opportunities
+        active_opportunities = Quotation.objects.filter(
+            created_by=user,
+            status__in=['sent', 'viewed', 'in_negotiation', 'approved']
+        ).count()
+
+        # Quotations Sent Today
+        quotations_sent_today = Quotation.objects.filter(
+            created_by=user,
+            created_at__date=today
+        ).count()
+
+        # Pipeline Value
+        pipeline_value = Quotation.objects.filter(
+            created_by=user,
+            status__in=['sent', 'viewed', 'in_negotiation', 'approved']
+        ).aggregate(total=Sum('grand_total'))['total'] or 0
+
+        # Won This Month
+        won_this_month = SalesOrder.objects.filter(
+            created_by=user,
+            order_date__gte=first_day_this_month,
+            status__in=['confirmed', 'processing', 'shipped', 'delivered']
+        ).count()
+
+        data = {
+            "leadsToday": leads_today,
+            "activeOpportunities": active_opportunities,
+            "quotationsSentToday": quotations_sent_today,
+            "pipelineValue": f"₹{pipeline_value:,.0f}",
+            "wonThisMonth": won_this_month,
+            "targetAchievement": "68%",
+        }
+        return Response(data)
+
+
+class SalesDashboardMyItemsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        items = []
+
+        # My Recent Quotations
+        for q in Quotation.objects.filter(created_by=user).order_by('-created_at')[:10]:
+            items.append({
+                "name": f"{q.quote_number} - {q.customer_name}",
+                "type": "Quotation",
+                "status": q.get_status_display() if hasattr(q, 'get_status_display') else q.status.title(),
+                "next": "Follow up" if q.status in ['sent', 'viewed', 'in_negotiation'] else "Close / Convert",
+                "value": f"₹{q.grand_total:,.0f}"
+            })
+
+        # My Recent Sales Orders
+        for order in SalesOrder.objects.filter(created_by=user).order_by('-created_at')[:10]:
+            items.append({
+                "name": f"{order.order_number} - {order.customer}",
+                "type": "Sales Order",
+                "status": order.get_status_display() if hasattr(order, 'get_status_display') else order.status.title(),
+                "next": "Delivery Follow-up" if order.status in ['confirmed', 'processing'] else "Completed",
+                "value": f"₹{order.grand_total:,.0f}"
+            })
+
+        return Response(items)
+
+
+class SalesDashboardTeamPerformanceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = timezone.now().date()
+        first_day_this_month = today.replace(day=1)
+
+        # Permission Check
+        if not (
+            getattr(user, 'role', None) in ['super_admin', 'sub_org_admin'] or
+            getattr(user, 'org_role', None) == 'Sales Head'
+        ):
+            return Response({"detail": "Permission denied"}, status=403)
+
+        # Get organization safely
+        org_user = OrganizationUser.objects.filter(user=user, is_active=True).first()
+        if not org_user:
+            return Response([])   # Return empty list instead of 400 error
+
+        organization = org_user.organization
+
+        # Get team members
+        team_members = User.objects.filter(
+            organizationuser__organization=organization,
+            organizationuser__is_active=True,
+            organizationuser__role__in=['Sales Head', 'Sales Executive', 'Manager', 'Team Lead']
+        ).distinct()
+
+        team_data = []
+
+        for member in team_members:
+            leads_count = Contact.objects.filter(
+                organization=organization,
+                created_at__gte=first_day_this_month,
+                status__in=['new', 'contacted', 'qualified', 'interested', 'follow_up']
+            ).count()
+
+            active_opps = Quotation.objects.filter(
+                created_by=member,
+                status__in=['sent', 'viewed', 'in_negotiation', 'approved']
+            ).count()
+
+            won_count = SalesOrder.objects.filter(
+                created_by=member,
+                order_date__gte=first_day_this_month,
+                status__in=['confirmed', 'processing', 'shipped', 'delivered']
+            ).count()
+
+            pipeline_value = Quotation.objects.filter(
+                created_by=member,
+                status__in=['sent', 'viewed', 'in_negotiation', 'approved']
+            ).aggregate(total=Sum('grand_total'))['total'] or 0
+
+            achievement = "0%"
+            if leads_count > 0:
+                achievement = f"{int((won_count / leads_count) * 100)}%"
+
+            team_data.append({
+                "name": member.get_full_name() or member.username or "Unknown",
+                "leads": leads_count,
+                "opps": active_opps,
+                "won": won_count,
+                "pipeline": f"₹{pipeline_value:,.0f}",
+                "achievement": achievement,
+            })
+
+        return Response(team_data)

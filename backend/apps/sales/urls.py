@@ -17,6 +17,9 @@ from .views import (
     SalesOrderListView,
     SalesOrderStatusUpdateView,
     SalesOrderUpdateView,
+    SalesDashboardSummaryView,
+    SalesDashboardMyItemsView,
+    SalesDashboardTeamPerformanceView,
 )
 
 urlpatterns = [
@@ -37,4 +40,9 @@ path('sales-orders/<int:pk>/', SalesOrderDeleteView.as_view(), name='sales-order
 path('gst-settings/', GSTSettingsAPIView.as_view(), name='gst-settings'),
 
 path('sales-orders/<int:pk>/status/', SalesOrderStatusUpdateView.as_view(), name='sales-order-status'),
+
+path('dashboard/summary/', SalesDashboardSummaryView.as_view(), name='dashboard-summary'),
+path('dashboard/my-items/', SalesDashboardMyItemsView.as_view(), name='dashboard-my-items'),
+path('dashboard/team-performance/', SalesDashboardTeamPerformanceView.as_view(), name='dashboard-team-performance'),
+
 ]
