@@ -191,8 +191,8 @@ class CreateQuotationFromLeadView(APIView):
                 str(i),
                 item.get("description", ""),
                 f"{int(qty)}",
-                f"₹{unit_price:,.2f}",
-                f"₹{amount:,.2f}"
+                f"Rs {unit_price:,.2f}",
+                f"Rs {amount:,.2f}"
             ])
 
         item_table = Table(table_data, colWidths=[35, 240, 50, 85, 90])
@@ -216,7 +216,7 @@ class CreateQuotationFromLeadView(APIView):
         gst_box = Table([
             ["GST Details"],
             [f"GST Rate: {int(gst_rate)}%"],
-            [f"GST Amount: ₹{gst_amount:,.2f}"],
+            [f"GST Amount: Rs {gst_amount:,.2f}"],
             [f"GSTIN: {gstin}"]
         ], colWidths=[200])
 
@@ -228,30 +228,32 @@ class CreateQuotationFromLeadView(APIView):
         ]))
 
         totals_data = [
-            ["Subtotal:", f"₹{subtotal:,.2f}"],
-            [f"GST ({int(gst_rate)}%):", f"₹{gst_amount:,.2f}"],
-            ["Grand Total:", f"₹{grand_total:,.2f}"]
+            ["Subtotal:", f"Rs {subtotal:,.2f}"],
+            [f"GST ({int(gst_rate)}%):", f"Rs {gst_amount:,.2f}"],
+            ["Grand Total:", f"Rs {grand_total:,.2f}"]
         ]
 
-        totals_table = Table(totals_data, colWidths=[130, 140])
+        totals_table = Table(totals_data, colWidths=[120, 130])
         totals_table.setStyle(TableStyle([
             ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
             ('FONTNAME', (0, 2), (1, 2), 'Helvetica-Bold'),
-            ('BACKGROUND', (0, 2), (1, 2), colors.HexColor('#15803d')),   # Green Grand Total
+            ('BACKGROUND', (0, 2), (1, 2), colors.HexColor("#190954")),   # Green Grand Total
             ('TEXTCOLOR', (0, 2), (1, 2), colors.white),
             ('FONTSIZE', (0, 2), (1, 2), 13),
             ('LINEABOVE', (0, 2), (1, 2), 1.5, colors.grey),
         ]))
 
-        final_section = Table([[gst_box, totals_table]], colWidths=[280, 220])
+        final_section = Table([[gst_box, totals_table]], colWidths=[260, 200])
         elements.append(final_section)
-        elements.append(Spacer(1, 30))
+        elements.append(Spacer(1, 25))
+        elements.append(Paragraph("______________________________", styles['RightAlign']))
+        elements.append(Paragraph("Authorized Signature", styles['RightAlign']))
 
         # ===================== TERMS & CONDITIONS =====================
         elements.append(Paragraph("<b>Terms & Conditions:</b>", styles['Bold']))
         terms_text = notes or """• Payment due within 15 days.<br/>
-• Delivery within 7 working days.<br/>
-• GST as per government regulations."""
+        • Delivery within 7 working days.<br/>
+        • GST as per government regulations."""
         elements.append(Paragraph(terms_text, styles['Normal']))
         elements.append(Spacer(1, 50))
 
@@ -300,8 +302,7 @@ class CreateQuotationFromLeadView(APIView):
             "detail": "Quotation created and sent successfully!",
             "quotation_id": quotation.id,
             "quote_number": quote_number
-        }, status=201)
-
+        }, status=201)        
 class QuotationListView(APIView):
     permission_classes = [IsAuthenticated]
 

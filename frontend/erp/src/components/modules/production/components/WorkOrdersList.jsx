@@ -47,13 +47,11 @@ const WorkOrdersList = () => {
     }
   };
 
-  // Open Print Preview
   const openPrintModal = (wo) => {
     setSelectedWorkOrder(wo);
     setShowPrintModal(true);
   };
 
-  // Print Function (Landscape)
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
@@ -222,7 +220,6 @@ const WorkOrdersList = () => {
         )}
       </div>
 
-      {/* ====================== PRINT PREVIEW MODAL (Landscape) ====================== */}
       {showPrintModal && selectedWorkOrder && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
           <div className="bg-white text-black w-full max-w-5xl rounded-2xl overflow-hidden">

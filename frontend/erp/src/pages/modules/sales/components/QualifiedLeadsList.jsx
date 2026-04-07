@@ -68,9 +68,7 @@ export default function QualifiedLeadsList() {
       lead.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleGoBack = () => navigate(-1);
-
+  const handleGoBack = () => navigate("/sales/dashboard");
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100">
       <header className="bg-gray-900/90 backdrop-blur-lg border-b border-cyan-900/50 px-6 py-4 flex items-center justify-between sticky top-0 z-10">

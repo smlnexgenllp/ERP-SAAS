@@ -221,13 +221,13 @@ export default function ManufacturingDashboard() {
             </div>
           </div>
 
-          <button
+          {/* <button
             onClick={handleRunMRP}
             className="hidden md:flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 px-6 py-3 rounded-lg font-medium shadow-lg transition-all transform hover:scale-105"
           >
             <Zap size={18} />
             Run MRP Now
-          </button>
+          </button> */}
         </header>
 
         {/* Main Content */}
@@ -306,13 +306,13 @@ export default function ManufacturingDashboard() {
                 </p>
               </div>
 
-              <button
+              {/* <button
                 onClick={handleRunMRP}
                 className="flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 px-10 py-4 rounded-xl font-medium text-lg shadow-xl transition-all transform hover:scale-105 min-w-[240px]"
               >
                 <Zap size={22} />
                 Execute MRP Run
-              </button>
+              </button> */}
             </div>
           </div>
         </main>

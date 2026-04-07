@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.1.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@headlessui/react": "^2.2.9",
@@ -18,7 +19,7 @@
     "@mui/material": "^7.3.9",
     "@mui/system": "^7.3.9",
     "@mui/x-date-pickers": "^8.27.2",
-    "antd": "^6.3.4",
+    "antd": "^6.3.5",
     "axios": "^1.13.2",
     "bootstrap": "^5.3.8",
     "chart.js": "^4.5.1",

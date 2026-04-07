@@ -83,7 +83,11 @@ import MachineAssignmentForm from "./components/modules/production/components/Ma
 import PlannedOrders from "./components/modules/production/components/PlannedOrder";
 import ManufacturingOrders from "./components/modules/production/components/ManufacturingOrders";
 import WorkOrdersList from "./components/modules/production/components/WorkOrdersList";
+import LowStockAlerts from "./components/modules/inventory/LowStockAlert";
 import QualityInspectionList from "./pages/modules/purchase/QualityInspectionList";
+import FullStockLedger from "./pages/modules/sales/components/FullStockLedger";
+import VendorInvoice from "./pages/modules/finance/VendorInvoice";
+import VendorPayment from "./pages/modules/finance/VendorPayment";
 
 
 
@@ -376,7 +380,7 @@ function App() {
             element={<Navigate to="/hr/payroll" replace />}
           />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-
+          <Route path="/full-ledger" element={<FullStockLedger />} />
           <Route path="/finance/budgets" element={<MonthlyBudgetDashboard />} />
           <Route path="/items/create" element={<ItemCreate />} />
           <Route path="/purchase-orders" element={<PurchaseOrderCreate />} />
@@ -392,6 +396,7 @@ function App() {
           <Route path="/gate-entry" element={<GateEntryCreate />} />
           <Route path="/purchase/orders" element={<PurchaseOrdersLists />} />
           <Route path="/pending-PO" element={<PurchaseOrderApproval />} />
+          <Route path="/low-stock" element={<LowStockAlerts/>}/>
           <Route path="/QC-list" element={<QualityInspectionList />} />
 
           <Route path="/inventory/items" element={<StockDashboard />} />
@@ -427,7 +432,8 @@ function App() {
           <Route path="/planned-orders" element={<PlannedOrders />} />
           <Route path="/manufacture-orders" element={<ManufacturingOrders/>}/>
           {/* <Route path="/workorder-list" element={<WorkOrderList/>}/> */}
-
+          <Route path="/vendor-invoice" element={<VendorInvoice />} />
+          <Route path="/vendor-payment" element={<VendorPayment/>}/>
         </Routes>
 
       </Router>

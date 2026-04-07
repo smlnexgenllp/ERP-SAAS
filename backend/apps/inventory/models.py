@@ -413,6 +413,8 @@ class VendorInvoice(models.Model):
     invoice_number = models.CharField(max_length=50, unique=True)
     invoice_date = models.DateField()
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    due_date = models.DateField(null=True, blank=True)
+    status = models.CharField(default="pending", max_length=20)
 
     def __str__(self):
         return self.invoice_number
@@ -420,14 +422,23 @@ class VendorInvoice(models.Model):
 
 # ========================= VENDOR PAYMENT =========================
 class VendorPayment(models.Model):
-    vendor = models.ForeignKey(Vendor, on_delete=models.PROTECT)
-    invoice = models.ForeignKey(VendorInvoice, on_delete=models.PROTECT)
-    payment_date = models.DateField(auto_now_add=True)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
-    payment_mode = models.CharField(max_length=20)
+    PAYMENT_MODES = [
+        ('cash', 'Cash'),
+        ('bank', 'Bank Transfer'),
+        ('upi', 'UPI'),
+    ]
 
-    def __str__(self):
-        return f"Payment for {self.invoice}"
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True)
+    invoice = models.ForeignKey('VendorInvoice', on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    payment_mode = models.CharField(max_length=20, choices=PAYMENT_MODES)
+    reference_number = models.CharField(max_length=100, blank=True, null=True)
+
+    payment_date = models.DateField(default=timezone.now)
+
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
 
 # ========================= STOCK LEDGER =========================

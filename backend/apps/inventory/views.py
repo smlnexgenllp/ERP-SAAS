@@ -126,21 +126,45 @@ class GRNViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return GRN.objects.filter(
             organization=self.request.user.organization
-        )
+        ).select_related('po', 'po__vendor')
 
-    @action(detail=False, methods=["get"])
-    def pending_for_approval(self, request):
-        qs = self.get_queryset().filter(status="pending_approval")
-        serializer = self.get_serializer(qs, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=["get"])
+    @action(detail=False, methods=["get"], url_path="pending-for-invoice")
     def pending_for_invoice(self, request):
         qs = self.get_queryset().filter(status="approved").exclude(
-            id__in=VendorInvoice.objects.filter(organization=request.user.organization).values_list("grn__id", flat=True)
-        )
-        serializer = self.get_serializer(qs, many=True)
+            id__in=VendorInvoice.objects.filter(
+                organization=request.user.organization
+            ).values_list("grn_id", flat=True)
+        ).select_related('po', 'po__vendor').prefetch_related('items')
+
+        serializer = GRNSerializer(qs, many=True)
         return Response(serializer.data)
+
+    # ====================== CREATE INVOICE FROM GRN ======================
+    @action(detail=True, methods=['post'], url_path='create-from-grn')
+    @transaction.atomic
+    def create_from_grn(self, request, pk=None):
+        grn = self.get_object()
+
+        if VendorInvoice.objects.filter(grn=grn).exists():
+            return Response({"error": "Invoice already exists for this GRN"}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Auto calculate total_amount from GRN items
+        total_amount = grn.items.aggregate(
+            total=Sum(F('received_qty') * F('grn__po__items__unit_price'))
+        )['total'] or Decimal('0.00')
+
+        serializer = VendorInvoiceCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            invoice = serializer.save(
+                organization=request.user.organization,
+                vendor=grn.po.vendor,
+                grn=grn,
+                total_amount=total_amount   # Auto set
+            )
+            return Response(VendorInvoiceSerializer(invoice).data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
@@ -346,32 +370,138 @@ class QualityInspectionViewSet(ModelViewSet):
         }, status=status.HTTP_200_OK)
 
 # ========================= VENDOR INVOICE =========================
-class VendorInvoiceViewSet(ModelViewSet):
+# ========================= VENDOR INVOICE & PAYMENT =========================
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.db import transaction
+from django.db.models import Sum, F, Value, DecimalField
+from django.db.models.functions import Coalesce
+from decimal import Decimal
+from .models import (
+    VendorInvoice, VendorPayment, GRN, PurchaseOrderItem
+)
+from .serializers import (
+    VendorInvoiceSerializer, 
+    VendorPaymentSerializer,
+    VendorInvoiceCreateSerializer  # We'll create this
+)
+
+# apps/inventory/views.py
+
+class VendorInvoiceViewSet(viewsets.ModelViewSet):
     serializer_class = VendorInvoiceSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return VendorInvoice.objects.filter(
             organization=self.request.user.organization
+        ).select_related('vendor', 'grn', 'grn__po', 'grn__po__vendor')
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return VendorInvoiceCreateSerializer
+        return VendorInvoiceSerializer
+    @action(detail=False, methods=["get"])
+    def pending_for_invoice(self, request):
+        qs = GRN.objects.filter(
+            organization=request.user.organization,
+            status='approved'
+        ).exclude(
+            id__in=VendorInvoice.objects.filter(
+                organization=request.user.organization
+            ).values_list('grn_id', flat=True)
+        ).select_related('po', 'po__vendor').prefetch_related('items')
+
+        serializer = GRNSerializer(qs, many=True)
+        return Response(serializer.data)
+    @action(detail=False, methods=['get'], url_path='summary')
+    def summary(self, request):
+        from decimal import Decimal
+        from datetime import date
+        from django.db.models import Sum, Value, DecimalField
+        from django.db.models.functions import Coalesce
+
+        today = date.today()
+
+        qs = VendorInvoice.objects.filter(
+            organization=request.user.organization
+        ).annotate(
+            paid=Coalesce(
+                Sum('payments__amount'),
+                Decimal('0.00'),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            )
         )
 
-    @action(detail=False, methods=["get"])
-    def pending_for_payment(self, request):
-        qs = self.get_queryset().annotate(
-            paid=Coalesce(Sum("vendorpayment__amount"), Value(0))
-        ).filter(paid__lt=F("total_amount"))
-        serializer = self.get_serializer(qs, many=True)
-        return Response(serializer.data)
+        data = []
 
-# ========================= VENDOR PAYMENT =========================
-class VendorPaymentViewSet(ModelViewSet):
+        for inv in qs:
+            paid = inv.paid or Decimal('0.00')
+            balance = inv.total_amount - paid
+
+            status = "pending"
+
+            if paid >= inv.total_amount:
+                status = "paid"
+            elif paid > 0:
+                status = "partial"
+
+            if inv.due_date and inv.due_date < today and balance > 0:
+                status = "overdue"
+
+            data.append({
+                "id": inv.id,
+                "invoice_number": inv.invoice_number,
+                "vendor": inv.vendor.name,
+                "total": float(inv.total_amount),
+                "paid": float(paid),
+                "balance": float(balance),
+                "status": status,
+                "due_date": inv.due_date
+            })
+
+        return Response(data) 
+
+class VendorPaymentViewSet(viewsets.ModelViewSet):
     serializer_class = VendorPaymentSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return VendorPayment.objects.filter(
             invoice__organization=self.request.user.organization
-        )
+        ).select_related('invoice', 'invoice__vendor')
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            payment = serializer.save(
+                organization=self.request.user.organization,
+                created_by=self.request.user
+            )
+
+            invoice = payment.invoice
+
+            # Update paid amount
+            invoice.paid_amount = (invoice.paid_amount or Decimal('0')) + payment.amount
+
+            # Update status
+            if invoice.paid_amount >= invoice.total_amount:
+                invoice.status = "paid"
+            elif invoice.paid_amount > 0:
+                invoice.status = "partial"
+            else:
+                invoice.status = "pending"
+
+            invoice.save()
+
+            # 🔥 Create Voucher
+            create_voucher(
+                organization=self.request.user.organization,
+                amount=payment.amount,
+                debit_account="Accounts Payable",
+                credit_account="Cash/Bank",
+                reference=f"Payment for Invoice {invoice.invoice_number}"
+            )
 
 from decimal import Decimal
 from django.db.models import Sum, Q, F, DecimalField
