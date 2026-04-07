@@ -3,6 +3,7 @@ from django.db import transaction
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.db.models.aggregates import Sum
+from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Coalesce
 from decimal import Decimal
@@ -472,21 +473,36 @@ class GRNItemSerializer(serializers.ModelSerializer):
         fields = ['item', 'received_qty']
 
 
+# apps/inventory/serializers.py
+from rest_framework import serializers
+from django.db.models import Sum, F
+from .models import GRN
+
 class GRNSerializer(serializers.ModelSerializer):
-    items = GRNItemSerializer(many=True)
+    po_number = serializers.CharField(source='po.po_number', read_only=True)
+    vendor_name = serializers.CharField(source='po.vendor.name', read_only=True)
+    total_value = serializers.SerializerMethodField()
 
     class Meta:
         model = GRN
-        fields = "__all__"
-
-        read_only_fields = [
-            'organization',
-            'po',
-            'gate_entry',
+        fields = [
+            'id',
             'grn_number',
-            'status',
-            'received_date'
+            'received_date',
+            'po_number',
+            'vendor_name',
+            'total_value'
         ]
+
+    def get_total_value(self, obj):
+        """Calculate total value from GRN items linked to PO items"""
+        total = obj.items.aggregate(
+            total_value=Sum(
+                F('received_qty') * F('grn__po__items__unit_price'),
+                output_field=models.DecimalField()
+            )
+        )['total_value']
+        return float(total or 0)
 
     def validate(self, data):
         qc = data.get('quality_inspection')
@@ -679,51 +695,61 @@ class QualityInspectionSerializer(serializers.ModelSerializer):
 
 
 # ========================= VENDOR INVOICE =========================
+# serializers.py
+from rest_framework import serializers
+from .models import VendorInvoice, VendorPayment
+
+
+# apps/inventory/serializers.py
+
 class VendorInvoiceSerializer(serializers.ModelSerializer):
+    grn_number = serializers.CharField(source='grn.grn_number', read_only=True)
+    po_number = serializers.CharField(source='grn.po.po_number', read_only=True)
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    paid_amount = serializers.SerializerMethodField()
+
     class Meta:
         model = VendorInvoice
-        fields = "__all__"
-        read_only_fields = ("organization", "total_amount")
+        fields = [
+            'id', 
+            'invoice_number', 
+            'invoice_date', 
+            'total_amount',
+            'grn', 
+            'grn_number', 
+            'po_number', 
+            'vendor', 
+            'vendor_name',
+            'paid_amount', 
+            # Remove 'created_at' if the model doesn't have it
+            # 'created_at'   ← Delete this line
+        ]
+        read_only_fields = ['organization']
 
-    def validate(self, data):
-        grn = data["grn"]
-        if grn.status != "approved":
-            raise serializers.ValidationError("GRN must be approved before creating Invoice")
-        
-        # Calculate expected total
-        po = grn.po
-        calculated_total = 0
-        for grn_item in grn.items.all():
-            po_item = PurchaseOrderItem.objects.get(purchase_order=po, item=grn_item.item)
-            calculated_total += grn_item.received_qty * po_item.unit_price
-        
-        data["total_amount"] = calculated_total
-        return data
+    def get_paid_amount(self, obj):
+        return obj.vendorpayment_set.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+# serializers.py
+class VendorInvoiceCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VendorInvoice
+        fields = ['invoice_number', 'invoice_date', 'total_amount']
 
     def create(self, validated_data):
-        validated_data["organization"] = self.context["request"].user.organization
+        # This is already handled in the view, but extra safety
         return super().create(validated_data)
 
-# ========================= VENDOR PAYMENT =========================
+
 class VendorPaymentSerializer(serializers.ModelSerializer):
+    invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
+    vendor_name = serializers.CharField(source='invoice.vendor.name', read_only=True)
+
     class Meta:
         model = VendorPayment
-        fields = "__all__"
-        read_only_fields = ("payment_date",)
-
-    def validate(self, data):
-        invoice = data["invoice"]
-        previous_payments = VendorPayment.objects.filter(invoice=invoice).aggregate(
-            paid=Coalesce(Sum("amount"), 0)
-        )["paid"]
-        remaining = invoice.total_amount - previous_payments
-        if data["amount"] > remaining:
-            raise serializers.ValidationError(f"Payment cannot exceed remaining {remaining}")
-        return data
-
-    def create(self, validated_data):
-        return super().create(validated_data)
-
+        fields = [
+            'id', 'invoice', 'invoice_number', 'vendor_name',
+            'payment_date', 'amount', 'payment_mode'
+        ]
+        read_only_fields = ['payment_date']
 
 from rest_framework import serializers
 from .models import Machine
