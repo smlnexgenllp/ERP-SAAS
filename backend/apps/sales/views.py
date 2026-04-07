@@ -63,196 +63,223 @@ class CreateQuotationFromLeadView(APIView):
         except Contact.DoesNotExist:
             return Response({"detail": "Lead not found or access denied"}, status=404)
 
-        # Extract data
-        customer_name    = request.data.get("customer_name", lead.full_name or "Valued Customer")
-        customer_email   = request.data.get("customer_email", lead.email or "")
+        # Extract data from frontend
+        customer_name = request.data.get("customer_name", lead.full_name or "Valued Customer")
+        customer_email = request.data.get("customer_email", lead.email or "")
         customer_company = request.data.get("customer_company", lead.company or "")
+        customer_phone = request.data.get("customer_phone", lead.phone or "")
+        
         validity_date_str = request.data.get("validity_date", "")
-        items            = request.data.get("items", [])
-        notes            = request.data.get("notes", "")
-
-        try:
-            total = float(request.data.get("total", 0))
-        except:
-            total = 0
+        items = request.data.get("items", [])
+        notes = request.data.get("notes", "")
+        subtotal = float(request.data.get("total", 0))
+        gst_percentage = float(request.data.get("gst_percentage", 18))
 
         if not customer_email:
-            return Response({"detail": "No email address available"}, status=400)
+            return Response({"detail": "Customer email is required"}, status=400)
 
-        if not items or total <= 0:
-            return Response({"detail": "Quotation must have items"}, status=400)
+        if not items or subtotal <= 0:
+            return Response({"detail": "Quotation must have at least one item"}, status=400)
 
-        # Company info
+        # Organization & GST Details
         org = request.user.organization
-        company_name    = org.name if org else "Your Company Name"
-        company_address = getattr(org, 'address', "Your Address")
-        company_phone   = getattr(org, 'phone', "+91-0000000000")
-        company_email   = getattr(org, 'email', "info@company.com")
-        prepared_by     = request.user.get_full_name() or request.user.username
+        company_name = org.name if org else "Your Company Name"
+        company_address = getattr(org, 'address', "123 Business Street, City, State 123456")
+        company_phone = getattr(org, 'phone', "+91 98765 43210")
+        company_email = getattr(org, 'email', "info@companyemail.com")
 
-        today = timezone.now().strftime("%d-%m-%Y")
-        quote_number = f"QTN-{timezone.now().strftime('%Y%m')}-{lead.id:04d}"
-        # ✅ Get GST Settings
         gst_settings = GSTSettings.get_instance()
-
-        gst_rate_value = float(gst_settings.gst_rate)  # Decimal → float
-        gst_rate = gst_rate_value / 100
-        gst_rate_display = int(gst_rate_value)
-
-        gstin = gst_settings.gstin or "N/A"
+        gst_rate = float(gst_settings.gst_rate)
+        gstin = gst_settings.gstin or "33XXXXX1234X"
 
         # Calculations
-        gst_amount = total * gst_rate
-        grand_total = total + gst_amount
+        gst_amount = (subtotal * gst_rate) / 100
+        grand_total = subtotal + gst_amount
+
+        # Dates
+        today = timezone.now().strftime("%d-%m-%Y")
+        quote_number = f"QTN-{timezone.now().strftime('%Y%m')}-{lead.id:04d}"
+
         try:
-            validity_date = timezone.datetime.strptime(validity_date_str, "%Y-%m-%d").date() if validity_date_str else None
+            validity_date = timezone.datetime.strptime(validity_date_str, "%Y-%m-%d").date()
+            valid_until = validity_date.strftime("%d-%m-%Y")
         except:
-            validity_date = None
+            valid_until = (timezone.now() + timezone.timedelta(days=30)).strftime("%d-%m-%Y")
 
-        valid_until = validity_date.strftime("%d-%m-%Y") if validity_date else "30 days"
-
-        # ───────── PDF GENERATION (NEW DESIGN) ─────────
-        # ───────── PROFESSIONAL PDF DESIGN ─────────
+        # ==================== PDF GENERATION ====================
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4,
-                                rightMargin=40, leftMargin=40,
-                                topMargin=40, bottomMargin=40)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=40,
+            leftMargin=40,
+            topMargin=30,
+            bottomMargin=30
+        )
 
         styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name='Right', alignment=2))
-        styles.add(ParagraphStyle(name='TitleWhite', alignment=1, fontSize=16, textColor=colors.white))
-        styles.add(ParagraphStyle(name='Bold', fontSize=11))
-        styles.add(ParagraphStyle(name='Small', fontSize=9, textColor=colors.grey))
+        styles.add(ParagraphStyle(name='HeaderTitle', fontSize=20, textColor=colors.white, alignment=1, fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='RightAlign', alignment=2, fontName='Helvetica'))
+        styles.add(ParagraphStyle(name='Bold', fontSize=11, fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='Small', fontSize=9.5, textColor=colors.grey))
 
         elements = []
 
-        # ─── HEADER BAR ───
-        header = Table([[
-            Paragraph(f"<b>{company_name}</b>", styles['Normal']),
-            Paragraph("<b>QUOTATION</b>", styles['TitleWhite'])
-        ]], colWidths=[300, 200])
+        # ===================== BLUE HEADER =====================
+        # Replace this path with your actual logo path (recommended: static or media folder)
+        logo_path = "path/to/your/company/logo.png"   # ← CHANGE THIS
 
-        header.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#1f4e79")),
-            ('TEXTCOLOR', (0,0), (-1,-1), colors.white),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('FONTSIZE', (0,0), (-1,-1), 14),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+        try:
+            logo = Image(logo_path, width=55, height=55)
+        except:
+            logo = Paragraph(" ", styles['Normal'])  # fallback
+
+        header_data = [[
+            logo,
+            Paragraph(f"<b>{company_name}</b>", styles['Normal']),
+            Paragraph("QUOTATION", styles['HeaderTitle'])
+        ]]
+
+        header_table = Table(header_data, colWidths=[70, 250, 180])
+        header_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1e3a8a')),  # Professional blue
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+            ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+            ('TOPPADDING', (0, 0), (-1, -1), 15),
         ]))
 
-        elements.append(header)
-        elements.append(Spacer(1, 15))
-
-        # ─── COMPANY + QUOTE INFO ───
-        info = Table([
-            [
-                Paragraph(f"{company_address}<br/>{company_phone}<br/>{company_email}", styles['Small']),
-                Paragraph(
-                    f"<b>Quotation No:</b> {quote_number}<br/>"
-                    f"<b>Date:</b> {today}<br/>"
-                    f"<b>Valid Until:</b> {valid_until}",
-                    styles['Right']
-                )
-            ]
-        ], colWidths=[300, 200])
-
-        elements.append(info)
+        elements.append(header_table)
         elements.append(Spacer(1, 20))
 
-        # ─── BILL TO ───
-        elements.append(Paragraph("<b>Bill To:</b>", styles['Bold']))
-        elements.append(Paragraph(
-            f"{customer_name}<br/>{customer_company}<br/>{customer_email}",
-            styles['Normal']
-        ))
-        elements.append(Spacer(1, 15))
+        # ===================== COMPANY & QUOTE INFO =====================
+        left_info = Paragraph(
+            f"{company_address}<br/>{company_phone}<br/>{company_email}",
+            styles['Small']
+        )
 
-        # ─── ITEMS TABLE ───
+        right_info = Paragraph(
+            f"<b>Quotation No:</b> {quote_number}<br/>"
+            f"<b>Date:</b> {today}<br/>"
+            f"<b>Valid Until:</b> {valid_until}",
+            styles['RightAlign']
+        )
+
+        info_table = Table([[left_info, right_info]], colWidths=[320, 180])
+        elements.append(info_table)
+        elements.append(Spacer(1, 25))
+
+        # ===================== BILL TO =====================
+        elements.append(Paragraph("<b>Bill To:</b>", styles['Bold']))
+        bill_to = f"{customer_name}<br/>{customer_company}<br/>{customer_email}"
+        if customer_phone:
+            bill_to += f"<br/>{customer_phone}"
+        elements.append(Paragraph(bill_to, styles['Normal']))
+        elements.append(Spacer(1, 20))
+
+        # ===================== ITEMS TABLE =====================
         table_data = [["#", "Description", "Qty", "Unit Price", "Amount"]]
 
         for i, item in enumerate(items, start=1):
             qty = float(item.get("quantity", 1))
-            price = float(item.get("unit_price", 0))
-            amount = qty * price
+            unit_price = float(item.get("unit_price", 0))
+            amount = qty * unit_price
 
             table_data.append([
                 str(i),
                 item.get("description", ""),
-                f"{qty}",
-                f"Rs {price:,.2f}",
-                f"Rs {amount:,.2f}"
+                f"{int(qty)}",
+                f"₹{unit_price:,.2f}",
+                f"₹{amount:,.2f}"
             ])
 
-        item_table = Table(table_data, colWidths=[30, 220, 50, 90, 90])
-
+        item_table = Table(table_data, colWidths=[35, 240, 50, 85, 90])
         item_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1f4e79")),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-            ('ALIGN', (2,1), (-1,-1), 'CENTER'),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (2, 1), (4, -1), 'CENTER'),
+            ('ALIGN', (3, 1), (4, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
         ]))
 
         elements.append(item_table)
         elements.append(Spacer(1, 20))
 
-        # ─── GST BOX ───
+        # ===================== GST DETAILS + TOTALS =====================
         gst_box = Table([
-        ["GST Details"],
-        [f"GST Rate: {gst_rate_display}%"],
-        [f"GST Amount: Rs {gst_amount:,.2f}"],
-        [f"GSTIN: {gstin}"]
-    ])
+            ["GST Details"],
+            [f"GST Rate: {int(gst_rate)}%"],
+            [f"GST Amount: ₹{gst_amount:,.2f}"],
+            [f"GSTIN: {gstin}"]
+        ], colWidths=[200])
 
         gst_box.setStyle(TableStyle([
-            ('BOX', (0,0), (-1,-1), 1, colors.grey),
-            ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('BOX', (0, 0), (-1, -1), 1, colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('PADDING', (0, 0), (-1, -1), 8),
         ]))
 
-        # ─── TOTALS ───
-        totals = Table([
-            ["Subtotal", f"Rs {total:,.2f}"],
-            [f"GST ({gst_rate_display}%)", f"Rs {gst_amount:,.2f}"],
-            ["Grand Total", f"Rs {grand_total:,.2f}"]
-        ], colWidths=[120, 120])
+        totals_data = [
+            ["Subtotal:", f"₹{subtotal:,.2f}"],
+            [f"GST ({int(gst_rate)}%):", f"₹{gst_amount:,.2f}"],
+            ["Grand Total:", f"₹{grand_total:,.2f}"]
+        ]
 
-        totals.setStyle(TableStyle([
-            ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
-            ('BACKGROUND', (0,2), (-1,2), colors.HexColor("#2e7d32")),
-            ('TEXTCOLOR', (0,2), (-1,2), colors.white),
-            ('FONTNAME', (0,2), (-1,2), 'Helvetica-Bold'),
+        totals_table = Table(totals_data, colWidths=[130, 140])
+        totals_table.setStyle(TableStyle([
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 2), (1, 2), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, 2), (1, 2), colors.HexColor('#15803d')),   # Green Grand Total
+            ('TEXTCOLOR', (0, 2), (1, 2), colors.white),
+            ('FONTSIZE', (0, 2), (1, 2), 13),
+            ('LINEABOVE', (0, 2), (1, 2), 1.5, colors.grey),
         ]))
 
-        final_table = Table([[gst_box, totals]], colWidths=[260, 200])
-        elements.append(final_table)
+        final_section = Table([[gst_box, totals_table]], colWidths=[280, 220])
+        elements.append(final_section)
+        elements.append(Spacer(1, 30))
 
+        # ===================== TERMS & CONDITIONS =====================
+        elements.append(Paragraph("<b>Terms & Conditions:</b>", styles['Bold']))
+        terms_text = notes or """• Payment due within 15 days.<br/>
+• Delivery within 7 working days.<br/>
+• GST as per government regulations."""
+        elements.append(Paragraph(terms_text, styles['Normal']))
+        elements.append(Spacer(1, 50))
+
+        # ===================== SIGNATURE =====================
+        elements.append(Paragraph(f"For: {company_name}", styles['RightAlign']))
         elements.append(Spacer(1, 25))
+        elements.append(Paragraph("______________________________", styles['RightAlign']))
+        elements.append(Paragraph("Authorized Signature", styles['RightAlign']))
 
-        # ─── TERMS ───
-        elements.append(Paragraph("<b>Terms & Conditions</b>", styles['Bold']))
-        elements.append(Paragraph(
-            "• Payment within 15 days<br/>"
-            "• Delivery within 7 days<br/>"
-            "• GST as applicable",
-            styles['Normal']
-        ))
-        elements.append(Spacer(1, 40))
-        # ─── SIGNATURE ───
-        elements.append(Paragraph(f"For {company_name}", styles['Right']))
-        elements.append(Spacer(1, 20))
-        elements.append(Paragraph("Authorized Signature", styles['Right']))
+        # Build PDF
         doc.build(elements)
         pdf_content = buffer.getvalue()
         buffer.close()
-        # ───────── END PDF ─────────
+
+        # ===================== SEND EMAIL =====================
+        email_subject = f"Quotation {quote_number} - {company_name}"
+        email_body = f"Dear {customer_name},\n\nPlease find attached your quotation.\n\nBest regards,\n{company_name}"
+
         email = EmailMessage(
-            subject=f"Quotation {quote_number}",
-            body=f"Dear {customer_name}, please find attached quotation.",
+            subject=email_subject,
+            body=email_body,
             from_email=company_email,
             to=[customer_email],
         )
         email.attach(f"Quotation_{quote_number}.pdf", pdf_content, "application/pdf")
         email.send()
+
+        # ===================== SAVE TO DATABASE =====================
         quotation = Quotation.objects.create(
             lead=lead,
             quote_number=quote_number,
@@ -260,8 +287,8 @@ class CreateQuotationFromLeadView(APIView):
             customer_name=customer_name,
             customer_email=customer_email,
             customer_company=customer_company,
-            validity_date=validity_date,
-            total=total,
+            validity_date=validity_date if 'validity_date' in locals() else None,
+            total=subtotal,
             gst_amount=gst_amount,
             grand_total=grand_total,
             notes=notes,
@@ -270,10 +297,10 @@ class CreateQuotationFromLeadView(APIView):
         )
 
         return Response({
-            "detail": "Quotation created and sent",
-            "quotation_id": quotation.id
+            "detail": "Quotation created and sent successfully!",
+            "quotation_id": quotation.id,
+            "quote_number": quote_number
         }, status=201)
-
 
 class QuotationListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -647,3 +674,170 @@ class GSTSettingsAPIView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# sales/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
+from django.db.models import Sum, Count
+from django.contrib.auth import get_user_model
+
+User = get_user_model()        
+
+from apps.organizations.models import OrganizationUser  # ← make sure the import path is correct
+
+
+class SalesDashboardSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = timezone.now().date()
+        first_day_this_month = today.replace(day=1)
+
+        # Get user's organization safely
+        org_user = OrganizationUser.objects.filter(user=user, is_active=True).first()
+        organization = org_user.organization if org_user else None
+
+        # Leads Today
+        leads_today = Contact.objects.filter(
+            organization=organization,
+            created_at__date=today,
+            status__in=['new', 'contacted', 'qualified', 'interested']
+        ).count() if organization else 0
+
+        # Active Opportunities
+        active_opportunities = Quotation.objects.filter(
+            created_by=user,
+            status__in=['sent', 'viewed', 'in_negotiation', 'approved']
+        ).count()
+
+        # Quotations Sent Today
+        quotations_sent_today = Quotation.objects.filter(
+            created_by=user,
+            created_at__date=today
+        ).count()
+
+        # Pipeline Value
+        pipeline_value = Quotation.objects.filter(
+            created_by=user,
+            status__in=['sent', 'viewed', 'in_negotiation', 'approved']
+        ).aggregate(total=Sum('grand_total'))['total'] or 0
+
+        # Won This Month
+        won_this_month = SalesOrder.objects.filter(
+            created_by=user,
+            order_date__gte=first_day_this_month,
+            status__in=['confirmed', 'processing', 'shipped', 'delivered']
+        ).count()
+
+        data = {
+            "leadsToday": leads_today,
+            "activeOpportunities": active_opportunities,
+            "quotationsSentToday": quotations_sent_today,
+            "pipelineValue": f"₹{pipeline_value:,.0f}",
+            "wonThisMonth": won_this_month,
+            "targetAchievement": "68%",
+        }
+        return Response(data)
+
+
+class SalesDashboardMyItemsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        items = []
+
+        # My Recent Quotations
+        for q in Quotation.objects.filter(created_by=user).order_by('-created_at')[:10]:
+            items.append({
+                "name": f"{q.quote_number} - {q.customer_name}",
+                "type": "Quotation",
+                "status": q.get_status_display() if hasattr(q, 'get_status_display') else q.status.title(),
+                "next": "Follow up" if q.status in ['sent', 'viewed', 'in_negotiation'] else "Close / Convert",
+                "value": f"₹{q.grand_total:,.0f}"
+            })
+
+        # My Recent Sales Orders
+        for order in SalesOrder.objects.filter(created_by=user).order_by('-created_at')[:10]:
+            items.append({
+                "name": f"{order.order_number} - {order.customer}",
+                "type": "Sales Order",
+                "status": order.get_status_display() if hasattr(order, 'get_status_display') else order.status.title(),
+                "next": "Delivery Follow-up" if order.status in ['confirmed', 'processing'] else "Completed",
+                "value": f"₹{order.grand_total:,.0f}"
+            })
+
+        return Response(items)
+
+
+class SalesDashboardTeamPerformanceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = timezone.now().date()
+        first_day_this_month = today.replace(day=1)
+
+        # Permission Check
+        if not (
+            getattr(user, 'role', None) in ['super_admin', 'sub_org_admin'] or
+            getattr(user, 'org_role', None) == 'Sales Head'
+        ):
+            return Response({"detail": "Permission denied"}, status=403)
+
+        # Get organization safely
+        org_user = OrganizationUser.objects.filter(user=user, is_active=True).first()
+        if not org_user:
+            return Response([])   # Return empty list instead of 400 error
+
+        organization = org_user.organization
+
+        # Get team members
+        team_members = User.objects.filter(
+            organizationuser__organization=organization,
+            organizationuser__is_active=True,
+            organizationuser__role__in=['Sales Head', 'Sales Executive', 'Manager', 'Team Lead']
+        ).distinct()
+
+        team_data = []
+
+        for member in team_members:
+            leads_count = Contact.objects.filter(
+                organization=organization,
+                created_at__gte=first_day_this_month,
+                status__in=['new', 'contacted', 'qualified', 'interested', 'follow_up']
+            ).count()
+
+            active_opps = Quotation.objects.filter(
+                created_by=member,
+                status__in=['sent', 'viewed', 'in_negotiation', 'approved']
+            ).count()
+
+            won_count = SalesOrder.objects.filter(
+                created_by=member,
+                order_date__gte=first_day_this_month,
+                status__in=['confirmed', 'processing', 'shipped', 'delivered']
+            ).count()
+
+            pipeline_value = Quotation.objects.filter(
+                created_by=member,
+                status__in=['sent', 'viewed', 'in_negotiation', 'approved']
+            ).aggregate(total=Sum('grand_total'))['total'] or 0
+
+            achievement = "0%"
+            if leads_count > 0:
+                achievement = f"{int((won_count / leads_count) * 100)}%"
+
+            team_data.append({
+                "name": member.get_full_name() or member.username or "Unknown",
+                "leads": leads_count,
+                "opps": active_opps,
+                "won": won_count,
+                "pipeline": f"₹{pipeline_value:,.0f}",
+                "achievement": achievement,
+            })
+
+        return Response(team_data)
