@@ -244,7 +244,7 @@ export default function SalesOrderList() {
                       {new Date(order.order_date).toLocaleDateString()}
                     </td>
                     <td className="p-4 text-right text-green-400">
-                      ₹{Number(order.grand_total).toLocaleString()}
+                      ₹{Number(order.computed_total).toLocaleString()}
                     </td>
                     <td className="p-4 text-center">
                       {getStatusBadge(order.status)}
