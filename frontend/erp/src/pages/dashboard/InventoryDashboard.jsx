@@ -1,5 +1,3 @@
-// src/pages/modules/inventory/InventoryDashboard.jsx
-
 import React, { useState, useEffect } from "react";
 import { NavLink, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
@@ -23,7 +21,6 @@ const InventoryDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -41,6 +38,7 @@ const InventoryDashboard = () => {
     { label: "Purchase Orders", icon: FileText,           path: "/purchase/orders" },
     { label: "Gate Entry",      icon: Box,                path: "/gate-entry" },
     { label: "Quality Check",      icon: Box,                path: "/QC" },
+    {label: "Quality Approval",  icon: Box,   path:"/Qc-list"},
     { label: "PO Approval",      icon: Box,                path: "/pending-PO" },
     { label: "GRN",             icon: ClipboardList,      path: "/grns/create" },
     { label: "GRN Approval",      icon: ClipboardList,                path: "/grn/pending-approval" },
@@ -48,7 +46,6 @@ const InventoryDashboard = () => {
   ];
 
   const isOverviewPage = location.pathname === "/inventory/dashboard";
-
   useEffect(() => {
     const fetchDashboardStats = async () => {
       if (!isOverviewPage) return;
@@ -106,7 +103,6 @@ const InventoryDashboard = () => {
       maximumFractionDigits: 0,
     }).format(value);
   };
-
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950 text-cyan-300">

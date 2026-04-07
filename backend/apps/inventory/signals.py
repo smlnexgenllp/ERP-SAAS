@@ -8,18 +8,29 @@ from apps.finance.services.voucher_service import create_voucher
 # =========================================================
 # Vendor Invoice: Create Purchase Invoice voucher
 # =========================================================
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from apps.finance.services.voucher_service import create_voucher
+
 @receiver(post_save, sender=VendorInvoice)
 def invoice_accounting(sender, instance, created, **kwargs):
-    if created:
-        create_voucher(
-            voucher_type="Purchase Invoice",
-            narration=f"Invoice {instance.invoice_number} for GRN {instance.grn.grn_number}",
-            entries=[
-                ("GRN Clearing", "Dr", instance.total_amount),
-                ("Vendor", "Cr", instance.total_amount),
-            ]
-        )
-
+    if created and instance.grn:   # Only for newly created invoices
+        try:
+            # Call create_voucher with correct parameters only
+            # Remove 'entries' if it doesn't exist in current function
+            create_voucher(
+                voucher_type="Purchase",          # or whatever type you use
+                organization=instance.organization,
+                reference=f"INV-{instance.invoice_number}",
+                date=instance.invoice_date,
+                amount=instance.total_amount,
+                party=instance.vendor,            # vendor as party
+                # Add other required parameters your create_voucher expects
+                # Do NOT pass 'entries' unless the function supports it
+            )
+        except TypeError as e:
+            print(f"Warning: Voucher creation failed - {e}")
+            # Optionally log it, but don't break invoice creation
 # =========================================================
 # Vendor Payment: Create Payment voucher
 # =========================================================

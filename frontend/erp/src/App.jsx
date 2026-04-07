@@ -86,6 +86,8 @@ import WorkOrdersList from "./components/modules/production/components/WorkOrder
 import LowStockAlerts from "./components/modules/inventory/LowStockAlert";
 import QualityInspectionList from "./pages/modules/purchase/QualityInspectionList";
 import FullStockLedger from "./pages/modules/sales/components/FullStockLedger";
+import VendorInvoice from "./pages/modules/finance/VendorInvoice";
+import VendorPayment from "./pages/modules/finance/VendorPayment";
 
 
 
@@ -430,7 +432,8 @@ function App() {
           <Route path="/planned-orders" element={<PlannedOrders />} />
           <Route path="/manufacture-orders" element={<ManufacturingOrders/>}/>
           {/* <Route path="/workorder-list" element={<WorkOrderList/>}/> */}
-
+          <Route path="/vendor-invoice" element={<VendorInvoice />} />
+          <Route path="/vendor-payment" element={<VendorPayment/>}/>
         </Routes>
 
       </Router>
