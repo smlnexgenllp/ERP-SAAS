@@ -11,12 +11,7 @@ from apps.finance.models.vendor import Vendor
 from apps.finance.serializers.vendor import VendorSerializer 
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
-from apps.finance.models.vendor import Vendor
-from apps.finance.serializers.vendor import VendorSerializer
+from rest_framework.views import APIView
 from apps.hr.models import Employee
 
 
@@ -64,9 +59,34 @@ class VendorViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Cannot update vendor from different organization")
 
         serializer.save()
+
+    # ✅ ADD THIS: Vendor statistics endpoint
+    @action(detail=False, methods=['get'], url_path='stats')
+    def vendor_stats(self, request):
+        """Get vendor statistics for the user's organization"""
+        org = self.get_user_organization()
+        
+        if not org:
+            return Response({
+                "total": 0,
+                "active": 0,
+                "approved": 0
+            })
+        
+        vendors = Vendor.objects.filter(organization=org)
+        
+        stats = {
+            "total": vendors.count(),
+            "active": vendors.filter(is_active=True).count(),
+            "approved": vendors.filter(is_approved=True).count(),
+        }
+        
+        return Response(stats)
+
+
 class VendorListView(LoginRequiredMixin, ListView):
     model = Vendor
-    template_name = 'finance/vendor_list.html'  # ← updated path
+    template_name = 'finance/vendor_list.html'
     context_object_name = 'vendors'
     paginate_by = 20
 
@@ -89,8 +109,8 @@ class VendorCreateView(LoginRequiredMixin, CreateView):
         'gst_number', 'pan_number', 'msme_number', 'vendor_type',
         'payment_terms_days', 'is_active', 'is_approved'
     ]
-    template_name = 'finance/vendor_form.html'  # ← updated
-    success_url = reverse_lazy('finance:vendor_list')  # ← use app_name if set
+    template_name = 'finance/vendor_form.html'
+    success_url = reverse_lazy('finance:vendor_list')
 
     def form_valid(self, form):
         org = getattr(self.request, 'user_current_organization', None)
