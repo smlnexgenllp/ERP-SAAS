@@ -1,7 +1,16 @@
+// src/pages/quality/QualityInspectionList.jsx
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../../services/api";
+import {
+  ArrowLeft,
+  ClipboardCheck,
+  Search,
+} from "lucide-react";
 
 export default function QualityInspectionList() {
+  const navigate = useNavigate();
+
   const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -57,29 +66,41 @@ export default function QualityInspectionList() {
   const getGateEntryNumber = (inspection) => {
     if (!inspection?.gate_entry) return "—";
     
-    // Case 1: If gate_entry is a full object
     if (typeof inspection.gate_entry === "object") {
       return inspection.gate_entry.gate_entry_number || inspection.gate_entry.id || "—";
     }
     
-    // Case 2: If gate_entry is just an ID (number)
     return `#${inspection.gate_entry}`;
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 p-6 font-mono">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="text-3xl font-bold tracking-wide">QUALITY INSPECTIONS</h1>
+        {/* Header with Back Button */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/inventory/dashboard')}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-cyan-800 rounded-xl transition"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </button>
+            <div className="flex items-center gap-3">
+              <ClipboardCheck className="text-cyan-400" size={28} />
+              <h1 className="text-3xl font-bold text-cyan-300">Quality Inspections</h1>
+            </div>
+          </div>
+
           <button
             onClick={fetchInspections}
-            className="px-6 py-2 bg-cyan-900 hover:bg-cyan-800 border border-cyan-700 rounded-lg transition text-cyan-200 font-medium"
+            className="px-6 py-2 bg-cyan-900 hover:bg-cyan-800 border border-cyan-700 rounded-xl transition text-cyan-200 font-medium"
           >
             REFRESH LIST
           </button>
         </div>
 
-        <div className="bg-gray-900 border border-cyan-800 rounded-xl overflow-hidden">
+        <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl overflow-hidden shadow-xl">
           <div className="p-6 border-b border-cyan-800">
             <h2 className="text-xl font-semibold text-cyan-200">Quality Inspection Management</h2>
             <p className="text-cyan-500 text-sm mt-1">
@@ -95,7 +116,7 @@ export default function QualityInspectionList() {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-950 border-b border-cyan-800">
+                  <tr className="bg-gray-800/80 border-b border-cyan-800">
                     <th className="px-6 py-5 text-left">ID</th>
                     <th className="px-6 py-5 text-left">Gate Entry</th>
                     <th className="px-6 py-5 text-left">Date</th>
@@ -159,7 +180,7 @@ export default function QualityInspectionList() {
           </div>
         </div>
 
-        {/* Modal */}
+        {/* Action Modal */}
         {modalVisible && selectedInspection && (
           <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
             <div className="bg-gray-900 border border-cyan-700 rounded-2xl w-full max-w-lg p-8">

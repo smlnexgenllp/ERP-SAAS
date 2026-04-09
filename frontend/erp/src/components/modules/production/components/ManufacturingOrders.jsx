@@ -1,4 +1,6 @@
+// src/pages/modules/production/ManufacturingOrders.jsx
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../../../services/api";
 import {
   RefreshCw,
@@ -7,9 +9,13 @@ import {
   Edit2,
   Save,
   X,
+  ArrowLeft,
+  Settings,
 } from "lucide-react";
 
 export default function ManufacturingOrders() {
+  const navigate = useNavigate();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -104,192 +110,209 @@ export default function ManufacturingOrders() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-cyan-400">Manufacturing Orders</h1>
-        <button
-          onClick={fetchManufacturingOrders}
-          className="bg-gray-800 hover:bg-gray-700 px-5 py-2 rounded-lg flex items-center gap-2"
-        >
-          <RefreshCw size={18} />
-          Refresh
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-4 mb-6 bg-gray-900 p-4 rounded-xl border border-gray-800">
-        <input
-          type="text"
-          placeholder="Search by Product or MO ID..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-cyan-500"
-        />
-
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-cyan-500"
-        >
-          <option value="all">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="in_progress">In Progress</option>
-          <option value="done">Completed</option>
-        </select>
-      </div>
-
-      {/* Table */}
-      {loading ? (
-        <div className="text-center py-20 text-cyan-400">
-          <RefreshCw className="animate-spin inline mr-2" size={24} />
-          Loading...
-        </div>
-      ) : (
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-800 text-gray-300">
-              <tr>
-                <th className="p-4 text-left">MO ID</th>
-                <th className="p-4 text-left">Product</th>
-                <th className="p-4 text-right">Quantity</th>
-                <th className="p-4 text-center">Status</th>
-                <th className="p-4 text-center">Start Date</th>
-                <th className="p-4 text-center">Finish Date</th>
-                <th className="p-4 text-center">Planned Order</th>
-                <th className="p-4 text-center">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-800 text-sm">
-              {filteredOrders.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="p-12 text-center text-gray-500">
-                    No manufacturing orders found
-                  </td>
-                </tr>
-              ) : (
-                filteredOrders.map((mo) => (
-                  <tr key={mo.id} className="hover:bg-gray-800/50">
-                    <td className="p-4 font-mono text-cyan-300">#{mo.id}</td>
-
-                    <td className="p-4">
-                      <div className="font-medium text-white">
-                        {mo.product_name || mo.product?.name || "—"}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {mo.product_code || mo.product?.code || ""}
-                      </div>
-                    </td>
-
-                    <td className="p-4 text-right font-semibold">
-                      {Number(mo.quantity || 0).toLocaleString()}
-                    </td>
-
-                    <td className="p-4 text-center">
-                      {getStatusBadge(mo.status)}
-                    </td>
-
-                    <td className="p-4 text-center text-gray-300">
-                      {mo.start_date || "—"}
-                    </td>
-
-                    <td className="p-4 text-center text-gray-300">
-                      {mo.finish_date || "—"}
-                    </td>
-
-                    <td className="p-4 text-center font-mono text-gray-400">
-                      {mo.planned_order ? `#${mo.planned_order}` : "—"}
-                    </td>
-
-                    <td className="p-4">
-                      <div className="flex gap-2 justify-center">
-                        {/* Start Button - Only show for Draft */}
-                        {mo.status === "draft" && (
-                          <button
-                            onClick={() => updateStatus(mo.id, "in_progress")}
-                            className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
-                          >
-                            <Play size={16} />
-                            Start
-                          </button>
-                        )}
-
-                        {/* Complete Button - Only show for In Progress */}
-                        {mo.status === "in_progress" && (
-                          <button
-                            onClick={() => updateStatus(mo.id, "done")}
-                            className="bg-green-600 hover:bg-green-700 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
-                          >
-                            <CheckCircle size={16} />
-                            Complete
-                          </button>
-                        )}
-
-                        {/* Edit Dates Button - Always available */}
-                        <button
-                          onClick={() => openEditModal(mo)}
-                          className="bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg text-sm flex items-center gap-2"
-                        >
-                          <Edit2 size={16} />
-                          Edit Dates
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Edit Dates Modal */}
-      {editModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md border border-gray-700">
-            <h2 className="text-2xl font-bold text-cyan-400 mb-6">
-              Edit Dates - MO #{editModal.id}
-            </h2>
-
-            <div className="space-y-5">
-              <div>
-                <label className="text-gray-400 block mb-1">Start Date</label>
-                <input
-                  type="date"
-                  value={editModal.start_date}
-                  onChange={(e) => setEditModal({ ...editModal, start_date: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3"
-                />
-              </div>
-
-              <div>
-                <label className="text-gray-400 block mb-1">Finish Date</label>
-                <input
-                  type="date"
-                  value={editModal.finish_date}
-                  onChange={(e) => setEditModal({ ...editModal, finish_date: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-4 mt-8">
-              <button
-                onClick={saveDates}
-                className="flex-1 bg-cyan-600 hover:bg-cyan-700 py-3 rounded-xl font-medium flex items-center justify-center gap-2"
-              >
-                <Save size={18} /> Save Changes
-              </button>
-              <button
-                onClick={() => setEditModal(null)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 py-3 rounded-xl font-medium flex items-center justify-center gap-2"
-              >
-                <X size={18} /> Cancel
-              </button>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header with Back Button */}
+        <div className="flex items-center gap-4 mb-8">
+          <button
+            onClick={() => navigate('/manufacturing/dashboard')}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-cyan-800 rounded-xl transition"
+          >
+            <ArrowLeft size={18} />
+            Back
+          </button>
+          <div className="flex items-center gap-3">
+            <Settings className="text-cyan-400" size={28} />
+            <h1 className="text-3xl font-bold text-cyan-300">Manufacturing Orders</h1>
           </div>
         </div>
-      )}
+
+        {/* Refresh Button */}
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={fetchManufacturingOrders}
+            className="bg-gray-800 hover:bg-gray-700 px-5 py-2.5 rounded-xl flex items-center gap-2 transition"
+          >
+            <RefreshCw size={18} />
+            Refresh
+          </button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-4 mb-6 bg-gray-900 p-4 rounded-xl border border-gray-800">
+          <input
+            type="text"
+            placeholder="Search by Product or MO ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 text-gray-100"
+          />
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 text-gray-100"
+          >
+            <option value="all">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="in_progress">In Progress</option>
+            <option value="done">Completed</option>
+          </select>
+        </div>
+
+        {/* Table */}
+        {loading ? (
+          <div className="text-center py-20 text-cyan-400">
+            <RefreshCw className="animate-spin inline mr-2" size={24} />
+            Loading...
+          </div>
+        ) : (
+          <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl overflow-hidden shadow-xl">
+            <table className="w-full">
+              <thead className="bg-gray-800 text-gray-300">
+                <tr>
+                  <th className="p-4 text-left">MO ID</th>
+                  <th className="p-4 text-left">Product</th>
+                  <th className="p-4 text-right">Quantity</th>
+                  <th className="p-4 text-center">Status</th>
+                  <th className="p-4 text-center">Start Date</th>
+                  <th className="p-4 text-center">Finish Date</th>
+                  <th className="p-4 text-center">Planned Order</th>
+                  <th className="p-4 text-center">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-gray-800 text-sm">
+                {filteredOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="p-12 text-center text-gray-500">
+                      No manufacturing orders found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map((mo) => (
+                    <tr key={mo.id} className="hover:bg-gray-800/50">
+                      <td className="p-4 font-mono text-cyan-300">#{mo.id}</td>
+
+                      <td className="p-4">
+                        <div className="font-medium text-white">
+                          {mo.product_name || mo.product?.name || "—"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {mo.product_code || mo.product?.code || ""}
+                        </div>
+                      </td>
+
+                      <td className="p-4 text-right font-semibold">
+                        {Number(mo.quantity || 0).toLocaleString()}
+                      </td>
+
+                      <td className="p-4 text-center">
+                        {getStatusBadge(mo.status)}
+                      </td>
+
+                      <td className="p-4 text-center text-gray-300">
+                        {mo.start_date || "—"}
+                      </td>
+
+                      <td className="p-4 text-center text-gray-300">
+                        {mo.finish_date || "—"}
+                      </td>
+
+                      <td className="p-4 text-center font-mono text-gray-400">
+                        {mo.planned_order ? `#${mo.planned_order}` : "—"}
+                      </td>
+
+                      <td className="p-4">
+                        <div className="flex gap-2 justify-center">
+                          {/* Start Button - Only show for Draft */}
+                          {mo.status === "draft" && (
+                            <button
+                              onClick={() => updateStatus(mo.id, "in_progress")}
+                              className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-xl text-sm flex items-center gap-2"
+                            >
+                              <Play size={16} />
+                              Start
+                            </button>
+                          )}
+
+                          {/* Complete Button - Only show for In Progress */}
+                          {mo.status === "in_progress" && (
+                            <button
+                              onClick={() => updateStatus(mo.id, "done")}
+                              className="bg-green-600 hover:bg-green-700 px-5 py-2 rounded-xl text-sm flex items-center gap-2"
+                            >
+                              <CheckCircle size={16} />
+                              Complete
+                            </button>
+                          )}
+
+                          {/* Edit Dates Button */}
+                          <button
+                            onClick={() => openEditModal(mo)}
+                            className="bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-xl text-sm flex items-center gap-2"
+                          >
+                            <Edit2 size={16} />
+                            Edit Dates
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Edit Dates Modal */}
+        {editModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md border border-gray-700">
+              <h2 className="text-2xl font-bold text-cyan-400 mb-6">
+                Edit Dates - MO #{editModal.id}
+              </h2>
+
+              <div className="space-y-5">
+                <div>
+                  <label className="text-gray-400 block mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={editModal.start_date}
+                    onChange={(e) => setEditModal({ ...editModal, start_date: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-gray-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-gray-400 block mb-1">Finish Date</label>
+                  <input
+                    type="date"
+                    value={editModal.finish_date}
+                    onChange={(e) => setEditModal({ ...editModal, finish_date: e.target.value })}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-gray-100"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-8">
+                <button
+                  onClick={saveDates}
+                  className="flex-1 bg-cyan-600 hover:bg-cyan-700 py-3 rounded-2xl font-medium flex items-center justify-center gap-2"
+                >
+                  <Save size={18} /> Save Changes
+                </button>
+                <button
+                  onClick={() => setEditModal(null)}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 py-3 rounded-2xl font-medium flex items-center justify-center gap-2"
+                >
+                  <X size={18} /> Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

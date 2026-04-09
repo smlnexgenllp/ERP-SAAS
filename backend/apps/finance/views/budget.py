@@ -14,6 +14,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 
 class MonthlyBudgetViewSet(viewsets.ModelViewSet):
     serializer_class = MonthlyBudgetSerializer
@@ -56,7 +57,8 @@ class MonthlyBudgetViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(
             organization=self.get_organization_user().organization,
-            created_by=self.request.user
+            created_by=self.request.user,
+            released=True  # Auto-release new budgets so they're immediately usable
         )
 
     @action(detail=True, methods=['post'])
@@ -102,10 +104,8 @@ class MonthlyBudgetViewSet(viewsets.ModelViewSet):
 
                 updated_count += 1
 
-            except (InvalidOperation, ValueError) as e:
-                errors.append(f"{department}: {str(e)}")
             except Exception as e:
-                errors.append(f"{department}: Unexpected error - {str(e)}")
+                errors.append(f"{department}: {str(e)}")
 
         if errors:
             return Response(
@@ -121,6 +121,7 @@ class MonthlyBudgetViewSet(viewsets.ModelViewSet):
             "message": f"Successfully allocated/updated {updated_count} department(s)",
             "total_processed": updated_count
         }, status=status.HTTP_200_OK)
+    
     @action(detail=True, methods=['post'])
     @transaction.atomic
     def close_month(self, request, pk=None):
@@ -142,6 +143,7 @@ class MonthlyBudgetViewSet(viewsets.ModelViewSet):
             {"status": "success", "message": "Month closed and budget locked."},
             status=status.HTTP_200_OK
         )
+    
     @action(detail=True, methods=["post"])
     @transaction.atomic
     def release(self, request, pk=None):
@@ -169,6 +171,16 @@ class DepartmentAllocationView(APIView):
 
     def get(self, request, pk):
         budget = get_object_or_404(MonthlyBudget, pk=pk)
+        
+        # Verify user has access to this budget's organization
+        org_user = OrganizationUser.objects.filter(
+            user=request.user,
+            organization=budget.organization,
+            is_active=True
+        ).first()
+        
+        if not org_user:
+            raise PermissionDenied("You don't have access to this budget")
 
         allocations = {
             db.department: str(db.allocated_amount)
@@ -178,6 +190,6 @@ class DepartmentAllocationView(APIView):
         return Response({
             "budget_id": budget.id,
             "is_closed": budget.is_closed,
+            "released": budget.released,
             "allocations": allocations
         })
-    

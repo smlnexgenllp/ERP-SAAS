@@ -11,6 +11,7 @@ import {
   FiBarChart2,
   FiUsers,
   FiEye,
+  FiRefreshCw,
 } from "react-icons/fi";
 
 const DEPARTMENTS = ["HR", "Inventory", "Warehouse", "Sales"];
@@ -34,73 +35,152 @@ const FinanceDashboard = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
 
+  /* -------------------- FETCH VENDOR STATISTICS -------------------- */
+  const fetchVendorStats = async () => {
+    try {
+      console.log("[VENDOR STATS] Fetching vendor statistics...");
+      const response = await api.get("/finance/vendors/stats/");
+      console.log("[VENDOR STATS] Response:", response.data);
+      
+      setVendorStats({
+        total: response.data.total || 0,
+        active: response.data.active || 0,
+        approved: response.data.approved || 0,
+      });
+    } catch (err) {
+      console.error("[VENDOR STATS] Error fetching vendor stats:", err);
+      // Keep default values (0,0,0) if fetch fails
+    }
+  };
+
   /* -------------------- LOAD CURRENT MONTH BUDGET -------------------- */
   const loadCurrentMonthBudget = async () => {
-  setLoading(true);
-  setMessage("");
-  setMessageType("info");
+    setLoading(true);
+    setMessage("");
+    setMessageType("info");
 
-  try {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonthNum = now.getMonth() + 1;
-    const currentMonthPadded = String(currentMonthNum).padStart(2, "0");
+    try {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonthNum = now.getMonth() + 1;
+      const currentMonthPadded = String(currentMonthNum).padStart(2, "0");
 
-    console.log(`[BUDGET REQ] year=${currentYear}, month=${currentMonthPadded}`);
+      console.log("================== BUDGET FETCH START ==================");
+      console.log(`[BUDGET REQ] year=${currentYear}, month=${currentMonthPadded}`);
 
-    const res = await api.get("/finance/monthly-budgets/", {
-      params: {
-        year: currentYear,
-        month: currentMonthPadded,
-      },
-    });
+      const res = await api.get("/finance/monthly-budgets/", {
+        params: {
+          year: currentYear,
+          month: currentMonthPadded,
+        },
+      });
 
-    console.log("[BUDGET RES]", res.data);
+      console.log("[BUDGET RES] Full response:", JSON.stringify(res.data, null, 2));
 
-    let currentBudget = null;
+      let currentBudget = null;
 
-    // Prefer released budget
-    currentBudget = res.data.find(
-      (b) => b.released === true
-    );
+      // First try to find a released budget
+      currentBudget = res.data.find((b) => b.released === true);
+      console.log("[RELEASED BUDGET FOUND]:", currentBudget ? "Yes" : "No");
 
-    // Fallback to any budget for this month
-    if (!currentBudget && res.data.length > 0) {
-      currentBudget = res.data[0];
-      console.warn("[BUDGET] No released budget found, using first available");
+      // If no released budget, use the first available budget (even if not released)
+      if (!currentBudget && res.data.length > 0) {
+        currentBudget = res.data[0];
+        console.log("[BUDGET] Using unreleased budget:", currentBudget);
+      }
+
+      if (!currentBudget) {
+        const monthName = now.toLocaleString("default", { month: "long" });
+        setMessage(`No budget found for ${monthName} ${currentYear}`);
+        setMessageType("warning");
+        setBudget(null);
+        setReleasedBudget(0);
+        setLoading(false);
+        return;
+      }
+
+      console.log("[BUDGET SELECTED]", currentBudget);
+      console.log("[DEPARTMENT ALLOCATIONS FROM API]", currentBudget.department_allocations);
+      console.log("[DEPARTMENT ALLOCATIONS TYPE]:", typeof currentBudget.department_allocations);
+      console.log("[DEPARTMENT ALLOCATIONS KEYS]:", currentBudget.department_allocations ? Object.keys(currentBudget.department_allocations) : "No allocations");
+
+      setBudget(currentBudget);
+      setReleasedBudget(Number(currentBudget.amount) || 0);
+
+      // Initialize allocations from the backend data
+      const initAlloc = {};
+      DEPARTMENTS.forEach((dep) => {
+        // Check if department_allocations exists and has the department
+        const departmentKey = dep.toUpperCase(); // API returns uppercase keys like "HR", "INVENTORY"
+        const allocationValue = currentBudget.department_allocations?.[departmentKey];
+        
+        console.log(`[DEBUG] Department: ${dep} (Key: ${departmentKey}) -> Value:`, allocationValue);
+        
+        if (allocationValue !== undefined && allocationValue !== null) {
+          initAlloc[dep] = allocationValue;
+        } else {
+          initAlloc[dep] = "0";
+        }
+      });
+      
+      console.log("[INITIALIZED ALLOCATIONS]:", initAlloc);
+      
+      setAllocation(initAlloc);
+      setBudgetSplit(initAlloc);
+      
+      console.log("================== BUDGET FETCH END ==================");
+      
+    } catch (err) {
+      console.error("[BUDGET ERROR]", err);
+      setMessage("Failed to load budget for current month");
+      setMessageType("error");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (!currentBudget) {
-      const monthName = now.toLocaleString("default", { month: "long" });
-      setMessage(`No budget found for ${monthName} ${currentYear}`);
-      setMessageType("warning");
-      setBudget(null);
-      setReleasedBudget(0);
-      return;
+  /* -------------------- REFRESH ALLOCATIONS -------------------- */
+  const refreshAllocations = async () => {
+    if (!budget) return;
+    console.log("[REFRESH] Fetching single budget:", budget.id);
+    try {
+      const res = await api.get(`/finance/monthly-budgets/${budget.id}/`);
+      console.log("[REFRESH] Single budget response:", res.data);
+      console.log("[REFRESH] Department allocations:", res.data.department_allocations);
+      
+      if (res.data) {
+        const updatedAllocations = {};
+        DEPARTMENTS.forEach((dep) => {
+          const departmentKey = dep.toUpperCase();
+          const allocationValue = res.data.department_allocations?.[departmentKey];
+          
+          console.log(`[REFRESH] Department: ${dep} -> Value:`, allocationValue);
+          
+          if (allocationValue !== undefined && allocationValue !== null) {
+            updatedAllocations[dep] = allocationValue;
+          } else {
+            updatedAllocations[dep] = "0";
+          }
+        });
+        console.log("[REFRESH] Updated allocations:", updatedAllocations);
+        setBudgetSplit(updatedAllocations);
+        setMessage("Allocations refreshed successfully");
+        setMessageType("success");
+        setTimeout(() => setMessage(""), 3000);
+      }
+    } catch (err) {
+      console.error("[REFRESH] Error:", err);
+      setMessage("Failed to refresh allocations");
+      setMessageType("error");
     }
-
-    console.log("[BUDGET SELECTED]", currentBudget);
-
-    setBudget(currentBudget);
-    setReleasedBudget(Number(currentBudget.amount) || 0);
-
-    const initAlloc = {};
-    DEPARTMENTS.forEach((dep) => {
-      initAlloc[dep] = currentBudget.department_allocations?.[dep] || "0";
-    });
-    setAllocation(initAlloc);
-    setBudgetSplit({ ...initAlloc });
-  } catch (err) {
-    console.error("[BUDGET ERROR]", err);
-    setMessage("Failed to load budget for current month");
-    setMessageType("error");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
-    loadCurrentMonthBudget();
+    const loadInitialData = async () => {
+      await loadCurrentMonthBudget();
+      await fetchVendorStats(); // Fetch vendor stats when component mounts
+    };
+    loadInitialData();
   }, []);
 
   /* -------------------- CALCULATIONS -------------------- */
@@ -110,9 +190,15 @@ const FinanceDashboard = () => {
   );
   const remaining = releasedBudget - totalAllocated;
 
+  console.log("[RENDER] Current budgetSplit state:", budgetSplit);
+  console.log("[RENDER] Total allocated:", totalAllocated);
+  console.log("[RENDER] Released budget:", releasedBudget);
+  console.log("[RENDER] Vendor stats:", vendorStats);
+
   /* -------------------- HANDLERS -------------------- */
   const handleAllocationChange = (dept, value) => {
     const sanitized = value.replace(/[^0-9.]/g, "");
+    console.log(`[CHANGE] ${dept}: ${value} -> sanitized: ${sanitized}`);
     setBudgetSplit((prev) => ({ ...prev, [dept]: sanitized }));
   };
 
@@ -124,14 +210,20 @@ const FinanceDashboard = () => {
       return;
     }
 
+    console.log("[ALLOCATE] Sending allocation:", budgetSplit);
+    
     try {
-      await api.post(`/finance/monthly-budgets/${budget.id}/allocate/`, {
+      const response = await api.post(`/finance/monthly-budgets/${budget.id}/allocate/`, {
         allocation: budgetSplit,
       });
+      console.log("[ALLOCATE] Response:", response.data);
       setMessage("Budget allocated successfully");
       setMessageType("success");
-      loadCurrentMonthBudget();
+      // Reload to get updated allocations
+      await loadCurrentMonthBudget();
+      setTimeout(() => setMessage(""), 3000);
     } catch (err) {
+      console.error("[ALLOCATE] Error:", err);
       setMessage(err.response?.data?.detail || "Allocation failed");
       setMessageType("error");
     }
@@ -207,6 +299,16 @@ const FinanceDashboard = () => {
             {organization?.name} • {currentMonthName}
           </p>
         </div>
+        
+        {/* Refresh Button */}
+        {budget && (
+          <button
+            onClick={refreshAllocations}
+            className="bg-cyan-700 hover:bg-cyan-600 px-4 py-2 rounded-lg flex items-center gap-2 transition"
+          >
+            <FiRefreshCw /> Refresh Allocations
+          </button>
+        )}
       </div>
 
       {/* CURRENT MONTH INDICATOR */}
@@ -218,6 +320,11 @@ const FinanceDashboard = () => {
           {budget.is_closed && (
             <p className="text-sm text-yellow-400 mt-1">
               Month closed • allocations locked
+            </p>
+          )}
+          {!budget.released && (
+            <p className="text-sm text-yellow-400 mt-1">
+              Budget not released • allocations are still being configured
             </p>
           )}
         </div>
@@ -267,7 +374,7 @@ const FinanceDashboard = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate("/finance/vendors")}
+            onClick={() => navigate("/vendors")}
             className="mt-5 text-sm bg-purple-900/40 hover:bg-purple-800/60 px-5 py-2 rounded flex items-center gap-2 transition"
           >
             <FiEye size={16} /> View Vendors
@@ -282,22 +389,43 @@ const FinanceDashboard = () => {
             Department-wise Budget Allocation
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {DEPARTMENTS.map((dept) => (
-              <div
-                key={dept}
-                className="bg-gray-950/50 border border-cyan-900/40 rounded-lg p-5 flex flex-col items-center"
-              >
-                <p className="text-cyan-300 font-semibold mb-3">{dept}</p>
-                <input
-                  type="text"
-                  value={budgetSplit[dept] || ""}
-                  onChange={(e) => handleAllocationChange(dept, e.target.value)}
-                  className="w-full bg-gray-900 text-cyan-200 text-center rounded px-3 py-2 outline-none border border-cyan-800/50 focus:border-cyan-400"
-                  placeholder="0.00"
-                  disabled={budget?.is_closed}
-                />
+            {DEPARTMENTS.map((dept) => {
+              const displayValue = budgetSplit[dept] || "0";
+              console.log(`[RENDER INPUT] ${dept}: ${displayValue}`);
+              return (
+                <div
+                  key={dept}
+                  className="bg-gray-950/50 border border-cyan-900/40 rounded-lg p-5 flex flex-col items-center"
+                >
+                  <p className="text-cyan-300 font-semibold mb-3">{dept}</p>
+                  <input
+                    type="text"
+                    value={displayValue}
+                    onChange={(e) => handleAllocationChange(dept, e.target.value)}
+                    className="w-full bg-gray-900 text-cyan-200 text-center rounded px-3 py-2 outline-none border border-cyan-800/50 focus:border-cyan-400"
+                    placeholder="0.00"
+                    disabled={budget?.is_closed}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Debug Panel - Remove in production */}
+          <div className="mt-4 p-3 bg-gray-800/40 rounded-lg text-xs">
+            <details>
+              <summary className="cursor-pointer text-cyan-400">Debug Info (Click to expand)</summary>
+              <div className="mt-2 space-y-1">
+                <p>Budget ID: {budget.id}</p>
+                <p>Released: {budget.released ? "Yes" : "No"}</p>
+                <p>Is Closed: {budget.is_closed ? "Yes" : "No"}</p>
+                <p>Budget Amount: {releasedBudget}</p>
+                <p>Total Allocated: {totalAllocated}</p>
+                <p>Remaining: {remaining}</p>
+                <p>budgetSplit State: {JSON.stringify(budgetSplit, null, 2)}</p>
+                <p>API department_allocations: {JSON.stringify(budget.department_allocations, null, 2)}</p>
               </div>
-            ))}
+            </details>
           </div>
 
           {!budget?.is_closed && (
@@ -336,12 +464,6 @@ const FinanceDashboard = () => {
           <FiUsers /> Manage Vendors
         </button>
 
-        {/* <button
-          onClick={() => navigate("/finance/reports")}
-          className="bg-yellow-700 hover:bg-yellow-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
-        >
-          <FiBarChart2 /> Reports
-        </button> */}
         <button
           onClick={() => navigate("/items/create")}
           className="bg-purple-700 hover:bg-purple-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
