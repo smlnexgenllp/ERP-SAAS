@@ -1,3 +1,4 @@
+// src/pages/sales/SalesDashboard.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../../context/AuthContext";
@@ -9,8 +10,10 @@ import {
   Target,
   Handshake,
   LogOut,
+  CreditCard,      // New icon for payments
+  FileCheck,       // New icon for invoices
 } from "lucide-react";
-import api from "../../../../services/api"; // your axios instance
+import api from "../../../../services/api";
 
 export default function SalesDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -43,7 +46,6 @@ export default function SalesDashboard() {
       try {
         setDashboardLoading(true);
 
-        // You should create these endpoints in your Django backend
         const [summaryRes, myItemsRes, teamRes] = await Promise.all([
           api.get("/sale/dashboard/summary/"),
           api.get("/sale/dashboard/my-items/"),
@@ -55,7 +57,6 @@ export default function SalesDashboard() {
         setTeamPerformance(teamRes.data || []);
       } catch (err) {
         console.error("Dashboard fetch failed:", err);
-        // Keep fallback static values if API fails
       } finally {
         setDashboardLoading(false);
       }
@@ -131,20 +132,23 @@ export default function SalesDashboard() {
               <Briefcase className="h-5 w-5 text-teal-400" />
               <span>Customers</span>
             </button>
-             <button
+
+            <button
               onClick={() => navigate("/sale/orders/create")}
               className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
             >
               <Briefcase className="h-5 w-5 text-teal-400" />
               <span>Sales Orders</span>
             </button>
-           <button
+
+            <button
               onClick={() => navigate("/sale/list")}
               className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
             >
               <Briefcase className="h-5 w-5 text-teal-400" />
               <span>Sales List</span>
             </button>
+
             <button
               onClick={() => navigate("/sales/quotations")}
               className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
@@ -153,23 +157,40 @@ export default function SalesDashboard() {
               <span>Quotations</span>
             </button>
 
-            {/* <button
+            {/* ==================== FINANCE SECTION ==================== */}
+            <div className="pt-6 mt-6 border-t border-gray-800">
+              <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
+                Finance
+              </h3>
+
+              <button
+                onClick={() => navigate("/vendor-invoice")}
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+              >
+                <FileCheck className="h-5 w-5 text-amber-400" />
+                <span>Vendor Invoices</span>
+              </button>
+
+              <button
+                onClick={() => navigate("/vendor-payment")}
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+              >
+                <CreditCard className="h-5 w-5 text-emerald-400" />
+                <span>Vendor Payments</span>
+              </button>
+            </div>
+            {/* ========================================================= */}
+
+            {/* Uncomment if needed later */}
+            {/* 
+            <button
               onClick={() => navigate("/sales/reports")}
               className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
             >
               <BarChart3 className="h-5 w-5 text-emerald-400" />
               <span>Reports</span>
-            </button> */}
-
-            {/* {isHead && (
-              <button
-                onClick={() => navigate("/sales/team")}
-                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition mt-4 border-t border-gray-800 pt-4"
-              >
-                <Users className="h-5 w-5 text-blue-400" />
-                <span>Team</span>
-              </button>
-            )} */}
+            </button>
+            */}
           </nav>
 
           <div className="p-4 border-t border-gray-800 mt-auto">
@@ -183,7 +204,7 @@ export default function SalesDashboard() {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content - Unchanged */}
         <div className="flex-1 p-6 md:p-8 overflow-auto">
           {dashboardLoading ? (
             <div className="flex items-center justify-center h-64">
@@ -194,7 +215,7 @@ export default function SalesDashboard() {
             </div>
           ) : (
             <>
-              {/* Summary Cards */}
+              {/* Summary Cards - Unchanged */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
                 <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-lg hover:shadow-cyan-900/20 transition">
                   <p className="text-sm text-cyan-400/80 uppercase mb-1">Leads Today</p>
@@ -217,7 +238,7 @@ export default function SalesDashboard() {
                 </div>
               </div>
 
-              {/* Role-based content */}
+              {/* Role-based content - Unchanged */}
               {isHead ? (
                 <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-xl">
                   <h2 className="text-2xl font-bold text-cyan-300 mb-6 flex items-center gap-3">
@@ -302,7 +323,6 @@ export default function SalesDashboard() {
                     </div>
                   </div>
 
-                  {/* Small summary cards for non-head users */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 text-center shadow-lg">
                       <Target className="h-10 w-10 mx-auto mb-3 text-cyan-400" />

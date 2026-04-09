@@ -9,16 +9,20 @@ import {
   XCircle,
   MessageCircle,
   Users,
+  ArrowLeft,
 } from 'lucide-react';
+
 export default function QuotationsList() {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [actionLoading, setActionLoading] = useState({}); // { [quotationId]: true/false }
+
   useEffect(() => {
     fetchQuotations();
   }, []);
+
   const fetchQuotations = async () => {
     try {
       setLoading(true);
@@ -30,11 +34,13 @@ export default function QuotationsList() {
       setLoading(false);
     }
   };
+
   const filtered = quotations.filter((q) =>
     q.quote_number?.toLowerCase().includes(search.toLowerCase()) ||
     q.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
     q.status?.toLowerCase().includes(search.toLowerCase())
   );
+
   const handleStatusChange = async (quotationId, newStatus) => {
     if (!window.confirm(`Are you sure you want to set status to "${newStatus.replace('_', ' ')}"?`)) {
       return;
@@ -54,9 +60,6 @@ export default function QuotationsList() {
     }
   };
 
-  // ──────────────────────────────────────────────────────────────
-  // Convert Approved Quotation → Customer
-  // ──────────────────────────────────────────────────────────────
   const handleConvertToCustomer = async (quotationId) => {
     if (!window.confirm('Convert this approved quotation to a customer?')) {
       return;
@@ -69,10 +72,9 @@ export default function QuotationsList() {
 
       alert(res.data.detail || 'Successfully converted to customer!');
 
-      // Refresh list to reflect any UI changes
       await fetchQuotations();
 
-      // Optional: go to the new customer page
+      // Optional: navigate to new customer
       // if (res.data.customer_id) {
       //   navigate(`/crm/customers/${res.data.customer_id}`);
       // }
@@ -89,9 +91,21 @@ export default function QuotationsList() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header with Back Button */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <h1 className="text-3xl font-bold text-cyan-300">All Quotations</h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/sales/dashboard')}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-cyan-800 rounded-xl transition"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </button>
+            <div className="flex items-center gap-3">
+              <FileText className="text-cyan-400" size={28} />
+              <h1 className="text-3xl font-bold text-cyan-300">All Quotations</h1>
+            </div>
+          </div>
 
           <div className="relative w-full sm:w-80">
             <Search
@@ -218,16 +232,16 @@ export default function QuotationsList() {
                             </>
                           )}
 
-                          {/* Convert to Customer – only when approved */}
-{ q.status === 'approved' && !isLoading && (
-  <button
-    onClick={() => navigate(`/crm/customers/create?quotation=${q.id}`)}
-    className="text-teal-400 hover:text-teal-300 transition"
-    title="Convert to Customer"
-  >
-    <Users size={18} />
-  </button>
-)}
+                          {/* Convert to Customer */}
+                          {q.status === 'approved' && !isLoading && (
+                            <button
+                              onClick={() => navigate(`/crm/customers/create?quotation=${q.id}`)}
+                              className="text-teal-400 hover:text-teal-300 transition"
+                              title="Convert to Customer"
+                            >
+                              <Users size={18} />
+                            </button>
+                          )}
 
                           {isLoading && (
                             <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
