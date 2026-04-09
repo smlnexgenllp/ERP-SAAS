@@ -1,189 +1,303 @@
 // src/pages/modules/finance/VendorInvoice.jsx
 import React, { useState, useEffect } from 'react';
-import api from '../../../services/api';   // ← Use your centralized API
-import { 
-  Table, Button, Modal, Form, Input, DatePicker, message, 
-  Card, Typography, Space, Tag 
-} from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import api from '../../../services/api';
+import {
+  ArrowLeft,
+  FileText,
+  Search,
+  PlusCircle,
+} from 'lucide-react';
 import dayjs from 'dayjs';
 
-const { Title } = Typography;
-
 const VendorInvoice = () => {
+  const navigate = useNavigate();
+
   const [invoices, setInvoices] = useState([]);
   const [pendingGRNs, setPendingGRNs] = useState([]);
+  const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGRN, setSelectedGRN] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitLoading, setSubmitLoading] = useState(false);
+
+  const [formData, setFormData] = useState({
+    invoice_number: '',
+    invoice_date: dayjs().format('YYYY-MM-DD'),
+    total_amount: '',
+  });
 
   useEffect(() => {
-    fetchInvoices();
-    fetchPendingGRNs();
+    fetchData();
   }, []);
 
-  const fetchInvoices = async () => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await api.get('/inventory/vendor-invoices/');
-      setInvoices(res.data);
-    } catch (err) {
-      message.error('Failed to load invoices');
-    }
-  };
+      const [invoicesRes, pendingRes] = await Promise.allSettled([
+        api.get('/inventory/vendor-invoices/'),
+        api.get('/inventory/vendor-invoices/pending_for_invoice/'),
+      ]);
 
-  const fetchPendingGRNs = async () => {
-    try {
-      const res = await api.get('/inventory/vendor-invoices/pending_for_invoice/');
-      setPendingGRNs(res.data);
+      if (invoicesRes.status === 'fulfilled') {
+        setInvoices(invoicesRes.value.data || []);
+      }
+
+      if (pendingRes.status === 'fulfilled') {
+        setPendingGRNs(pendingRes.value.data || []);
+      }
     } catch (err) {
-      console.error(err);
-      message.error('Failed to load pending GRNs');
+      console.error('Failed to load data:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const openInvoiceModal = (grn) => {
     setSelectedGRN(grn);
+    setFormData({
+      invoice_number: `INV-${dayjs().format('YYYYMMDD')}-`,
+      invoice_date: dayjs().format('YYYY-MM-DD'),
+      total_amount: grn.total_value || '',
+    });
     setIsModalOpen(true);
   };
 
-  const handleCreateInvoice = async (values) => {
-  if (!selectedGRN) return;
+  const handleCreateInvoice = async (e) => {
+    e.preventDefault();
+    if (!selectedGRN) return;
 
-  setLoading(true);
-  try {
-    await api.post(`/inventory/grns/${selectedGRN.id}/create-from-grn/`, {
-      invoice_number: values.invoice_number,
-      invoice_date: values.invoice_date.format('YYYY-MM-DD'),
-      total_amount: parseFloat(values.total_amount),
-    });
+    setSubmitLoading(true);
+    try {
+      await api.post(`/inventory/grns/${selectedGRN.id}/create-from-grn/`, {
+        invoice_number: formData.invoice_number,
+        invoice_date: formData.invoice_date,
+        total_amount: parseFloat(formData.total_amount),
+      });
 
-    message.success('Invoice created successfully!');
-    setIsModalOpen(false);
-    setSelectedGRN(null);
+      alert('Invoice created successfully!');
+      setIsModalOpen(false);
+      setSelectedGRN(null);
+      fetchData();
+    } catch (error) {
+      alert(error.response?.data?.detail || 'Failed to create invoice');
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
 
-    fetchInvoices();
-    fetchPendingGRNs();
-  } catch (error) {
-    console.error(error);
-    message.error(error.response?.data?.error || 
-                  error.response?.data?.detail || 
-                  'Failed to create invoice');
-  } finally {
-    setLoading(false);
-  }
-};
+  const filteredPending = pendingGRNs.filter((grn) =>
+    grn.grn_number?.toLowerCase().includes(search.toLowerCase()) ||
+    grn.po_number?.toLowerCase().includes(search.toLowerCase()) ||
+    grn.vendor_name?.toLowerCase().includes(search.toLowerCase())
+  );
 
-  const pendingColumns = [
-    { title: 'GRN Number', dataIndex: 'grn_number' },
-    { title: 'PO Number', dataIndex: 'po_number' },
-    { title: 'Vendor', dataIndex: 'vendor_name' },
-    { 
-      title: 'Received Date', 
-      dataIndex: 'received_date',
-      render: (date) => dayjs(date).format('DD-MM-YYYY')
-    },
-    { 
-      title: 'Total Value', 
-      dataIndex: 'total_value',
-      render: (val) => `₹ ${parseFloat(val || 0).toFixed(2)}`
-    },
-    {
-      title: 'Action',
-      render: (_, record) => (
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />}
-          onClick={() => openInvoiceModal(record)}
-        >
-          Create Invoice
-        </Button>
-      ),
-    },
-  ];
-
-  const invoiceColumns = [
-    { title: 'Invoice No', dataIndex: 'invoice_number' },
-    { title: 'GRN No', dataIndex: 'grn_number' },
-    { title: 'Vendor', dataIndex: 'vendor_name' },
-    { title: 'Date', dataIndex: 'invoice_date', render: (d) => dayjs(d).format('DD-MM-YYYY') },
-    { title: 'Amount', dataIndex: 'total_amount', render: (v) => `₹ ${parseFloat(v || 0).toFixed(2)}` },
-    { title: 'Paid', render: (_, rec) => `₹ ${parseFloat(rec.paid_amount || 0).toFixed(2)}` },
-  ];
+  const filteredInvoices = invoices.filter((inv) =>
+    inv.invoice_number?.toLowerCase().includes(search.toLowerCase()) ||
+    inv.grn_number?.toLowerCase().includes(search.toLowerCase()) ||
+    inv.vendor_name?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div style={{ padding: '20px' }}>
-      <Card>
-        <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Title level={3}>Vendor Invoices</Title>
-        </Space>
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/sales/dashboard')}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-cyan-800 rounded-xl transition"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </button>
+            <div className="flex items-center gap-3">
+              <FileText className="text-cyan-400" size={28} />
+              <h1 className="text-3xl font-bold text-cyan-300">Vendor Invoices</h1>
+            </div>
+          </div>
 
-        <Card 
-          title="Pending GRNs for Invoicing" 
-          style={{ marginBottom: 24 }}
-          extra={<Tag color="blue">{pendingGRNs.length} Pending</Tag>}
-        >
-          <Table 
-            columns={pendingColumns} 
-            dataSource={pendingGRNs} 
-            rowKey="id" 
-            pagination={{ pageSize: 10 }}
-          />
-        </Card>
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            <input
+              type="text"
+              placeholder="Search GRN, Invoice, Vendor..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-200 placeholder-gray-500 focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 outline-none"
+            />
+          </div>
+        </div>
 
-        <Card title="Generated Invoices">
-          <Table 
-            columns={invoiceColumns} 
-            dataSource={invoices} 
-            rowKey="id" 
-            pagination={{ pageSize: 10 }}
-          />
-        </Card>
-      </Card>
+        {loading ? (
+          <div className="text-center py-20 text-cyan-400 animate-pulse flex items-center justify-center gap-3">
+            <div className="w-6 h-6 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+            Loading vendor invoices...
+          </div>
+        ) : (
+          <>
+            {/* Pending GRNs */}
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-semibold text-cyan-300 flex items-center gap-3">
+                  Pending GRNs for Invoicing
+                  <span className="text-sm bg-blue-900/70 text-blue-300 px-3 py-1 rounded-full border border-blue-700/50">
+                    {pendingGRNs.length} Pending
+                  </span>
+                </h2>
+              </div>
 
-      <Modal
-        title={`Create Invoice - GRN: ${selectedGRN?.grn_number}`}
-        open={isModalOpen}
-        onCancel={() => { setIsModalOpen(false); setSelectedGRN(null); }}
-        footer={null}
-      >
-        <Form 
-          layout="vertical" 
-          onFinish={handleCreateInvoice}
-          initialValues={{
-            invoice_number: `INV-${dayjs().format('YYYYMMDD')}-`,
-            invoice_date: dayjs(),
-            total_amount: selectedGRN?.total_value || "",
-          }}
-        >
-          <Form.Item label="GRN Number">
-            <Input value={selectedGRN?.grn_number} disabled />
-          </Form.Item>
+              <div className="bg-gray-900/70 rounded-2xl overflow-hidden border border-cyan-900/40 shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-800">
+                    <thead className="bg-gray-800/80">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">GRN Number</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">PO Number</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Vendor</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Received Date</th>
+                        <th className="px-6 py-4 text-right text-sm font-semibold text-cyan-300">Total Value</th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-cyan-300">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {filteredPending.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
+                            No pending GRNs for invoicing.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredPending.map((grn) => (
+                          <tr key={grn.id} className="hover:bg-gray-800/50 transition-colors">
+                            <td className="px-6 py-4 font-medium text-gray-200">{grn.grn_number}</td>
+                            <td className="px-6 py-4 text-gray-300">{grn.po_number || '—'}</td>
+                            <td className="px-6 py-4 text-gray-300">{grn.vendor_name}</td>
+                            <td className="px-6 py-4 text-gray-300">
+                              {dayjs(grn.received_date).format('DD-MM-YYYY')}
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium text-emerald-400">
+                              ₹{Number(grn.total_value || 0).toLocaleString('en-IN')}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <button
+                                onClick={() => openInvoiceModal(grn)}
+                                className="flex items-center gap-2 mx-auto px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm font-medium transition"
+                              >
+                                <PlusCircle size={18} />
+                                Create Invoice
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
 
-          <Form.Item label="PO Number">
-            <Input value={selectedGRN?.po_number} disabled />
-          </Form.Item>
+            {/* Generated Invoices */}
+            <div>
+              <h2 className="text-2xl font-semibold text-cyan-300 mb-4">Generated Invoices</h2>
+              <div className="bg-gray-900/70 rounded-2xl overflow-hidden border border-cyan-900/40 shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-800">
+                    <thead className="bg-gray-800/80">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Invoice No</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">GRN No</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Vendor</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Invoice Date</th>
+                        <th className="px-6 py-4 text-right text-sm font-semibold text-cyan-300">Total Amount</th>
+                        <th className="px-6 py-4 text-right text-sm font-semibold text-cyan-300">Paid Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {filteredInvoices.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
+                            No invoices generated yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredInvoices.map((inv) => (
+                          <tr key={inv.id} className="hover:bg-gray-800/50 transition-colors">
+                            <td className="px-6 py-4 font-medium text-gray-200">{inv.invoice_number}</td>
+                            <td className="px-6 py-4 text-gray-300">{inv.grn_number || '—'}</td>
+                            <td className="px-6 py-4 text-gray-300">{inv.vendor_name}</td>
+                            <td className="px-6 py-4 text-gray-300">
+                              {dayjs(inv.invoice_date).format('DD-MM-YYYY')}
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium text-emerald-400">
+                              ₹{Number(inv.total_amount || 0).toLocaleString('en-IN')}
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium text-green-400">
+                              ₹{Number(inv.paid_amount || 0).toLocaleString('en-IN')}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
-          <Form.Item label="Vendor">
-            <Input value={selectedGRN?.vendor_name} disabled />
-          </Form.Item>
+      {/* Modal (same as before) */}
+      {isModalOpen && selectedGRN && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-cyan-900 rounded-2xl w-full max-w-lg shadow-2xl">
+            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+              <h2 className="text-2xl font-semibold text-cyan-300">
+                Create Invoice - GRN: {selectedGRN.grn_number}
+              </h2>
+              <button onClick={() => { setIsModalOpen(false); setSelectedGRN(null); }} className="text-gray-400 hover:text-gray-200 text-xl">✕</button>
+            </div>
 
-          <Form.Item name="invoice_number" label="Invoice Number" rules={[{ required: true }]}>
-            <Input placeholder="INV-20260402-001" />
-          </Form.Item>
+            <form onSubmit={handleCreateInvoice} className="p-6 space-y-6">
+              {/* Disabled fields with black background */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">GRN Number</label>
+                <input type="text" value={selectedGRN.grn_number} disabled className="w-full p-3 bg-gray-950 border border-gray-700 rounded-xl text-gray-400 cursor-not-allowed" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">PO Number</label>
+                <input type="text" value={selectedGRN.po_number || ''} disabled className="w-full p-3 bg-gray-950 border border-gray-700 rounded-xl text-gray-400 cursor-not-allowed" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Vendor</label>
+                <input type="text" value={selectedGRN.vendor_name} disabled className="w-full p-3 bg-gray-950 border border-gray-700 rounded-xl text-gray-400 cursor-not-allowed" />
+              </div>
 
-          <Form.Item name="invoice_date" label="Invoice Date" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} format="DD-MM-YYYY" />
-          </Form.Item>
+              {/* Editable fields */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Invoice Number <span className="text-red-400">*</span></label>
+                <input type="text" value={formData.invoice_number} onChange={(e) => setFormData({...formData, invoice_number: e.target.value})} required className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl focus:border-cyan-500 outline-none" />
+              </div>
 
-          <Form.Item name="total_amount" label="Total Invoice Amount (₹)" rules={[{ required: true }]}>
-            <Input type="number" step="0.01" />
-          </Form.Item>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Invoice Date <span className="text-red-400">*</span></label>
+                <input type="date" value={formData.invoice_date} onChange={(e) => setFormData({...formData, invoice_date: e.target.value})} required className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl focus:border-cyan-500 outline-none" />
+              </div>
 
-          <Button type="primary" htmlType="submit" loading={loading} block>
-            Generate & Save Invoice
-          </Button>
-        </Form>
-      </Modal>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Total Invoice Amount (₹) <span className="text-red-400">*</span></label>
+                <input type="number" step="0.01" value={formData.total_amount} onChange={(e) => setFormData({...formData, total_amount: e.target.value})} required className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl focus:border-cyan-500 outline-none" />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setIsModalOpen(false); setSelectedGRN(null); }} className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-medium">Cancel</button>
+                <button type="submit" disabled={submitLoading} className="flex-1 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl font-semibold disabled:opacity-50">
+                  {submitLoading ? 'Creating...' : 'Generate Invoice'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
