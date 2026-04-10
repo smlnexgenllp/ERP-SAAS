@@ -10,6 +10,12 @@ from django.db import transaction
 from datetime import date
 from django.utils import timezone
 from rest_framework.views import APIView
+from django.db.models import Sum, Case, When, Value, DecimalField, F
+from .models import Dispatch, StockLedger
+from .serializers import DispatchSerializer
+from apps.sales.models import SalesOrderItem, GSTSettings
+from apps.sales.models import SalesOrder
+from apps.crm.models import Customer  # Adjust import based on your structure
 from .models import (
     Item,
     PurchaseOrder, PurchaseOrderItem,
@@ -28,6 +34,21 @@ from .serializers import (
     VendorInvoiceSerializer,
     VendorPaymentSerializer,MachineSerializer
 )
+# apps/inventory/views.py
+from .models import Dispatch, DispatchItem, StockLedger, Item
+from .serializers import DispatchSerializer
+from apps.sales.models import SalesOrderItem
+from apps.sales.models import SalesOrder
+from .models import Item
+from django.utils import timezone
+from django.shortcuts import get_object_or_404
+from apps.inventory.models import (
+    Item,
+    StockLedger,
+)
+from apps.hr.models import Department
+from apps.production.models import DepartmentTransaction
+from django.contrib.auth import get_user_model
 
 class ItemListForQuotation(APIView):
     def get(self, request):
@@ -117,8 +138,6 @@ class GateEntryViewSet(ModelViewSet):
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
 
-
-# ========================= GRN =========================
 class GRNViewSet(viewsets.ModelViewSet):
     serializer_class = GRNSerializer
     permission_classes = [IsAuthenticated]
@@ -127,7 +146,12 @@ class GRNViewSet(viewsets.ModelViewSet):
         return GRN.objects.filter(
             organization=self.request.user.organization
         ).select_related('po', 'po__vendor')
-
+    @action(detail=False, methods=["get"])
+    def pending_for_approval(self, request):
+        qs = self.get_queryset().filter(status="pending_approval")
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
+    
     @action(detail=False, methods=["get"], url_path="pending-for-invoice")
     def pending_for_invoice(self, request):
         qs = self.get_queryset().filter(status="approved").exclude(
@@ -135,7 +159,7 @@ class GRNViewSet(viewsets.ModelViewSet):
                 organization=request.user.organization
             ).values_list("grn_id", flat=True)
         ).select_related('po', 'po__vendor').prefetch_related('items')
-
+        
         serializer = GRNSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -168,14 +192,7 @@ class GRNViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        """
-        Approve GRN:
-        - Atomic transaction
-        - Creates stock ledger entries (IN) → stock updated automatically
-        - Updates PO received qty
-        - Closes PO if fully received
-        - NO accounting voucher created (as requested)
-        """
+       
         grn = self.get_object()
 
         if grn.status != 'pending_approval':
@@ -481,10 +498,9 @@ class VendorPaymentViewSet(viewsets.ModelViewSet):
 
             invoice = payment.invoice
 
-            # Update paid amount
+            # Update paid amount and status
             invoice.paid_amount = (invoice.paid_amount or Decimal('0')) + payment.amount
 
-            # Update status
             if invoice.paid_amount >= invoice.total_amount:
                 invoice.status = "paid"
             elif invoice.paid_amount > 0:
@@ -492,16 +508,7 @@ class VendorPaymentViewSet(viewsets.ModelViewSet):
             else:
                 invoice.status = "pending"
 
-            invoice.save()
-
-            # 🔥 Create Voucher
-            create_voucher(
-                organization=self.request.user.organization,
-                amount=payment.amount,
-                debit_account="Accounts Payable",
-                credit_account="Cash/Bank",
-                reference=f"Payment for Invoice {invoice.invoice_number}"
-            )
+            invoice.save(update_fields=['paid_amount', 'status'])
 
 from decimal import Decimal
 from django.db.models import Sum, Q, F, DecimalField
@@ -747,25 +754,7 @@ class DepartmentStockAPIView(APIView):
         )
 
         return Response({"stock": stock["stock"]})
-    
-# inventory/views.py
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from decimal import Decimal
-from django.utils import timezone
-from django.db import transaction
-from django.shortcuts import get_object_or_404
-
-from apps.inventory.models import (
-    Item,
-    StockLedger,
-)
-from apps.hr.models import Department
-from apps.production.models import DepartmentTransaction
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
@@ -923,9 +912,171 @@ class ItemDepartmentStockView(APIView):
             "department_id": dept_id,
             "available_stock": float(stock)
         })
-from django.db.models import Sum
+class DispatchViewSet(ModelViewSet):
+    serializer_class = DispatchSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Dispatch.objects.filter(
+            organization=self.request.user.organization
+        ).order_by('-id')
+
+    def perform_create(self, serializer):
+        serializer.save(
+            organization=self.request.user.organization,
+            created_by=self.request.user
+        )
+
+    @action(detail=True, methods=['post'])
+    def confirm_dispatch(self, request, pk=None):
+        dispatch = self.get_object()
+
+        if dispatch.status != 'draft':
+            return Response(
+                {"error": "Dispatch already confirmed"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        FINISHED_GOODS_DEPARTMENT_ID = 13  # ✅ correct
+
+        try:
+            with transaction.atomic():
+                for dispatch_item in dispatch.items.all():
+                    item = dispatch_item.item
+
+                    # ✅ STOCK CALCULATION (IN - OUT)
+                    stock = StockLedger.objects.filter(
+                        item=item,
+                        department_id=FINISHED_GOODS_DEPARTMENT_ID
+                    ).aggregate(
+                        stock=Coalesce(
+                            Sum(
+                                Case(
+                                    When(transaction_type='IN', then=F('quantity')),
+                                    When(transaction_type='OUT', then=-F('quantity')),
+                                    default=Value(0),
+                                    output_field=DecimalField()
+                                )
+                            ),
+                            Value(0),
+                            output_field=DecimalField()
+                        )
+                    )["stock"]
+
+                    available_stock = stock or 0
+
+                    print(f"{item.name} → FG Stock: {available_stock}")
+
+                    # ❌ STOCK VALIDATION
+                    if dispatch_item.dispatch_qty > available_stock:
+                        return Response({
+                            "error": f"Insufficient stock for {item.name}. Available: {available_stock}, Required: {dispatch_item.dispatch_qty}"
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                    # ✅ STOCK OUT ENTRY
+                    StockLedger.objects.create(
+                        item=item,
+                        quantity=dispatch_item.dispatch_qty,
+                        transaction_type='OUT',
+                        department_id=FINISHED_GOODS_DEPARTMENT_ID,
+                        reference=f"DC-{dispatch.dc_number}",
+                        created_by=request.user,
+                    )
+
+                    # ✅ UPDATE SALES ORDER ITEM
+                    if dispatch.sales_order:
+                        try:
+                            so_item = SalesOrderItem.objects.get(
+                                sales_order=dispatch.sales_order,
+                                product=item
+                            )
+                            so_item.quantity -= dispatch_item.dispatch_qty
+                            so_item.save(update_fields=['quantity'])
+                        except SalesOrderItem.DoesNotExist:
+                            pass
+
+                # ✅ UPDATE DISPATCH STATUS
+                dispatch.status = 'dispatched'
+                dispatch.save(update_fields=['status'])
+
+            dispatch.refresh_from_db()
+
+            # ===================== DC DATA =====================
+            org = request.user.organization
+            gst_settings = GSTSettings.objects.first()
+            dispatch.refresh_from_db()
+
+            # ✅ ADD DEBUG HERE
+            org = request.user.organization
+            gst_settings = GSTSettings.objects.first()
+
+            print("====== DEBUG START ======")
+            print("USER:", request.user)
+            print("ORG ID:", org.id)
+            print("ORG NAME:", org.name)
+            print("ORG ADDRESS:", org.address)
+            print("GST ADDRESS:", gst_settings.address if gst_settings else None)
+            print("DISPATCH ORG ID:", dispatch.organization.id)
+            print("====== DEBUG END ======")
+
+
+            # ===================== DC DATA =====================
+            org = request.user.organization
+
+            gst_settings = GSTSettings.objects.last()   # only for GST
+
+            dc_data = {
+                "dc_number": dispatch.dc_number,
+                "dc_date": dispatch.dispatch_date.strftime("%d-%m-%Y"),
+                "sales_order_number": getattr(
+                    dispatch.sales_order,
+                    "order_number",
+                    f"SO-{dispatch.sales_order.id}"
+                ) if dispatch.sales_order else "",
+                # ✅ USE ORGANIZATION ONLY
+                "company_name": org.name,
+                "company_address": org.address if org.address else "",
+                "company_gstin": gst_settings.gstin if gst_settings else "",
+
+                # ✅ CUSTOMER
+                "customer_name": dispatch.customer_name,
+                "customer_address": dispatch.customer_address,
+                "customer_gst": dispatch.customer_gst or "",
+
+                # ✅ EXTRA
+                "vehicle_number": dispatch.vehicle_number or "",
+                "transporter_name": dispatch.transporter_name or "",
+
+                "items": [
+                    {
+                        "name": itm.item.name,
+                        "code": itm.item.code,
+                        "quantity": float(itm.dispatch_qty),
+                        "uom": itm.item.uom,
+                    }
+                    for itm in dispatch.items.all()
+                ]
+        }
+
+            return Response({
+                "message": "Dispatch successful",
+                "dc_data": dc_data
+            })
+
+        except Exception as e:
+            import traceback
+            print("ERROR:", str(e))
+            print(traceback.format_exc())
+
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.db.models import Sum, Case, When, Value, DecimalField, F
+from django.db.models.functions import Coalesce
+from .models import StockLedger
 
 
 class AllDepartmentStockView(APIView):
@@ -933,38 +1084,90 @@ class AllDepartmentStockView(APIView):
         data = (
             StockLedger.objects
             .values("item", "department")
-            .annotate(stock=Sum("quantity"))
+            .annotate(
+                stock=Coalesce(
+                    Sum(
+                        Case(
+                            When(transaction_type='IN', then=F('quantity')),
+                            When(transaction_type='OUT', then=-F('quantity')),
+                            default=Value(0),
+                            output_field=DecimalField()
+                        )
+                    ),
+                    Value(0),
+                    output_field=DecimalField()
+                )
+            )
         )
+        return Response(data)
+
+class SalesOrdersByItemAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, item_id):
+        organization = getattr(request.user, 'organization', None)
+        if not organization:
+            return Response({"error": "Organization not found"}, status=400)
+
+        try:
+            item = Item.objects.get(id=item_id, organization=organization)
+        except Item.DoesNotExist:
+            return Response({"error": "Item not found"}, status=404)
+
+        # Correct lookup using 'product' field from SalesOrderItem
+        sales_orders = SalesOrder.objects.filter(
+            organization=organization,
+            status__in=['draft', 'confirmed', 'processing', 'open'],   # Your actual open statuses
+            items__product=item,                                       # ← Correct: items__product
+        ).distinct().prefetch_related('items')
+
+        data = []
+        for so in sales_orders:
+            line_item = so.items.filter(product=item).first()          # ← Use 'product'
+            if not line_item:
+                continue
+
+            ordered_qty = float(getattr(line_item, 'quantity', 0))     # Your model uses 'quantity'
+            # dispatched_qty is not present in your model yet, so we use 0 for now
+            dispatched_qty = 0.0
+            pending_qty = ordered_qty - dispatched_qty
+
+            if pending_qty <= 0:
+                continue
+
+            data.append({
+                "id": so.id,
+                "so_number": getattr(so, 'order_number', f"SO-{so.id}"),
+                "customer_name": getattr(so.customer, 'full_name', so.customer.__str__() if so.customer else ''),
+                "customer_address": getattr(so, 'shipping_address', getattr(so, 'billing_address', '')),
+                "customer_gst": getattr(so.customer, 'gstin', '') if so.customer else '',
+                "item_id": item.id,
+                "ordered_qty": ordered_qty,
+                "pending_qty": pending_qty,
+                "unit": getattr(item, 'uom', ''),
+            })
 
         return Response(data)
-        try:
-            instance.delete()
-        except Exception as e:
-            logger.error(f"Error deleting machine: {str(e)}")
-            raise
-    
-    def create(self, request, *args, **kwargs):
-        """Override create to provide better error messages"""
-        try:
-            # Log the incoming data for debugging
-            logger.info(f"Creating machine with data: {request.data}")
-            
-            return super().create(request, *args, **kwargs)
-        except serializers.ValidationError as e:
-            logger.error(f"Validation error: {str(e.detail) if hasattr(e, 'detail') else str(e)}")
-            return Response(
-                e.detail if hasattr(e, 'detail') else {"detail": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except PermissionDenied as e:
-            logger.error(f"Permission denied: {str(e)}")
-            return Response(
-                {"detail": str(e)},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error in machine creation: {str(e)}", exc_info=True)
-            return Response(
-                {"detail": f"An error occurred while creating the machine: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+
+class CustomerListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        organization = getattr(request.user, 'organization', None)
+        if not organization:
+            return Response({"error": "Organization not found"}, status=400)
+
+        customers = Customer.objects.filter(
+            organization=organization
+        ).order_by('full_name')          # ← Changed from 'name' to 'full_name'
+
+        data = []
+        for c in customers:
+            data.append({
+                "id": c.id,
+                "name": c.full_name,                    # ← Use full_name for display
+                "address": c.billing_address or c.shipping_address or "",   # Prefer billing, fallback to shipping
+                "gst": getattr(c, 'gstin', ''),         # Most common GST field name in Indian ERPs
+            })
+
+        return Response(data)

@@ -5,7 +5,9 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AllDepartmentStockView,
+    CustomerListAPIView,
     DepartmentStockAPIView,
+    DispatchViewSet,
     InventoryDashboardStatsView,
     InventoryDashboardStatsAPIView,
     ItemDepartmentStockView,
@@ -15,6 +17,7 @@ from .views import (
     GateEntryViewSet,
     GRNViewSet,
     QualityInspectionViewSet,
+    SalesOrdersByItemAPIView,
     VendorInvoiceViewSet,
     VendorPaymentViewSet,
     MachineViewSet,
@@ -31,10 +34,13 @@ router.register(r'quality-inspections', QualityInspectionViewSet, basename='qual
 router.register(r'vendor-invoices', VendorInvoiceViewSet, basename='vendor-invoices')
 router.register(r'vendor-payments', VendorPaymentViewSet, basename='vendor-payments')
 router.register(r'machines', MachineViewSet, basename='machines')
+router.register(r'dispatch', DispatchViewSet, basename='dispatch')
 
 urlpatterns = [
     path('', include(router.urls)),
     path('material-transfer/', MaterialTransferAPIView.as_view(), name='material-transfer'),
+    path('sales-orders/by-item/<int:item_id>/', SalesOrdersByItemAPIView.as_view(), name='sales-orders-by-item'),
+    path('customers/', CustomerListAPIView.as_view(), name='customer-list'),
     path('items-for-quotation/', ItemListForQuotation.as_view(), name='items-for-quotation'),
     path('department-stock/', DepartmentStockAPIView.as_view()),
     path('dashboard-stats/', InventoryDashboardStatsAPIView.as_view(), name='inventory-dashboard-stats'),

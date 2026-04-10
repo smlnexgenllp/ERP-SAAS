@@ -11,36 +11,47 @@ User = settings.AUTH_USER_MODEL
 from django.db.models import F
 
 def get_next_number(prefix, org_id, model_class):
+    """
+    Generate next sequential number like: DC/11/2026/0001
+    """
     current_year = timezone.now().year
     model_name = model_class.__name__
+
+    # Define date filter based on model
     if model_name == 'GateEntry':
         date_filter = {'entry_time__year': current_year}
     elif model_name == 'GRN':
         date_filter = {'received_date__year': current_year}
     else:
         date_filter = {'created_at__year': current_year}
+
+    # Get the last record for this organization and year
     last_entry = model_class.objects.filter(
         organization_id=org_id,
         **date_filter
     ).order_by('-id').first()
+
     seq = 1
     if last_entry:
-        number_field = (
-            getattr(last_entry, 'gate_entry_number', '') if model_name == 'GateEntry' else
-            getattr(last_entry, 'po_number', '') if model_name == 'PurchaseOrder' else
-            getattr(last_entry, 'grn_number', '') if model_name == 'GRN' else
-            ''
-        )
+        # Map model to its number field
+        number_field_map = {
+            'GateEntry': 'gate_entry_number',
+            'PurchaseOrder': 'po_number',
+            'GRN': 'grn_number',
+            'Dispatch': 'dc_number',          # ← Added for Dispatch
+        }
+        number_field = getattr(last_entry, number_field_map.get(model_name, ''), '')
+
         if number_field:
             try:
+                # Extract sequence from format: PREFIX/ORG/YEAR/XXXX
                 parts = number_field.rsplit('/', 1)
                 if len(parts) == 2:
                     seq = int(parts[1]) + 1
             except (ValueError, IndexError):
-                pass
+                seq = 1
 
     return f"{prefix}/{org_id}/{current_year}/{seq:04d}"
-
 
 class Item(models.Model):
     CATEGORY_CHOICES = [
@@ -414,6 +425,7 @@ class VendorInvoice(models.Model):
     invoice_date = models.DateField()
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     due_date = models.DateField(null=True, blank=True)
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     status = models.CharField(default="pending", max_length=20)
 
     def __str__(self):
@@ -435,7 +447,7 @@ class VendorPayment(models.Model):
     payment_mode = models.CharField(max_length=20, choices=PAYMENT_MODES)
     reference_number = models.CharField(max_length=100, blank=True, null=True)
 
-    payment_date = models.DateField(default=timezone.now)
+    payment_date = models.DateField(auto_now_add=True)
 
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
@@ -708,3 +720,53 @@ class Machine(models.Model):
                 return False
         
         return True
+# ========================= DISPATCH (DELIVERY CHALLAN) =========================
+class Dispatch(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('dispatched', 'Dispatched'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+
+    sales_order = models.ForeignKey(
+        'sales.SalesOrder',  # change if needed
+        on_delete=models.PROTECT,
+        related_name='dispatches'
+    )
+
+    dc_number = models.CharField(max_length=50, unique=True, editable=False)
+
+    dispatch_date = models.DateField(auto_now_add=True)
+
+    customer_name = models.CharField(max_length=255)
+    customer_address = models.TextField()
+    customer_gst = models.CharField(max_length=50, blank=True, null=True)
+
+    vehicle_number = models.CharField(max_length=20, blank=True, null=True)
+    transporter_name = models.CharField(max_length=255, blank=True, null=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.dc_number:
+            self.dc_number = get_next_number("DC", self.organization_id, Dispatch)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.dc_number
+
+
+class DispatchItem(models.Model):
+    dispatch = models.ForeignKey(Dispatch, related_name="items", on_delete=models.CASCADE)
+    item = models.ForeignKey(Item, on_delete=models.PROTECT)
+
+    ordered_qty = models.DecimalField(max_digits=10, decimal_places=2)
+    dispatch_qty = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.item.name} - {self.dispatch_qty}"
