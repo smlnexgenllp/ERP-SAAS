@@ -41,3 +41,30 @@
     overflow: hidden;
   }
 }
+
+@media print {
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  body * {
+    visibility: hidden;
+  }
+  
+  #printable-dc, #printable-dc * {
+    visibility: visible;
+  }
+  
+  #printable-dc {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+  }
+
+  .max-w-4xl {
+    max-width: 100% !important;
+    box-shadow: none !important;
+  }
+}
