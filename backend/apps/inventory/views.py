@@ -127,7 +127,12 @@ class GRNViewSet(viewsets.ModelViewSet):
         return GRN.objects.filter(
             organization=self.request.user.organization
         ).select_related('po', 'po__vendor')
-
+    @action(detail=False, methods=["get"])
+    def pending_for_approval(self, request):
+        qs = self.get_queryset().filter(status="pending_approval")
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
+    
     @action(detail=False, methods=["get"], url_path="pending-for-invoice")
     def pending_for_invoice(self, request):
         qs = self.get_queryset().filter(status="approved").exclude(
@@ -135,7 +140,7 @@ class GRNViewSet(viewsets.ModelViewSet):
                 organization=request.user.organization
             ).values_list("grn_id", flat=True)
         ).select_related('po', 'po__vendor').prefetch_related('items')
-
+        
         serializer = GRNSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -168,14 +173,7 @@ class GRNViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        """
-        Approve GRN:
-        - Atomic transaction
-        - Creates stock ledger entries (IN) → stock updated automatically
-        - Updates PO received qty
-        - Closes PO if fully received
-        - NO accounting voucher created (as requested)
-        """
+       
         grn = self.get_object()
 
         if grn.status != 'pending_approval':
