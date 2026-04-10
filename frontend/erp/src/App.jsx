@@ -86,6 +86,7 @@ import WorkOrdersList from "./components/modules/production/components/WorkOrder
 import LowStockAlerts from "./components/modules/inventory/LowStockAlert";
 import QualityInspectionList from "./pages/modules/purchase/QualityInspectionList";
 import FullStockLedger from "./pages/modules/sales/components/FullStockLedger";
+import DispatchPage from "./pages/modules/sales/components/DispatchPage";
 import VendorInvoice from "./pages/modules/finance/VendorInvoice";
 import VendorPayment from "./pages/modules/finance/VendorPayment";
 
@@ -398,7 +399,7 @@ function App() {
           <Route path="/pending-PO" element={<PurchaseOrderApproval />} />
           <Route path="/low-stock" element={<LowStockAlerts/>}/>
           <Route path="/QC-list" element={<QualityInspectionList />} />
-
+          <Route path="/dispatch" element={<DispatchPage/>} />
           <Route path="/inventory/items" element={<StockDashboard />} />
           <Route path="/grn/pending-approval" element={<GRNApprovalList />} />
           <Route path="/accounting/dashboard" element={<FinanceDashboard />} />

@@ -720,14 +720,14 @@ class VendorInvoiceSerializer(serializers.ModelSerializer):
             'po_number', 
             'vendor', 
             'vendor_name',
-            'paid_amount', 
-            # Remove 'created_at' if the model doesn't have it
-            # 'created_at'   ← Delete this line
+            'paid_amount',
         ]
         read_only_fields = ['organization']
 
     def get_paid_amount(self, obj):
-        return obj.vendorpayment_set.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        """Calculate total paid amount using correct related_name"""
+        total = obj.payments.aggregate(total=Sum('amount'))['total']   # ← Changed here
+        return total or Decimal('0.00')
 # serializers.py
 class VendorInvoiceCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -746,8 +746,14 @@ class VendorPaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = VendorPayment
         fields = [
-            'id', 'invoice', 'invoice_number', 'vendor_name',
-            'payment_date', 'amount', 'payment_mode'
+            'id', 
+            'invoice', 
+            'invoice_number', 
+            'vendor_name',
+            'amount', 
+            'payment_mode', 
+            'reference_number',
+            'payment_date'
         ]
         read_only_fields = ['payment_date']
 
@@ -824,3 +830,107 @@ class MachineSerializer(serializers.ModelSerializer):
                 # You might want to add organization validation here
                 pass
         return value
+from rest_framework import serializers
+from .models import Dispatch, DispatchItem
+
+
+class DispatchItemSerializer(serializers.ModelSerializer):
+    item = serializers.IntegerField(write_only=True)
+    name = serializers.CharField(source="item.name", read_only=True)
+    uom = serializers.CharField(source="item.uom", read_only=True)
+    ordered_qty = serializers.DecimalField(max_digits=10, decimal_places=2, write_only=True)  # <-- add this
+    dispatch_qty = serializers.DecimalField(max_digits=10, decimal_places=2)
+    rate = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        source="item.standard_price",
+        read_only=True
+    )
+
+    taxable_value = serializers.SerializerMethodField()
+    gst_rate = serializers.SerializerMethodField()
+    gst_amount = serializers.SerializerMethodField()
+    total_value = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DispatchItem
+        fields = [
+           "item", "name", "dispatch_qty", "uom","ordered_qty",
+            "rate", "taxable_value",
+            "gst_rate", "gst_amount", "total_value"
+        ]
+
+    def get_taxable_value(self, obj):
+        return obj.dispatch_qty * obj.item.standard_price
+
+    def get_gst_rate(self, obj):
+        gst = GSTSettings.objects.first()
+        return gst.gst_rate if gst else 0
+
+    def get_gst_amount(self, obj):
+        gst = GSTSettings.objects.first()
+        rate = gst.gst_rate if gst else 0
+        return (obj.dispatch_qty * obj.item.standard_price * rate) / 100
+
+    def get_total_value(self, obj):
+        taxable = obj.dispatch_qty * obj.item.standard_price
+        gst = self.get_gst_amount(obj)
+        return taxable + gst
+from apps.sales.models import GSTSettings
+class DispatchSerializer(serializers.ModelSerializer):
+    
+    items = DispatchItemSerializer(many=True)
+    
+
+    sales_order_number = serializers.CharField(source="sales_order.so_number", read_only=True)
+
+    organization = serializers.SerializerMethodField()
+    gst_settings = serializers.SerializerMethodField()
+
+    total_taxable = serializers.SerializerMethodField()
+    total_gst = serializers.SerializerMethodField()
+    grand_total = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Dispatch
+        fields = "__all__"
+
+    def get_organization(self, obj):
+        return {
+            "name": obj.organization.name if obj.organization else "",
+            "address": obj.organization.address if obj.organization else "",
+        }
+
+    def get_gst_settings(self, obj):
+        gst = GSTSettings.objects.first()
+        return {
+            "gstin": gst.gstin if gst else ""
+        }
+
+    def get_total_taxable(self, obj):
+        return sum([i.dispatch_qty * i.item.standard_price for i in obj.items.all()])
+
+    def get_total_gst(self, obj):
+        gst = GSTSettings.objects.first()
+        rate = gst.gst_rate if gst else 0
+        return sum([
+            (i.dispatch_qty * i.item.standard_price * rate) / 100
+            for i in obj.items.all()
+        ])
+
+    def get_grand_total(self, obj):
+        return self.get_total_taxable(obj) + self.get_total_gst(obj)
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+
+        dispatch = Dispatch.objects.create(**validated_data)
+
+        for item_data in items_data:
+            DispatchItem.objects.create(
+                dispatch=dispatch,
+                item_id=item_data.get("item"),
+                ordered_qty=item_data.get("ordered_qty"),
+                dispatch_qty=item_data.get("dispatch_qty"),
+            )
+
+        return dispatch

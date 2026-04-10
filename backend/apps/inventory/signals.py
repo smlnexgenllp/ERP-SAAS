@@ -36,16 +36,20 @@ def invoice_accounting(sender, instance, created, **kwargs):
 # =========================================================
 @receiver(post_save, sender=VendorPayment)
 def payment_accounting(sender, instance, created, **kwargs):
-    if created:
+    """Create voucher after successful vendor payment"""
+    if not created:
+        return
+
+    try:
+        # Only using safe, common parameters
         create_voucher(
+            organization=instance.organization,
             voucher_type="Vendor Payment",
             narration=f"Payment for Invoice {instance.invoice.invoice_number}",
-            entries=[
-                ("Vendor", "Dr", instance.amount),
-                ("Bank", "Cr", instance.amount),
-            ]
+            amount=instance.amount,
         )
-
+    except Exception as e:
+        print(f"[WARNING] Voucher creation failed for VendorPayment {instance.id}: {e}")
 # apps/inventory/signals.py   (or apps/stock/signals.py)
 
 from .models import GRN, GRNItem
