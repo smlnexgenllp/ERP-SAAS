@@ -303,3 +303,190 @@ class GSTSettings(models.Model):
         """Get or create the single settings record"""
         obj, created = cls.objects.get_or_create(pk=1)
         return obj
+    
+from django.db import models
+from django.utils import timezone
+from django.conf import settings
+
+# Direct imports (recommended when possible)
+from apps.crm.models import Customer
+from apps.inventory.models import Item, Dispatch, DispatchItem
+from apps.organizations.models import Organization   # ← Note: organizations (plural)
+
+
+class SalesInvoice(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('issued', 'Issued'),
+        ('paid', 'Paid'),
+        ('partial', 'Partial Paid'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    invoice_number = models.CharField(max_length=50, unique=True, blank=True)
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name='sales_invoices'
+    )
+
+    dispatch = models.OneToOneField(
+        Dispatch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='invoice'
+    )
+
+    invoice_date = models.DateField(default=timezone.now)
+    due_date = models.DateField(null=True, blank=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+
+    total_taxable = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_gst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    grand_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Correct reference using direct import
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        related_name='sales_invoices'
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-invoice_date']
+        verbose_name = "Sales Invoice"
+        verbose_name_plural = "Sales Invoices"
+    def update_totals(self):
+        totals = self.items.aggregate(
+            taxable=models.Sum('taxable_value'),
+            gst=models.Sum('gst_amount'),
+            total=models.Sum('total_value')
+        )
+
+        self.total_taxable = totals['taxable'] or 0
+        self.total_gst = totals['gst'] or 0
+        self.grand_total = totals['total'] or 0
+        self.save()
+    def save(self, *args, **kwargs):
+        if not self.invoice_number:
+            last = SalesInvoice.objects.filter(
+                organization=self.organization
+            ).order_by('-id').first()
+
+            num = 1 if not last else int(last.invoice_number.split('-')[-1]) + 1
+
+            self.invoice_number = f"INV-{timezone.now().strftime('%Y%m')}-{num:04d}"
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.invoice_number
+
+
+class SalesInvoiceItem(models.Model):
+    invoice = models.ForeignKey(SalesInvoice, on_delete=models.CASCADE, related_name='items')
+
+    item = models.ForeignKey(Item, on_delete=models.PROTECT)
+
+    dispatch_item = models.ForeignKey(
+        DispatchItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    rate = models.DecimalField(max_digits=12, decimal_places=2)
+    taxable_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=18)
+    gst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    returned_qty = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    @property
+    def remaining_qty(self):
+        return self.quantity - self.returned_qty
+    def save(self, *args, **kwargs):
+        self.taxable_value = self.quantity * self.rate
+        self.gst_amount = (self.taxable_value * self.gst_rate) / 100
+        self.total_value = self.taxable_value + self.gst_amount
+
+        super().save(*args, **kwargs)
+
+        # update invoice totals
+        self.invoice.update_totals()
+
+
+class SalesPayment(models.Model):
+    PAYMENT_MODE_CHOICES = [
+        ('cash', 'Cash'),
+        ('bank', 'Bank Transfer'),
+        ('upi', 'UPI'),
+        ('cheque', 'Cheque'),
+    ]
+
+    invoice = models.ForeignKey(SalesInvoice, on_delete=models.CASCADE, related_name='payments')
+    payment_date = models.DateTimeField(auto_now_add=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    mode = models.CharField(max_length=20, choices=PAYMENT_MODE_CHOICES, default='bank')
+    reference = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        invoice = self.invoice
+
+        total_paid = invoice.payments.aggregate(
+            total=models.Sum('amount')
+        )['total'] or 0
+
+        invoice.amount_paid = total_paid
+
+        if total_paid == 0:
+            invoice.status = "issued"
+        elif total_paid < invoice.grand_total:
+            invoice.status = "partial"
+        else:
+            invoice.status = "paid"
+
+        invoice.save()
+    def __str__(self):
+        return f"{self.invoice.invoice_number} - ₹{self.amount}"
+class SalesReturn(models.Model):
+    invoice = models.ForeignKey('SalesInvoice', on_delete=models.CASCADE)
+    customer = models.ForeignKey('crm.Customer', on_delete=models.CASCADE)
+    return_date = models.DateField()
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class SalesReturnItem(models.Model):
+    sales_return = models.ForeignKey(SalesReturn, on_delete=models.CASCADE, related_name="items")
+    item = models.ForeignKey(Item, on_delete=models.PROTECT)
+    qty = models.DecimalField(max_digits=10, decimal_places=2)
+    rate = models.DecimalField(max_digits=10, decimal_places=2)
+    tax = models.DecimalField(max_digits=5, decimal_places=2)
+    
+    

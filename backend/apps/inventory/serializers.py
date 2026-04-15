@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.db.models.aggregates import Sum
@@ -13,6 +13,8 @@ from .models import (
     PurchaseOrder, PurchaseOrderItem,
     GateEntry, GateEntryItem,
     GRN, GRNItem,
+    PurchaseReturn,
+    PurchaseReturnItem,
     QualityInspection, QualityInspectionItem,
     VendorInvoice,
     VendorPayment,Machine
@@ -468,9 +470,18 @@ class GateEntrySerializer(serializers.ModelSerializer):
 # apps/inventory/serializers.py
 
 class GRNItemSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.name", read_only=True)
+
+    # ✅ Get rate from PO item
+    rate = serializers.SerializerMethodField()
+
     class Meta:
         model = GRNItem
-        fields = ['item', 'received_qty']
+        fields = ["id", "item", "item_name", "received_qty", "rate"]
+
+    def get_rate(self, obj):
+        po_item = obj.grn.po.items.filter(item=obj.item).first()
+        return po_item.unit_price if po_item else 0
 
 
 # apps/inventory/serializers.py
@@ -479,10 +490,14 @@ from django.db.models import Sum, F
 from .models import GRN
 
 class GRNSerializer(serializers.ModelSerializer):
+    items = GRNItemSerializer(many=True, read_only=True)
     po_number = serializers.CharField(source='po.po_number', read_only=True)
     vendor_name = serializers.CharField(source='po.vendor.name', read_only=True)
     total_value = serializers.SerializerMethodField()
-
+    gate_entry = serializers.PrimaryKeyRelatedField(
+    queryset=GateEntry.objects.all(),
+    write_only=True
+)
     class Meta:
         model = GRN
         fields = [
@@ -490,8 +505,10 @@ class GRNSerializer(serializers.ModelSerializer):
             'grn_number',
             'received_date',
             'po_number',
+            'gate_entry',
             'vendor_name',
-            'total_value'
+            'total_value',
+            'items',
         ]
 
     def get_total_value(self, obj):
@@ -505,59 +522,39 @@ class GRNSerializer(serializers.ModelSerializer):
         return float(total or 0)
 
     def validate(self, data):
-        qc = data.get('quality_inspection')
+        gate = data.get('gate_entry')
 
-        if not qc:
-            raise serializers.ValidationError(
-                "Quality Inspection is required to create GRN"
-            )
+        if not gate:
+            raise serializers.ValidationError("Gate entry is required")
 
-        if not qc.is_approved:
+        if gate.status != 'qc_passed':
             raise serializers.ValidationError(
-                "GRN can be created only from APPROVED Quality Inspection"
+                "QC not completed (gate not approved)"
             )
 
         return data
 
-    @transaction.atomic
     def create(self, validated_data):
         request = self.context['request']
 
-        qc = validated_data.pop('quality_inspection')
+        gate = validated_data.pop('gate_entry')
         items_data = validated_data.pop('items', [])
-
-        # Take PO and Gate Entry from QC automatically
-        gate = qc.gate_entry
 
         grn = GRN.objects.create(
             organization=request.user.organization,
             po=gate.po,
             gate_entry=gate,
-            quality_inspection=qc,
             status='pending_approval',
             **validated_data
         )
 
-        created_count = 0
-
-        for item_data in items_data:
-            if item_data.get('received_qty', 0) > 0:
-                GRNItem.objects.create(
-                    grn=grn,
-                    **item_data
-                )
-                created_count += 1
-
-        if created_count == 0:
-            raise serializers.ValidationError(
-                "No valid items to create GRN"
-            )
+        for item in items_data:
+            GRNItem.objects.create(grn=grn, **item)
 
         gate.status = 'grn_created'
         gate.save(update_fields=['status'])
 
-        return grn        
-# ========================= QUALITY INSPECTION =========================
+        return grn
 class QualityInspectionItemSerializer(serializers.ModelSerializer):
     item = serializers.PrimaryKeyRelatedField(
         queryset=Item.objects.all(),
@@ -934,3 +931,149 @@ class DispatchSerializer(serializers.ModelSerializer):
             )
 
         return dispatch
+# serializers.py
+# serializers.py
+# serializers.py
+from rest_framework import serializers
+from decimal import Decimal
+from django.shortcuts import get_object_or_404
+
+from .models import (
+    PurchaseReturn, 
+    PurchaseReturnItem, 
+    VendorInvoice, 
+    StockLedger
+)
+
+
+class PurchaseReturnItemSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source='item.name', read_only=True)
+
+    class Meta:
+        model = PurchaseReturnItem
+        fields = ['item', 'item_name', 'qty', 'rate', 'tax']
+
+
+# inventory/serializers.py
+from rest_framework import serializers
+from decimal import Decimal
+from django.shortcuts import get_object_or_404
+
+from .models import PurchaseReturn, PurchaseReturnItem, VendorInvoice, StockLedger
+from rest_framework import serializers
+from decimal import Decimal
+from django.shortcuts import get_object_or_404
+
+from .models import PurchaseReturn, PurchaseReturnItem, VendorInvoice, StockLedger
+
+
+class PurchaseReturnItemSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source='item.name', read_only=True)
+
+    class Meta:
+        model = PurchaseReturnItem
+        fields = ['item', 'item_name', 'qty', 'rate', 'tax']
+from django.db.models import Max
+
+def generate_debit_note_number():
+    last_number = PurchaseReturn.objects.aggregate(
+        max_num=Max('debit_note_number')
+    )['max_num']
+
+    if not last_number:
+        next_num = 1
+    else:
+        try:
+            last_num = int(last_number.split('/')[-1])
+            next_num = last_num + 1
+        except:
+            next_num = 1
+
+    return f"DN/11/2026/{str(next_num).zfill(4)}"
+
+class PurchaseReturnSerializer(serializers.ModelSerializer):
+    items = PurchaseReturnItemSerializer(many=True)
+
+    class Meta:
+        model = PurchaseReturn
+        fields = [
+            'id', 'debit_note_number', 'return_date', 'reason',
+            'invoice', 'vendor',
+            'taxable_value', 'cgst', 'sgst', 'igst', 'total_amount',
+            'items'
+        ]
+        read_only_fields = [
+            'organization', 'created_by', 'debit_note_number',
+            'vendor',                    # ← Very important
+            'taxable_value', 'cgst', 'sgst', 'igst', 'total_amount'
+        ]
+
+    from django.db import IntegrityError
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        request = self.context['request']
+        org = request.user.organization
+        invoice = validated_data.pop('invoice')
+
+        for _ in range(5):  # retry max 5 times
+            try:
+                purchase_return = PurchaseReturn.objects.create(
+                    organization=org,
+                    vendor=invoice.vendor,
+                    invoice=invoice,
+                    return_date=validated_data.get('return_date'),
+                    reason=validated_data.get('reason', ''),
+                    created_by=request.user,
+                    debit_note_number=generate_debit_note_number()
+                )
+                break
+            except IntegrityError:
+                continue
+        else:
+            raise Exception("Unable to generate unique debit note number")
+
+    # continue your logic...
+
+        taxable = Decimal('0')
+        cgst_total = Decimal('0')
+        sgst_total = Decimal('0')
+        igst_total = Decimal('0')
+
+        for item_data in items_data:
+            qty = Decimal(str(item_data['qty']))
+            rate = Decimal(str(item_data['rate']))
+            tax_rate = Decimal(str(item_data['tax']))
+
+            base = qty * rate
+            tax_amt = base * tax_rate / 100
+
+            taxable += base
+            cgst_total += tax_amt / 2
+            sgst_total += tax_amt / 2
+
+            PurchaseReturnItem.objects.create(
+                purchase_return=purchase_return,
+                item=item_data['item'],
+                qty=qty,
+                rate=rate,
+                tax=tax_rate
+            )
+
+            StockLedger.objects.create(
+                item=item_data['item'],
+                quantity=qty,
+                transaction_type='OUT',
+                reference=purchase_return.debit_note_number
+            )
+
+        total = taxable + cgst_total + sgst_total + igst_total
+
+        purchase_return.taxable_value = taxable
+        purchase_return.cgst = cgst_total
+        purchase_return.sgst = sgst_total
+        purchase_return.igst = igst_total
+        purchase_return.total_amount = total
+        purchase_return.save()
+
+        return purchase_return

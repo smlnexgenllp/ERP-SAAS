@@ -1,8 +1,11 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
+from django.urls import include
 from .views import (
     ConvertToCustomerView,
     CreateQuotationFromLeadView,
     CustomerDetailView,
+    CustomerLedgerView,
     CustomerListView,
     CustomerUpdateView,
     FollowUpListCreateView,
@@ -12,6 +15,7 @@ from .views import (
     QuotationListView,
     QuotationDetailView,
     QuotationStatusUpdateView,
+    SalesInvoiceViewSet,
     SalesOrderCreateView,
     SalesOrderDeleteView,
     SalesOrderListView,
@@ -20,8 +24,13 @@ from .views import (
     SalesDashboardSummaryView,
     SalesDashboardMyItemsView,
     SalesDashboardTeamPerformanceView,
+    SalesPaymentViewSet,
+    # VendorLedgerView,
+    current_organization,
 )
-
+router = DefaultRouter()
+router.register(r'invoices', SalesInvoiceViewSet, basename='salesinvoice')
+router.register(r'payments', SalesPaymentViewSet, basename='salespayment')
 urlpatterns = [
     path('qualified-leads/', QualifiedLeadsListView.as_view()),
 path('qualified-leads/<int:id>/', QualifiedLeadDetailView.as_view()),
@@ -43,6 +52,10 @@ path('sales-orders/<int:pk>/status/', SalesOrderStatusUpdateView.as_view(), name
 
 path('dashboard/summary/', SalesDashboardSummaryView.as_view(), name='dashboard-summary'),
 path('dashboard/my-items/', SalesDashboardMyItemsView.as_view(), name='dashboard-my-items'),
+path('organization/', current_organization, name='current-organization'),
+# urls.py
+path("customer-ledger/<int:customer_id>/", CustomerLedgerView.as_view()),
+#  path('sale/vendor-ledger/<int:vendor_id>/', VendorLedgerView.as_view()),
 path('dashboard/team-performance/', SalesDashboardTeamPerformanceView.as_view(), name='dashboard-team-performance'),
-
+path('', include(router.urls)),
 ]

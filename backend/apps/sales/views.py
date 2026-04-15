@@ -1,3 +1,5 @@
+from datetime import date
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -5,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.core.mail import EmailMessage
 from django.utils import timezone
 from django.core.files.base import ContentFile
+from decimal import Decimal
 from io import BytesIO
 from .models import GSTSettings
 from reportlab.lib.pagesizes import A4
@@ -842,3 +845,389 @@ class SalesDashboardTeamPerformanceView(APIView):
             })
 
         return Response(team_data)
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+
+from .models import SalesInvoice, SalesInvoiceItem, SalesPayment
+from .serializers import (
+    SalesInvoiceSerializer, 
+    SalesInvoiceItemSerializer, 
+    SalesPaymentSerializer
+)
+from apps.inventory.models import Dispatch, Item, StockLedger
+
+# apps/organization/views.py
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_organization(request):
+    org = request.user.organization
+    return Response({
+        "id": org.id,
+        "name": org.name,
+        "address": org.address,      # adjust field names as per your Organization model
+        "gstin": getattr(org, 'gstin', ''),
+        "pan": getattr(org, 'pan', ''),
+        "phone": getattr(org, 'phone', ''),
+        "email": getattr(org, 'email', ''),
+    })
+from .models import SalesReturn, SalesReturnItem
+class SalesInvoiceViewSet(viewsets.ModelViewSet):
+    serializer_class = SalesInvoiceSerializer
+    queryset = SalesInvoice.objects.all()
+
+    def get_queryset(self):
+        return SalesInvoice.objects.filter(
+            organization=self.request.user.organization
+        ).order_by('-invoice_date')
+
+    @action(detail=False, methods=['post'])
+    def create_from_dispatch(self, request, pk=None):
+        dispatch_id = request.data.get('dispatch_id')
+        if not dispatch_id:
+            return Response({"error": "dispatch_id is required"}, status=400)
+
+        dispatch = get_object_or_404(Dispatch, id=dispatch_id, organization=request.user.organization)
+        if dispatch.status != 'dispatched':
+
+            return Response({"error": "Only dispatched Delivery Challan can be converted to invoice"}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                if SalesInvoice.objects.filter(dispatch=dispatch).exists():
+                    return Response(
+                        {"error": "Invoice already created for this dispatch"},
+                        status=400
+                )
+                invoice = SalesInvoice.objects.create(
+                dispatch=dispatch,
+                customer=dispatch.sales_order.customer,   
+                organization=request.user.organization,
+                created_by=request.user,
+                total_taxable=getattr(dispatch, 'total_taxable', 0),
+                total_gst=getattr(dispatch, 'total_gst', 0),
+                grand_total=getattr(dispatch, 'grand_total', 0),
+                invoice_date=timezone.now().date(), 
+        )   
+
+                for d_item in dispatch.items.all():
+                    SalesInvoiceItem.objects.create(
+                        invoice=invoice,
+                        item=d_item.item,
+                        dispatch_item=d_item,
+                        quantity=d_item.dispatch_qty,
+                        rate=d_item.item.standard_price,     # your price field
+                        gst_rate=18,                         # or from GSTSettings
+                    )
+
+                # Refresh totals
+                invoice.save()
+
+            serializer = SalesInvoiceSerializer(invoice)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        invoice = self.get_object()
+
+        if invoice.status != "draft":
+            return Response(
+                {"error": "Only draft invoice can be approved"},
+                status=400
+            )
+
+        invoice.status = "issued"
+        invoice.save()
+
+        return Response({"message": "Invoice approved (Issued)"})
+    @action(detail=False, methods=['get', 'post'], url_path='returns')
+    def sales_returns(self, request):
+        
+        # ==================== GET ====================
+        if request.method == 'GET':
+            returns_qs = SalesReturn.objects.filter(
+                invoice__organization=request.user.organization
+            ).select_related('invoice', 'customer').prefetch_related('items').order_by('-return_date')
+
+            data = []
+            for ret in returns_qs:
+                items_list = []
+                total_rate = 0
+                total_qty = 0
+
+                for item in ret.items.all():
+                    items_list.append({
+                        "item": item.item.id,
+                        "item_name": item.item.name,
+                        "qty": float(item.qty),
+                        "rate": float(item.rate),
+                        "tax": float(item.tax),
+                    })
+
+                    total_rate += float(item.rate)
+                    total_qty += float(item.qty)
+
+                avg_rate = (total_rate / total_qty) if total_qty > 0 else 0
+
+                data.append({
+                    "id": ret.id,
+                    "return_number": f"SR-{str(ret.id).zfill(5)}",
+                    "return_date": ret.return_date.strftime("%Y-%m-%d"),
+                    "total_amount": float(ret.total_amount or 0),
+                    "customer_name": getattr(ret.customer, 'name', '') or getattr(ret.customer, 'full_name', 'Unknown'),
+                    "invoice_number": getattr(getattr(ret, 'invoice', None), 'invoice_number', ''),
+                    "items": items_list,                     # 🔥 IMPORTANT
+                    "items_count": len(items_list),
+                    "avg_rate": round(avg_rate, 2),          # 🔥 NEW FIELD
+})
+
+            return Response(data)
+
+        # ==================== POST ====================
+        if request.method == 'POST':
+            data = request.data
+
+            try:
+                with transaction.atomic():
+                    invoice_id = data.get('invoice')
+                    if not invoice_id:
+                        return Response({"error": "invoice is required"}, status=400)
+
+                    invoice = get_object_or_404(
+                        SalesInvoice.objects.select_related('customer'),
+                        id=invoice_id,
+                        organization=request.user.organization
+                    )
+
+                    return_date = data.get('return_date')
+                    if not return_date:
+                        return Response({"error": "return_date is required"}, status=400)
+
+                    sales_return = SalesReturn.objects.create(
+                        invoice=invoice,
+                        customer=invoice.customer,
+                        return_date=return_date,
+                        total_amount=Decimal('0.00'),
+                    )
+
+                    total = Decimal('0.00')
+                    items_data = data.get('items', [])
+
+                    if not items_data:
+                        return Response({"error": "At least one return item is required"}, status=400)
+
+                    for item_data in items_data:
+                        item_id = int(item_data.get('item'))
+                        qty = Decimal(str(item_data.get('qty', 0)))
+                        rate = Decimal(str(item_data.get('rate', 0)))
+                        tax = Decimal(str(item_data.get('tax', 0)))
+
+                        if qty <= 0:
+                            continue
+
+                        item_obj = get_object_or_404(
+                            Item, id=item_id, organization=request.user.organization
+                        )
+
+                        base = qty * rate
+                        tax_amt = (base * tax) / Decimal('100')
+                        amount = base + tax_amt
+
+                        SalesReturnItem.objects.create(
+                            sales_return=sales_return,
+                            item=item_obj,
+                            qty=qty,
+                            rate=rate,
+                            tax=tax,
+                        )
+
+                        StockLedger.objects.create(
+                            item=item_obj,
+                            transaction_type='IN',
+                            quantity=qty,
+                        )
+
+                        total += amount
+                        sales_return.total_amount = total
+                        sales_return.save()
+                    # === IMPORTANT: Update original invoice item ===
+                    invoice_item = SalesInvoiceItem.objects.get(
+                        invoice=invoice, 
+                        item=item_obj
+                    )
+                    invoice_item.returned_qty = (invoice_item.returned_qty or 0) + qty
+                    invoice_item.save()
+
+                    if hasattr(invoice.customer, 'balance'):
+                        invoice.customer.balance -= total
+                        invoice.customer.save()
+
+                    return Response({
+                        "message": "Sales return created successfully",
+                        "return_id": sales_return.id,
+                        "total_amount": str(total)
+                    }, status=status.HTTP_201_CREATED)
+
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+        
+class SalesPaymentViewSet(viewsets.ModelViewSet):
+    serializer_class = SalesPaymentSerializer
+    queryset = SalesPayment.objects.all()
+
+    def get_queryset(self):
+        return SalesPayment.objects.filter(
+            invoice__organization=self.request.user.organization
+        ).order_by('-payment_date')
+
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+from decimal import Decimal
+from datetime import date, datetime
+from django.db.models import Q
+from .models import SalesInvoice, SalesPayment, SalesReturn
+def normalize_date(d):
+    if isinstance(d, datetime):
+        return d.date()
+    return d
+class CustomerLedgerView(APIView):
+    def get(self, request, customer_id):
+        org = request.user.organization
+        ledger = []
+        invoices = SalesInvoice.objects.filter(
+            customer_id=customer_id,
+            organization=org
+        )
+        for inv in invoices:
+            amount = inv.grand_total or Decimal('0.00')
+            ledger.append({
+                "date": normalize_date(inv.invoice_date),
+                "type": "Invoice",
+                "ref": inv.invoice_number,
+                "debit": float(amount),
+                "credit": 0,
+            })
+        payments = SalesPayment.objects.filter(
+            invoice__customer_id=customer_id,
+            invoice__organization=org
+        )
+        for pay in payments:
+            amount = pay.amount or Decimal('0.00')
+            ledger.append({
+                "date": normalize_date(pay.payment_date),
+                "type": "Payment",
+                "ref": f"PAY-{pay.id}",
+                "debit": 0,
+                "credit": float(amount),
+            })
+        returns = SalesReturn.objects.filter(
+            customer_id=customer_id,
+            invoice__organization=org
+        )
+        for ret in returns:
+            amount = ret.total_amount or Decimal('0.00')
+            ledger.append({
+                "date": normalize_date(ret.return_date),
+                "type": "Return",
+                "ref": f"SR-{str(ret.id).zfill(5)}",
+                "debit": 0,
+                "credit": float(amount),   # 🔥 IMPORTANT
+            })
+        ledger.sort(key=lambda x: x["date"] or date.min)
+        running_balance = Decimal('0.00')
+        for row in ledger:
+            debit = Decimal(str(row["debit"]))
+            credit = Decimal(str(row["credit"]))
+            running_balance += debit
+            running_balance -= credit
+            row["balance"] = float(running_balance)
+        return Response(ledger)
+# from .models import PurchaseInvoice, VendorPayment, PurchaseReturn
+# def normalize_date(d):
+#     if isinstance(d, datetime):
+#         return d.date()
+#     return d
+# class VendorLedgerView(APIView):
+#     def get(self, request, vendor_id):
+#         org = request.user.organization
+
+#         ledger = []
+
+#         # ================= PURCHASE INVOICE (CREDIT) =================
+#         invoices = PurchaseInvoice.objects.filter(
+#             vendor_id=vendor_id,
+#             organization=org
+#         )
+
+#         for inv in invoices:
+#             amount = inv.grand_total or Decimal('0.00')
+
+#             ledger.append({
+#                 "date": normalize_date(inv.invoice_date),
+#                 "type": "Purchase Invoice",
+#                 "ref": inv.invoice_number,
+#                 "debit": 0,
+#                 "credit": float(amount),
+#             })
+
+#         # ================= PAYMENTS (DEBIT) =================
+#         payments = VendorPayment.objects.filter(
+#             invoice__vendor_id=vendor_id,
+#             invoice__organization=org
+#         )
+
+#         for pay in payments:
+#             amount = pay.amount or Decimal('0.00')
+
+#             ledger.append({
+#                 "date": normalize_date(pay.payment_date),
+#                 "type": "Payment",
+#                 "ref": f"PAY-{pay.id}",
+#                 "debit": float(amount),
+#                 "credit": 0,
+#             })
+
+#         # ================= PURCHASE RETURNS (DEBIT) =================
+#         returns = PurchaseReturn.objects.filter(
+#             vendor_id=vendor_id,
+#             invoice__organization=org
+#         )
+
+#         for ret in returns:
+#             amount = ret.total_amount or Decimal('0.00')
+
+#             ledger.append({
+#                 "date": normalize_date(ret.return_date),
+#                 "type": "Purchase Return",
+#                 "ref": f"PR-{str(ret.id).zfill(5)}",
+#                 "debit": float(amount),
+#                 "credit": 0,
+#             })
+
+#         # ================= SORT =================
+#         ledger.sort(key=lambda x: x["date"] or date.min)
+
+#         # ================= RUNNING BALANCE =================
+#         running_balance = Decimal('0.00')
+
+#         for row in ledger:
+#             debit = Decimal(str(row["debit"]))
+#             credit = Decimal(str(row["credit"]))
+
+#             # 🔥 Vendor logic
+#             running_balance += credit   # you owe vendor
+#             running_balance -= debit    # you paid
+
+#             row["balance"] = float(running_balance)
+
+#         return Response(ledger)
