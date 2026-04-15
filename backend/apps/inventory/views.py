@@ -11,7 +11,7 @@ from datetime import date
 from django.utils import timezone
 from rest_framework.views import APIView
 from django.db.models import Sum, Case, When, Value, DecimalField, F
-from .models import Dispatch, StockLedger
+from .models import Dispatch, PurchaseReturn, PurchaseReturnItem, StockLedger
 from .serializers import DispatchSerializer
 from apps.sales.models import SalesOrderItem, GSTSettings
 from apps.sales.models import SalesOrder
@@ -407,6 +407,7 @@ from .serializers import (
 # apps/inventory/views.py
 
 class VendorInvoiceViewSet(viewsets.ModelViewSet):
+    queryset = VendorInvoice.objects.all().prefetch_related("items")
     serializer_class = VendorInvoiceSerializer
     permission_classes = [IsAuthenticated]
 
@@ -1171,3 +1172,166 @@ class CustomerListAPIView(APIView):
             })
 
         return Response(data)
+from rest_framework.views import APIView
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import transaction
+
+from .models import PurchaseReturn
+from .serializers import PurchaseReturnSerializer
+
+
+class PurchaseReturnView(APIView):
+
+    def get(self, request):
+        org = request.user.organization
+        returns = PurchaseReturn.objects.filter(
+            organization=org
+        ).select_related('vendor', 'invoice').prefetch_related('items__item').order_by('-return_date')
+
+        serializer = PurchaseReturnSerializer(returns, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = PurchaseReturnSerializer(
+            data=request.data, 
+            context={'request': request}
+        )
+
+        if serializer.is_valid():
+            try:
+                with transaction.atomic():
+                    purchase_return = serializer.save()
+
+                    # Reduce the payable on original invoice
+                    invoice = purchase_return.invoice
+                    invoice.total_amount = (invoice.total_amount or 0) - (purchase_return.total_amount or 0)
+                    invoice.save()
+
+                return Response({
+                    "message": "Purchase Return Created Successfully",
+                    "debit_note_number": purchase_return.debit_note_number,
+                    "id": purchase_return.id
+                }, status=status.HTTP_201_CREATED)
+
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+
+        return Response(serializer.errors, status=400)
+# ====================== VENDOR LEDGER ======================
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Sum, F, Value, DecimalField
+from django.db.models.functions import Coalesce
+from decimal import Decimal
+from apps.finance.models.vendor import Vendor
+
+class VendorLedgerAPIView(APIView): 
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, vendor_id=None):
+        org = request.user.organization
+
+        # Get vendor_id from URL or query params
+        if not vendor_id:
+            vendor_id = request.query_params.get('vendor_id')
+
+        if not vendor_id:
+            return Response({"error": "vendor_id is required"}, status=400)
+
+        try:
+            vendor = Vendor.objects.get(id=vendor_id, organization=org)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found"}, status=404)
+
+        transactions = []
+
+        # 1. Purchase Invoices → Debit (We owe vendor)
+        invoices = VendorInvoice.objects.filter(
+            organization=org,
+            vendor=vendor
+        ).order_by('invoice_date')
+
+        for inv in invoices:
+            transactions.append({
+                "date": inv.invoice_date,
+                "particulars": f"Purchase Invoice - {inv.invoice_number}",
+                "reference": inv.invoice_number,
+                "debit": float(inv.total_amount or 0),
+                "credit": 0.0,
+                "type": "invoice"
+            })
+
+        # 2. Purchase Returns → Credit (Vendor owes us)
+        returns = PurchaseReturn.objects.filter(
+            organization=org,
+            vendor=vendor
+        ).order_by('return_date')
+
+        for ret in returns:
+            transactions.append({
+                "date": ret.return_date,
+                "particulars": f"Purchase Return - {ret.debit_note_number}",
+                "reference": ret.debit_note_number,
+                "debit": 0.0,
+                "credit": float(ret.total_amount or 0),
+                "type": "return"
+            })
+
+        # 3. Payments → Credit
+        payments = VendorPayment.objects.filter(
+            invoice__organization=org,
+            invoice__vendor=vendor
+        ).select_related('invoice').order_by('payment_date')
+
+        for pay in payments:
+            transactions.append({
+                "date": pay.payment_date,
+                "particulars": f"Payment Received - {getattr(pay, 'payment_number', 'Payment')}",
+                "reference": getattr(pay, 'payment_number', ''),
+                "debit": 0.0,
+                "credit": float(pay.amount or 0),
+                "type": "payment"
+            })
+
+        # Sort transactions by date
+        transactions.sort(key=lambda x: x['date'])
+
+        # Calculate running balance
+        running_balance = Decimal('0.00')
+        ledger_entries = []
+
+        for t in transactions:
+            running_balance += Decimal(str(t['debit'])) - Decimal(str(t['credit']))
+
+            ledger_entries.append({
+                "date": t['date'].strftime("%d-%m-%Y"),
+                "particulars": t['particulars'],
+                "reference": t['reference'],
+                "debit": round(t['debit'], 2),
+                "credit": round(t['credit'], 2),
+                "balance": round(float(running_balance), 2),
+            })
+
+        # Summary
+        total_debit = sum(t['debit'] for t in transactions)
+        total_credit = sum(t['credit'] for t in transactions)
+        closing_balance = total_debit - total_credit
+
+        return Response({
+            "vendor": {
+                "id": vendor.id,
+                "name": vendor.name,
+                "gstin": getattr(vendor, 'gstin', ''),
+                "mobile": getattr(vendor, 'mobile', ''),
+            },
+            "transactions": ledger_entries,
+            "summary": {
+                "total_debit": round(float(total_debit), 2),
+                "total_credit": round(float(total_credit), 2),
+                "closing_balance": round(float(closing_balance), 2),
+                "balance_type": "Dr" if closing_balance > 0 else "Cr" if closing_balance < 0 else "Nil"
+            }
+        })

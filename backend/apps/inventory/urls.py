@@ -16,9 +16,11 @@ from .views import (
     PurchaseOrderViewSet,
     GateEntryViewSet,
     GRNViewSet,
+    PurchaseReturnView,
     QualityInspectionViewSet,
     SalesOrdersByItemAPIView,
     VendorInvoiceViewSet,
+    VendorLedgerAPIView,
     VendorPaymentViewSet,
     MachineViewSet,
     MaterialTransferAPIView,           # ← the combined one
@@ -51,4 +53,7 @@ urlpatterns = [
         name='item-dept-stock'
     ),
     path('all-department-stock/', AllDepartmentStockView.as_view(), name='all-department-stock'),
+    # urls.py
+    path('purchase-returns/', PurchaseReturnView.as_view()),
+    path('vendor-ledger/<int:vendor_id>/', VendorLedgerAPIView.as_view(), name='vendor-ledger'),
 ]

@@ -137,81 +137,58 @@ export default function GRNCreate() {
   );
 
   const saveGRN = async () => {
-    if (!qcId || isNaN(Number(qcId))) {
-      alert("No valid Quality Inspection selected");
+  if (!selectedGateEntry?.id) {
+    alert("No Gate Entry selected");
+    return;
+  }
+
+  if (items.length === 0) {
+    alert("No items available to create GRN");
+    return;
+  }
+
+  const invalid = items.filter(i => {
+    const qty = Number(i.received_qty);
+    return isNaN(qty) || qty <= 0 || qty > Number(i.accepted_qty);
+  });
+
+  if (invalid.length > 0) {
+    alert("Invalid received quantity detected");
+    return;
+  }
+
+  try {
+    const qcCheck = await api.get(
+      `/inventory/quality-inspections/?gate_entry=${selectedGateEntry.id}&is_approved=true`
+    );
+
+    const qc = qcCheck.data?.results?.[0] || qcCheck.data?.[0];
+
+    if (!qc || !qc.is_approved) {
+      alert("QC not approved");
       return;
     }
 
-    if (items.length === 0) {
-      alert("No items available to create GRN");
-      return;
-    }
-
-    const invalid = items.filter(i => {
-      const qty = Number(i.received_qty);
-      return isNaN(qty) || qty <= 0 || qty > Number(i.accepted_qty);
-    });
-
-    if (invalid.length > 0) {
-      alert("Some items have invalid received quantity (must be > 0 and ≤ accepted qty)");
-      return;
-    }
-
-    try {
-      // Verify QC is still approved
-      const qcCheck = await api.get(`/inventory/quality-inspections/${qcId}/`);
-      if (!qcCheck.data?.is_approved) {
-        alert("Cannot create GRN — Quality Inspection is no longer approved");
-        return;
-      }
-
-      const grnItems = items.map((i) => ({
+    const payload = {
+      gate_entry: Number(selectedGateEntry.id),
+      items: items.map(i => ({
         item: Number(i.item),
         received_qty: Number(i.received_qty),
-      }));
+      })),
+    };
 
-      const payload = {
-        quality_inspection: Number(qcId),
-        items: grnItems,
-        // If backend requires these fields → uncomment and adjust
-        // received_date: new Date().toISOString().split("T")[0],
-        // gate_entry: Number(selectedGateEntry?.id),
-      };
+    console.log("FINAL GRN PAYLOAD:", payload);
 
-      console.log("=== GRN PAYLOAD BEING SENT ===");
-      console.log(JSON.stringify(payload, null, 2));
+    const response = await api.post("/inventory/grns/", payload);
 
-      const response = await api.post("/inventory/grns/", payload);
+    alert(`GRN Created Successfully: ${response.data?.grn_number}`);
+    navigate("/inventory/grns");
 
-      alert(`GRN created successfully!\nGRN Number: ${response.data?.grn_number || "—"}`);
-      navigate("/inventory/grns");
-    } catch (err) {
-      console.error("=== GRN CREATION FAILED ===");
-      console.error("Status:", err.response?.status);
-      console.error("Error response:", err.response?.data);
-      console.error("Full error:", err);
-
-      let errorMsg = "Failed to create GRN";
-
-      if (err.response?.data) {
-        const data = err.response.data;
-        if (data.detail) errorMsg += `\n${data.detail}`;
-        if (data.non_field_errors) errorMsg += `\n${data.non_field_errors.join("\n")}`;
-        if (data.items) errorMsg += `\nItems errors:\n${JSON.stringify(data.items, null, 2)}`;
-
-        Object.entries(data).forEach(([key, value]) => {
-          if (!["detail", "non_field_errors", "items"].includes(key)) {
-            const msg = Array.isArray(value) ? value.join(" • ") : value;
-            errorMsg += `\n${key}: ${msg}`;
-          }
-        });
-      } else {
-        errorMsg += `: ${err.message || "Network/server error"}`;
-      }
-
-      alert(errorMsg);
-    }
-  };
+  } catch (err) {
+    console.error("GRN ERROR:", err.response?.data || err);
+    alert(err.response?.data?.detail || "GRN creation failed");
+  }
+};
 
   const getPONumber = (ge) => {
     if (!ge) return "—";

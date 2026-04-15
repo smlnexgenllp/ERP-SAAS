@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 export default function CustomerDetail() {
   const { id } = useParams();
@@ -35,7 +35,12 @@ export default function CustomerDetail() {
       >
         <ArrowLeft size={20} /> Back to Customers
       </button>
-
+      <button
+        onClick={() => navigate(`/customer-ledger/${customer.id}`)}
+        className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 mb-8"
+      >
+        <ArrowRight size={20} /> Customer Ledger
+      </button>
       <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-8 shadow-xl max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-cyan-300 mb-6">{customer.full_name}</h1>
 

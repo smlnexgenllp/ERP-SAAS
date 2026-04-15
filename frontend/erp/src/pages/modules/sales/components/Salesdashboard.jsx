@@ -11,7 +11,8 @@ import {
   Handshake,
   LogOut,
   CreditCard,      // New icon for payments
-  FileCheck,       // New icon for invoices
+  FileCheck,      
+  Truck, // New icon for invoices
 } from "lucide-react";
 import api from "../../../../services/api";
 
@@ -148,14 +149,20 @@ export default function SalesDashboard() {
               <Briefcase className="h-5 w-5 text-teal-400" />
               <span>Sales List</span>
             </button>
-
             <button
+              onClick={() => navigate("/sales-return")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <Briefcase className="h-5 w-5 text-teal-400" />
+              <span>Sales Return</span>
+            </button>
+            <buttons
               onClick={() => navigate("/sales/quotations")}
               className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
             >
               <FileText className="h-5 w-5 text-purple-400" />
               <span>Quotations</span>
-            </button>
+            </buttons>
 
             {/* ==================== FINANCE SECTION ==================== */}
             <div className="pt-6 mt-6 border-t border-gray-800">
@@ -177,6 +184,28 @@ export default function SalesDashboard() {
               >
                 <CreditCard className="h-5 w-5 text-emerald-400" />
                 <span>Vendor Payments</span>
+              </button>
+              <button
+                onClick={() => navigate("/dispatch")}
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+              >
+                <Truck className="h-5 w-5 text-emerald-400" />
+                <span>Dispatch</span>
+              </button>
+              <button
+                onClick={() => navigate("/sales-invoice")}
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+              >
+                <FileCheck className="h-5 w-5 text-amber-400" />
+                <span>Sales Invoices</span>
+              </button>
+
+              <button
+                onClick={() => navigate("/sales-payments")}
+                className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+              >
+                <CreditCard className="h-5 w-5 text-emerald-400" />
+                <span>Sales Payments</span>
               </button>
             </div>
             {/* ========================================================= */}

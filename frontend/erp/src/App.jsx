@@ -89,6 +89,14 @@ import FullStockLedger from "./pages/modules/sales/components/FullStockLedger";
 import DispatchPage from "./pages/modules/sales/components/DispatchPage";
 import VendorInvoice from "./pages/modules/finance/VendorInvoice";
 import VendorPayment from "./pages/modules/finance/VendorPayment";
+import SalesPaymentPage from "./pages/modules/sales/components/SalesPaymentPage";
+import SalesInvoicePage from "./pages/modules/sales/components/SalesInvoicePage";
+import SalesInvoiceList from "./pages/modules/sales/components/SalesInvoiceList";
+import SalesReturn from "./pages/modules/sales/components/SalesReturn";
+import SalesReturnList from "./pages/modules/sales/components/SalesReturnList";
+import CustomerLedger from "./pages/modules/sales/pages/CustomerLedger";
+import VendorLedger from "./pages/modules/sales/pages/VendorLedger";
+import PurchaseReturnCreate from "./pages/modules/finance/pages/PurchaseReturnCreate";
 
 
 
@@ -429,12 +437,20 @@ function App() {
           <Route path='/capacity/dashboard' element={<CapacityDashboard/>} />
           <Route path='/machine-assign' element={<MachineAssignmentForm/>} />
           <Route path="/workorder-list" element={<WorkOrdersList/>}/>
-
+   
           <Route path="/planned-orders" element={<PlannedOrders />} />
           <Route path="/manufacture-orders" element={<ManufacturingOrders/>}/>
           {/* <Route path="/workorder-list" element={<WorkOrderList/>}/> */}
           <Route path="/vendor-invoice" element={<VendorInvoice />} />
           <Route path="/vendor-payment" element={<VendorPayment/>}/>
+          <Route path="/sales-payments" element={<SalesPaymentPage />} />
+          <Route path="/sales-invoice" element={<SalesInvoicePage/>} />
+          <Route path="/sales-invoice-list" element={<SalesInvoiceList/>} />
+          <Route path="/sales-return" element={<SalesReturn />} />
+          <Route path="/sales-return-list" element={<SalesReturnList />} />
+          <Route path="/customer-ledger/:id" element={<CustomerLedger />} />
+          <Route path="/vendor-ledger" element={<VendorLedger />} />
+          <Route path ="/purchase-return" element={<PurchaseReturnCreate/>}/>
         </Routes>
 
       </Router>
