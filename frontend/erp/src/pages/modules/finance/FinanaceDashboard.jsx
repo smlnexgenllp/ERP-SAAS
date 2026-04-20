@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -8,16 +9,27 @@ import {
   FiCheckCircle,
   FiArrowLeft,
   FiPlus,
-  FiBarChart2,
   FiUsers,
   FiEye,
   FiRefreshCw,
 } from "react-icons/fi";
+import {
+  BarChart3,
+  CreditCard,
+  FileCheck,
+  FileText,
+  LogOut,
+  Truck,
+  Wallet,
+  Building2,
+  PieChart,
+  Layers3,
+} from "lucide-react";
 
 const DEPARTMENTS = ["HR", "Inventory", "Warehouse", "Sales"];
 
 const FinanceDashboard = () => {
-  const { organization, logout } = useAuth();
+  const { organization, logout, user } = useAuth();
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
@@ -35,13 +47,10 @@ const FinanceDashboard = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
 
-  /* -------------------- FETCH VENDOR STATISTICS -------------------- */
   const fetchVendorStats = async () => {
     try {
-      console.log("[VENDOR STATS] Fetching vendor statistics...");
       const response = await api.get("/finance/vendors/stats/");
-      console.log("[VENDOR STATS] Response:", response.data);
-      
+
       setVendorStats({
         total: response.data.total || 0,
         active: response.data.active || 0,
@@ -49,11 +58,9 @@ const FinanceDashboard = () => {
       });
     } catch (err) {
       console.error("[VENDOR STATS] Error fetching vendor stats:", err);
-      // Keep default values (0,0,0) if fetch fails
     }
   };
 
-  /* -------------------- LOAD CURRENT MONTH BUDGET -------------------- */
   const loadCurrentMonthBudget = async () => {
     setLoading(true);
     setMessage("");
@@ -65,9 +72,6 @@ const FinanceDashboard = () => {
       const currentMonthNum = now.getMonth() + 1;
       const currentMonthPadded = String(currentMonthNum).padStart(2, "0");
 
-      console.log("================== BUDGET FETCH START ==================");
-      console.log(`[BUDGET REQ] year=${currentYear}, month=${currentMonthPadded}`);
-
       const res = await api.get("/finance/monthly-budgets/", {
         params: {
           year: currentYear,
@@ -75,18 +79,10 @@ const FinanceDashboard = () => {
         },
       });
 
-      console.log("[BUDGET RES] Full response:", JSON.stringify(res.data, null, 2));
+      let currentBudget = res.data.find((b) => b.released === true);
 
-      let currentBudget = null;
-
-      // First try to find a released budget
-      currentBudget = res.data.find((b) => b.released === true);
-      console.log("[RELEASED BUDGET FOUND]:", currentBudget ? "Yes" : "No");
-
-      // If no released budget, use the first available budget (even if not released)
       if (!currentBudget && res.data.length > 0) {
         currentBudget = res.data[0];
-        console.log("[BUDGET] Using unreleased budget:", currentBudget);
       }
 
       if (!currentBudget) {
@@ -99,37 +95,19 @@ const FinanceDashboard = () => {
         return;
       }
 
-      console.log("[BUDGET SELECTED]", currentBudget);
-      console.log("[DEPARTMENT ALLOCATIONS FROM API]", currentBudget.department_allocations);
-      console.log("[DEPARTMENT ALLOCATIONS TYPE]:", typeof currentBudget.department_allocations);
-      console.log("[DEPARTMENT ALLOCATIONS KEYS]:", currentBudget.department_allocations ? Object.keys(currentBudget.department_allocations) : "No allocations");
-
       setBudget(currentBudget);
       setReleasedBudget(Number(currentBudget.amount) || 0);
 
-      // Initialize allocations from the backend data
       const initAlloc = {};
       DEPARTMENTS.forEach((dep) => {
-        // Check if department_allocations exists and has the department
-        const departmentKey = dep.toUpperCase(); // API returns uppercase keys like "HR", "INVENTORY"
+        const departmentKey = dep.toUpperCase();
         const allocationValue = currentBudget.department_allocations?.[departmentKey];
-        
-        console.log(`[DEBUG] Department: ${dep} (Key: ${departmentKey}) -> Value:`, allocationValue);
-        
-        if (allocationValue !== undefined && allocationValue !== null) {
-          initAlloc[dep] = allocationValue;
-        } else {
-          initAlloc[dep] = "0";
-        }
+
+        initAlloc[dep] = allocationValue !== undefined && allocationValue !== null ? allocationValue : "0";
       });
-      
-      console.log("[INITIALIZED ALLOCATIONS]:", initAlloc);
-      
+
       setAllocation(initAlloc);
       setBudgetSplit(initAlloc);
-      
-      console.log("================== BUDGET FETCH END ==================");
-      
     } catch (err) {
       console.error("[BUDGET ERROR]", err);
       setMessage("Failed to load budget for current month");
@@ -139,30 +117,22 @@ const FinanceDashboard = () => {
     }
   };
 
-  /* -------------------- REFRESH ALLOCATIONS -------------------- */
   const refreshAllocations = async () => {
     if (!budget) return;
-    console.log("[REFRESH] Fetching single budget:", budget.id);
+
     try {
       const res = await api.get(`/finance/monthly-budgets/${budget.id}/`);
-      console.log("[REFRESH] Single budget response:", res.data);
-      console.log("[REFRESH] Department allocations:", res.data.department_allocations);
-      
+
       if (res.data) {
         const updatedAllocations = {};
+
         DEPARTMENTS.forEach((dep) => {
           const departmentKey = dep.toUpperCase();
           const allocationValue = res.data.department_allocations?.[departmentKey];
-          
-          console.log(`[REFRESH] Department: ${dep} -> Value:`, allocationValue);
-          
-          if (allocationValue !== undefined && allocationValue !== null) {
-            updatedAllocations[dep] = allocationValue;
-          } else {
-            updatedAllocations[dep] = "0";
-          }
+
+          updatedAllocations[dep] = allocationValue !== undefined && allocationValue !== null ? allocationValue : "0";
         });
-        console.log("[REFRESH] Updated allocations:", updatedAllocations);
+
         setBudgetSplit(updatedAllocations);
         setMessage("Allocations refreshed successfully");
         setMessageType("success");
@@ -178,27 +148,21 @@ const FinanceDashboard = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       await loadCurrentMonthBudget();
-      await fetchVendorStats(); // Fetch vendor stats when component mounts
+      await fetchVendorStats();
     };
+
     loadInitialData();
   }, []);
 
-  /* -------------------- CALCULATIONS -------------------- */
   const totalAllocated = Object.values(budgetSplit).reduce(
     (sum, val) => sum + parseFloat(val || 0),
     0
   );
+
   const remaining = releasedBudget - totalAllocated;
 
-  console.log("[RENDER] Current budgetSplit state:", budgetSplit);
-  console.log("[RENDER] Total allocated:", totalAllocated);
-  console.log("[RENDER] Released budget:", releasedBudget);
-  console.log("[RENDER] Vendor stats:", vendorStats);
-
-  /* -------------------- HANDLERS -------------------- */
   const handleAllocationChange = (dept, value) => {
     const sanitized = value.replace(/[^0-9.]/g, "");
-    console.log(`[CHANGE] ${dept}: ${value} -> sanitized: ${sanitized}`);
     setBudgetSplit((prev) => ({ ...prev, [dept]: sanitized }));
   };
 
@@ -210,40 +174,24 @@ const FinanceDashboard = () => {
       return;
     }
 
-    console.log("[ALLOCATE] Sending allocation:", budgetSplit);
-    
     try {
-      const response = await api.post(`/finance/monthly-budgets/${budget.id}/allocate/`, {
+      await api.post(`/finance/monthly-budgets/${budget.id}/allocate/`, {
         allocation: budgetSplit,
       });
-      console.log("[ALLOCATE] Response:", response.data);
+
       setMessage("Budget allocated successfully");
       setMessageType("success");
-      // Reload to get updated allocations
       await loadCurrentMonthBudget();
       setTimeout(() => setMessage(""), 3000);
     } catch (err) {
-      console.error("[ALLOCATE] Error:", err);
       setMessage(err.response?.data?.detail || "Allocation failed");
-      setMessageType("error");
-    }
-  };
-
-  const closeMonth = async () => {
-    if (!budget) return;
-    try {
-      await api.post(`/finance/monthly-budgets/${budget.id}/close_month/`);
-      setMessage("Month closed successfully. Budget locked.");
-      setMessageType("success");
-      loadCurrentMonthBudget();
-    } catch (err) {
-      setMessage("Failed to close month");
       setMessageType("error");
     }
   };
 
   const handleCommand = (e) => {
     if (e.key !== "Enter") return;
+
     const cmd = command.trim().toLowerCase();
     setCommand("");
 
@@ -261,17 +209,14 @@ const FinanceDashboard = () => {
     if (cmd === "reports") return navigate("/finance/reports");
     if (cmd === "vendors") return navigate("/finance/vendors");
     if (cmd === "clear") return setCommand("");
-    notify(`Unknown command: ${cmd}`);
-  };
 
-  const handleCommandBarClick = () => {
-    inputRef.current?.focus();
+    notify(`Unknown command: ${cmd}`);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center text-cyan-300">
-        Loading current month budget...
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 flex items-center justify-center">
+        <div className="text-cyan-400 text-xl animate-pulse">Loading Finance Dashboard...</div>
       </div>
     );
   }
@@ -282,201 +227,235 @@ const FinanceDashboard = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 p-6">
-      {/* HEADER */}
-      <div className="flex justify-between items-start mb-8">
-        <div>
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-cyan-400 hover:text-blue-400 mb-2"
-          >
-            <FiArrowLeft /> Back
-          </button>
-          <h1 className="text-3xl font-bold text-blue-300">
-            Finance Control Panel
-          </h1>
-          <p className="text-cyan-400 text-sm">
-            {organization?.name} • {currentMonthName}
-          </p>
-        </div>
-        
-        {/* Refresh Button */}
-        {budget && (
-          <button
-            onClick={refreshAllocations}
-            className="bg-cyan-700 hover:bg-cyan-600 px-4 py-2 rounded-lg flex items-center gap-2 transition"
-          >
-            <FiRefreshCw /> Refresh Allocations
-          </button>
-        )}
-      </div>
-
-      {/* CURRENT MONTH INDICATOR */}
-      {budget ? (
-        <div className="mb-6 p-4 bg-gray-800/60 rounded-lg border border-cyan-700/40">
-          <p className="text-xl font-bold text-blue-300">
-            Budget – {currentMonthName}
-          </p>
-          {budget.is_closed && (
-            <p className="text-sm text-yellow-400 mt-1">
-              Month closed • allocations locked
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 flex flex-col">
+      <header className="bg-gray-900/90 border-b border-cyan-900/50 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-xl">
+        <div className="flex items-center gap-4">
+          <Wallet className="w-9 h-9 text-cyan-400" />
+          <div>
+            <h1 className="text-2xl font-bold text-cyan-300">Finance Dashboard</h1>
+            <p className="text-sm text-gray-400">
+              {currentMonthName} • {organization?.name}
             </p>
-          )}
-          {!budget.released && (
-            <p className="text-sm text-yellow-400 mt-1">
-              Budget not released • allocations are still being configured
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="mb-6 p-4 bg-gray-900/80 border border-yellow-700/50 rounded-lg text-yellow-300">
-          No released budget found for {currentMonthName}
-        </div>
-      )}
-
-      {/* MESSAGES */}
-      {message && (
-        <div
-          className={`mb-6 p-4 rounded border flex items-center gap-2 ${
-            messageType === "success"
-              ? "border-green-700 text-green-300"
-              : messageType === "warning"
-              ? "border-yellow-700 text-yellow-300"
-              : "border-red-700 text-red-300"
-          }`}
-        >
-          {messageType === "success" ? <FiCheckCircle /> : <FiAlertCircle />}
-          {message}
-        </div>
-      )}
-
-      {/* KPI CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <KpiCard title="Released Budget" value={releasedBudget} />
-        <KpiCard title="Allocated Amount" value={totalAllocated} />
-        <KpiCard
-          title="Remaining Balance"
-          value={remaining}
-          highlight={remaining < 0 ? "danger" : "normal"}
-        />
-        <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6 flex flex-col items-center relative">
-          <FiUsers className="text-purple-400 text-6xl mb-3 opacity-20 absolute top-3 right-4" />
-          <p className="text-cyan-400 text-sm mb-1">Vendors</p>
-          <p className="text-purple-300 font-bold text-3xl mb-2">{vendorStats.total}</p>
-          <div className="flex gap-6 text-sm mt-1">
-            <div className="text-center">
-              <p className="text-green-400">Active</p>
-              <p className="font-semibold">{vendorStats.active}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-yellow-400">Approved</p>
-              <p className="font-semibold">{vendorStats.approved}</p>
-            </div>
           </div>
-          <button
-            onClick={() => navigate("/vendors")}
-            className="mt-5 text-sm bg-purple-900/40 hover:bg-purple-800/60 px-5 py-2 rounded flex items-center gap-2 transition"
-          >
-            <FiEye size={16} /> View Vendors
-          </button>
         </div>
-      </div>
 
-      {/* DEPARTMENT ALLOCATION SECTION */}
-      {budget && (
-        <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6 mb-8">
-          <h2 className="text-xl font-bold text-blue-300 mb-5">
-            Department-wise Budget Allocation
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {DEPARTMENTS.map((dept) => {
-              const displayValue = budgetSplit[dept] || "0";
-              console.log(`[RENDER INPUT] ${dept}: ${displayValue}`);
-              return (
-                <div
-                  key={dept}
-                  className="bg-gray-950/50 border border-cyan-900/40 rounded-lg p-5 flex flex-col items-center"
-                >
-                  <p className="text-cyan-300 font-semibold mb-3">{dept}</p>
-                  <input
-                    type="text"
-                    value={displayValue}
-                    onChange={(e) => handleAllocationChange(dept, e.target.value)}
-                    className="w-full bg-gray-900 text-cyan-200 text-center rounded px-3 py-2 outline-none border border-cyan-800/50 focus:border-cyan-400"
-                    placeholder="0.00"
-                    disabled={budget?.is_closed}
-                  />
-                </div>
-              );
-            })}
+        <div className="text-right">
+          <p className="text-xs text-gray-500 uppercase">Logged In</p>
+          <p className="text-cyan-300 font-medium">{user?.username || "Finance User"}</p>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        <div className="w-72 border-r border-gray-800 bg-gray-900/60 flex flex-col">
+          <div className="p-5 border-b border-gray-800">
+            <h2 className="text-lg font-bold text-cyan-300">Finance Panel</h2>
           </div>
 
-          {/* Debug Panel - Remove in production */}
-          <div className="mt-4 p-3 bg-gray-800/40 rounded-lg text-xs">
-            <details>
-              <summary className="cursor-pointer text-cyan-400">Debug Info (Click to expand)</summary>
-              <div className="mt-2 space-y-1">
-                <p>Budget ID: {budget.id}</p>
-                <p>Released: {budget.released ? "Yes" : "No"}</p>
-                <p>Is Closed: {budget.is_closed ? "Yes" : "No"}</p>
-                <p>Budget Amount: {releasedBudget}</p>
-                <p>Total Allocated: {totalAllocated}</p>
-                <p>Remaining: {remaining}</p>
-                <p>budgetSplit State: {JSON.stringify(budgetSplit, null, 2)}</p>
-                <p>API department_allocations: {JSON.stringify(budget.department_allocations, null, 2)}</p>
+          <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+            {/* <button
+              onClick={() => navigate("/finance/monthly-budgets")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <Wallet className="h-5 w-5 text-cyan-400" />
+              <span>Monthly Budgets</span>
+            </button> */}
+
+            {/* <button
+              onClick={() => navigate("/finance/reports")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <BarChart3 className="h-5 w-5 text-teal-400" />
+              <span>Finance Reports</span>
+            </button> */}
+
+            <button
+              onClick={() => navigate("/vendors")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <Building2 className="h-5 w-5 text-purple-400" />
+              <span>Vendors</span>
+            </button>
+
+            <button
+              onClick={() => navigate("/vendor-invoice")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <FileCheck className="h-5 w-5 text-amber-400" />
+              <span>Vendor Invoices</span>
+            </button>
+
+            <button
+              onClick={() => navigate("/vendor-payment")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <CreditCard className="h-5 w-5 text-emerald-400" />
+              <span>Vendor Payments</span>
+            </button>
+
+            <button
+              onClick={() => navigate("/accounts/vouchers")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <FileText className="h-5 w-5 text-blue-400" />
+              <span>Vouchers</span>
+            </button>
+            <button
+              onClick={() => navigate("/bank-reconciliation")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <FileText className="h-5 w-5 text-blue-400" />
+              <span>Bank Reconciliations</span>
+            </button>
+            <button
+              onClick={() => navigate("/gst-reconciliation")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <FileText className="h-5 w-5 text-blue-400" />
+              <span>GST Reconciliations</span>
+            </button>
+            <button
+              onClick={() => navigate("/items/create")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <Layers3 className="h-5 w-5 text-pink-400" />
+              <span>Manage Items</span>
+            </button>
+             <button
+              onClick={() => navigate("/profit-loss")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <Layers3 className="h-5 w-5 text-pink-400" />
+              <span>Profit & Loss</span>
+            </button>
+            <button
+              onClick={() => navigate("/balance-sheet")}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <Layers3 className="h-5 w-5 text-pink-400" />
+              <span>Balance Sheet</span>
+            </button>
+            
+
+            <button
+              onClick={refreshAllocations}
+              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-gray-800/70 text-left transition"
+            >
+              <FiRefreshCw className="h-5 w-5 text-cyan-400" />
+              <span>Refresh Allocations</span>
+            </button>
+          </nav>
+
+          <div className="p-4 border-t border-gray-800 mt-auto">
+            <button
+              onClick={logout}
+              className="flex items-center gap-3 w-full p-3 rounded-xl bg-gradient-to-r from-red-700 to-red-800 hover:from-red-800 hover:to-red-900 text-white transition"
+            >
+              <LogOut className="h-5 w-5" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 p-6 md:p-8 overflow-auto pb-28">
+          {message && (
+            <div
+              className={`mb-6 p-4 rounded-xl border flex items-center gap-2 ${
+                messageType === "success"
+                  ? "border-green-700/50 bg-green-900/20 text-green-300"
+                  : messageType === "warning"
+                  ? "border-yellow-700/50 bg-yellow-900/20 text-yellow-300"
+                  : "border-red-700/50 bg-red-900/20 text-red-300"
+              }`}
+            >
+              {messageType === "success" ? <FiCheckCircle /> : <FiAlertCircle />}
+              {message}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            <KpiCard title="Released Budget" value={releasedBudget} />
+            <KpiCard title="Allocated Amount" value={totalAllocated} />
+            <KpiCard title="Remaining Balance" value={remaining} highlight={remaining < 0 ? "danger" : "normal"} />
+
+            <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-lg hover:shadow-cyan-900/20 transition">
+              <p className="text-sm text-purple-400/80 uppercase mb-1">Total Vendors</p>
+              <p className="text-4xl font-bold text-purple-300">{vendorStats.total}</p>
+              <div className="mt-4 flex justify-between text-sm text-gray-400">
+                <span>Active: {vendorStats.active}</span>
+                <span>Approved: {vendorStats.approved}</span>
               </div>
-            </details>
+            </div>
           </div>
 
-          {!budget?.is_closed && (
-            <div className="mt-8 flex justify-end">
-              <button
-                onClick={handleAllocateBudget}
-                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg transition"
-              >
-                <FiDollarSign /> Allocate Budget
-              </button>
+          {budget && (
+            <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-xl mb-8">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-cyan-300 flex items-center gap-3">
+                    <PieChart className="h-6 w-6" /> Department Budget Allocation
+                  </h2>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Budget for {currentMonthName}
+                  </p>
+                </div>
+
+                {!budget?.is_closed && (
+                  <button
+                    onClick={handleAllocateBudget}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition"
+                  >
+                    <FiDollarSign /> Allocate Budget
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {DEPARTMENTS.map((dept) => (
+                  <div
+                    key={dept}
+                    className="bg-gray-950/60 border border-cyan-900/30 rounded-2xl p-5"
+                  >
+                    <p className="text-cyan-300 font-semibold mb-3">{dept}</p>
+                    <input
+                      type="text"
+                      value={budgetSplit[dept] || "0"}
+                      onChange={(e) => handleAllocationChange(dept, e.target.value)}
+                      className="w-full bg-gray-900 border border-gray-700 focus:border-cyan-500 rounded-xl px-4 py-3 text-cyan-200 outline-none"
+                      placeholder="0.00"
+                      disabled={budget?.is_closed}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-8">
+                <InfoCard title="Budget Released" value={`₹ ${Number(releasedBudget).toLocaleString()}`} />
+                <InfoCard title="Total Allocated" value={`₹ ${Number(totalAllocated).toLocaleString()}`} />
+                <InfoCard
+                  title="Remaining Balance"
+                  value={`₹ ${Number(remaining).toLocaleString()}`}
+                  danger={remaining < 0}
+                />
+              </div>
             </div>
           )}
+
+          <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl p-6 shadow-xl">
+            <h2 className="text-2xl font-bold text-cyan-300 mb-6 flex items-center gap-3">
+              <FiPlus /> Quick Actions
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <QuickActionButton title="Create Voucher" icon={<FiPlus />} onClick={() => navigate("/vendor-payments/create")} />
+              <QuickActionButton title="Manage Budgets" icon={<FiDollarSign />} onClick={() => navigate("/finance/budgets")} />
+              <QuickActionButton title="Manage Vendors" icon={<FiUsers />} onClick={() => navigate("/vendors")} />
+              <QuickActionButton title="View Reports" icon={<FiEye />} onClick={() => navigate("/finance/reports")} />
+            </div>
+          </div>
         </div>
-      )}
-
-      {/* QUICK ACTIONS */}
-      <div className="bg-gray-900/50 border border-cyan-800/60 rounded-xl p-6 flex flex-wrap gap-4 justify-center md:justify-start mb-8">
-        <button
-          onClick={() => navigate("/vendor-payments/create")}
-          className="bg-blue-700 hover:bg-blue-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
-        >
-          <FiPlus /> Create Voucher
-        </button> 
-
-        <button
-          onClick={() => navigate("/finance/budgets")}
-          className="bg-green-700 hover:bg-green-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
-        >
-          <FiDollarSign /> Manage Budgets
-        </button>
-
-        <button
-          onClick={() => navigate("/vendors")}
-          className="bg-purple-700 hover:bg-purple-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
-        >
-          <FiUsers /> Manage Vendors
-        </button>
-
-        <button
-          onClick={() => navigate("/items/create")}
-          className="bg-purple-700 hover:bg-purple-600 px-7 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
-        >
-          <FiUsers /> Manage Items
-        </button>
       </div>
 
-      {/* COMMAND BAR */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-gray-950/95 backdrop-blur-md border-t-2 border-cyan-600 px-6 py-4 flex items-center cursor-text z-50"
-        onClick={() => inputRef.current?.focus()}
-      >
+      <div className="fixed bottom-0 left-72 right-0 bg-gray-950/95 backdrop-blur-md border-t border-cyan-800 px-6 py-4 flex items-center z-50">
         <span className="text-green-400 font-bold mr-4 text-xl">&gt;</span>
         <input
           ref={inputRef}
@@ -491,9 +470,8 @@ const FinanceDashboard = () => {
         />
       </div>
 
-      {/* ALERT TOAST */}
       {showAlert && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-cyan-700 text-cyan-200 px-8 py-4 rounded-xl shadow-2xl text-base font-mono z-50 animate-fade-in-out">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900/95 border border-cyan-700 text-cyan-200 px-8 py-4 rounded-xl shadow-2xl z-50">
           {alertMessage}
         </div>
       )}
@@ -501,19 +479,41 @@ const FinanceDashboard = () => {
   );
 };
 
-/* KPI CARD COMPONENT */
 const KpiCard = ({ title, value, highlight = "normal" }) => (
   <div
-    className={`rounded-xl p-6 border ${
+    className={`bg-gray-900/70 border rounded-2xl p-6 shadow-lg transition ${
       highlight === "danger"
-        ? "border-red-700 bg-red-950 text-red-300"
-        : "border-cyan-800 bg-gray-900 text-blue-300"
-    } text-center`}
+        ? "border-red-700/50 text-red-300"
+        : "border-cyan-900/40 text-cyan-300"
+    }`}
   >
-    <FiDollarSign className="text-3xl mx-auto mb-2 text-blue-300" />
-    <p className="text-cyan-400">{title}</p>
-    <p className="text-2xl font-bold mt-2">₹ {Number(value || 0).toLocaleString()}</p>
+    <p className="text-sm uppercase text-gray-400 mb-2">{title}</p>
+    <p className="text-4xl font-bold">₹ {Number(value || 0).toLocaleString()}</p>
   </div>
 );
 
+const InfoCard = ({ title, value, danger = false }) => (
+  <div
+    className={`rounded-2xl p-5 border ${
+      danger
+        ? "bg-red-950/30 border-red-700/50 text-red-300"
+        : "bg-gray-950/60 border-cyan-900/30 text-cyan-300"
+    }`}
+  >
+    <p className="text-sm text-gray-400 mb-2">{title}</p>
+    <p className="text-2xl font-bold">{value}</p>
+  </div>
+);
+
+const QuickActionButton = ({ title, icon, onClick }) => (
+  <button
+    onClick={onClick}
+    className="bg-gray-950/60 border border-cyan-900/30 hover:border-cyan-500 hover:bg-gray-900 rounded-2xl p-5 flex items-center gap-3 transition text-left"
+  >
+    <div className="text-cyan-400 text-xl">{icon}</div>
+    <span className="text-gray-200 font-medium">{title}</span>
+  </button>
+);
+
 export default FinanceDashboard;
+

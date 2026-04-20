@@ -104,7 +104,20 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'ERP.wsgi.application'
-
+# LOGGING = {
+#     'version': 1,
+#     'handlers': {
+#         'console': {
+#             'class': 'logging.StreamHandler',
+#         },
+#     },
+#     'loggers': {
+#         'django.db.backends': {
+#             'handlers': ['console'],
+#             'level': 'DEBUG',
+#         },
+#     },
+# }
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases

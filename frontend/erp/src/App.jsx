@@ -97,7 +97,18 @@ import SalesReturnList from "./pages/modules/sales/components/SalesReturnList";
 import CustomerLedger from "./pages/modules/sales/pages/CustomerLedger";
 import VendorLedger from "./pages/modules/sales/pages/VendorLedger";
 import PurchaseReturnCreate from "./pages/modules/finance/pages/PurchaseReturnCreate";
-
+import GSTReconciliation from "./pages/modules/finance/pages/GSTReconciliation";
+import BankReconciliation from "./pages/modules/finance/pages/BankReconciliation";
+import ProfitLossStatement from "./pages/modules/finance/pages/ProfitLossStatement";
+import BalanceSheet from "./pages/modules/finance/pages/BalanceSheet";
+import Test_CRM from "./pages/modules/crm/components/TestCRM";
+import OpportunityDetails from "./pages/modules/crm/components/test crm/Opportunity";
+import TestCustomerDetails from "./pages/modules/crm/components/test crm/TestCustomerDetails";
+import TestContactsList from "./pages/modules/crm/components/test crm/TestContactsList";
+import TestContactForm from "./pages/modules/crm/components/test crm/TestContactForm";
+import TestContactDetail from "./pages/modules/crm/components/test crm/TestContactDetail";
+import TestCallLogs from "./pages/modules/crm/components/test crm/TestCallLogs";
+import CustomerDetails from "./pages/modules/crm/components/test crm/TestCustomerDetails";
 
 
 
@@ -382,7 +393,6 @@ function App() {
             }
           />
           <Route path="/vendors" element={<VendorList />} />
-          {/* -------- REDIRECTS -------- */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route
             path="/payroll"
@@ -451,6 +461,19 @@ function App() {
           <Route path="/customer-ledger/:id" element={<CustomerLedger />} />
           <Route path="/vendor-ledger" element={<VendorLedger />} />
           <Route path ="/purchase-return" element={<PurchaseReturnCreate/>}/>
+          <Route path="/gst-reconciliation" element={<GSTReconciliation/>} />
+          <Route path="/bank-reconciliation" element={<BankReconciliation />} />
+          <Route path="/profit-loss" element={<ProfitLossStatement />} />
+          <Route path="/balance-sheet" element={<BalanceSheet/>}/>
+<Route path="/crm-test" element={<Test_CRM />} />
+<Route path="/crm/contacts-test" element={<TestContactsList />} />
+<Route path="/crm/contacts/new-test" element={<TestContactForm />} />
+<Route path="/crm/contacts-test/:id" element={<TestContactDetail />} />
+<Route path="/crm/contacts-test/:id/edit" element={<TestContactForm />} />
+<Route path="/crm/customers-test/:id" element={<CustomerDetails />} />
+<Route path="/crm/opportunities-test/:id" element={<OpportunityDetails />} />
+<Route path="/crm/call-logs-test" element={<CallLogs />} />
+        
         </Routes>
 
       </Router>
