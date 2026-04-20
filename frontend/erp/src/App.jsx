@@ -102,13 +102,13 @@ import BankReconciliation from "./pages/modules/finance/pages/BankReconciliation
 import ProfitLossStatement from "./pages/modules/finance/pages/ProfitLossStatement";
 import BalanceSheet from "./pages/modules/finance/pages/BalanceSheet";
 import Test_CRM from "./pages/modules/crm/components/TestCRM";
-import OpportunityDetails from "./pages/modules/crm/components/test crm/Opportunity";
-import TestCustomerDetails from "./pages/modules/crm/components/test crm/TestCustomerDetails";
-import TestContactsList from "./pages/modules/crm/components/test crm/TestContactsList";
-import TestContactForm from "./pages/modules/crm/components/test crm/TestContactForm";
-import TestContactDetail from "./pages/modules/crm/components/test crm/TestContactDetail";
-import TestCallLogs from "./pages/modules/crm/components/test crm/TestCallLogs";
-import CustomerDetails from "./pages/modules/crm/components/test crm/TestCustomerDetails";
+import OpportunityDetails from "./pages/modules/crm/components/testcrm/Opportunity";
+import TestCustomerDetails from "./pages/modules/crm/components/testcrm/TestCustomerDetails";
+import TestContactsList from "./pages/modules/crm/components/testcrm/TestContactsList";
+import TestContactForm from "./pages/modules/crm/components/testcrm/TestContactForm";
+import TestContactDetail from "./pages/modules/crm/components/testcrm/TestContactDetail";
+import TestCallLogs from "./pages/modules/crm/components/testcrm/TestCallLogs";
+import CustomerDetails from "./pages/modules/crm/components/testcrm/TestCustomerDetails";
 
 
 
