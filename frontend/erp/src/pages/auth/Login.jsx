@@ -116,6 +116,7 @@ const Login = () => {
           </h3>
           <button onClick={()=>navigate("/employee_login")}  className="w-full bg-cyan-600 hover:bg-cyan-500 text-gray-950 py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed">Click Here </button>
         </div>
+        s
       </div>
     </div>
   );

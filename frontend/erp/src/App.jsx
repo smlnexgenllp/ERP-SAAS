@@ -89,7 +89,26 @@ import FullStockLedger from "./pages/modules/sales/components/FullStockLedger";
 import DispatchPage from "./pages/modules/sales/components/DispatchPage";
 import VendorInvoice from "./pages/modules/finance/VendorInvoice";
 import VendorPayment from "./pages/modules/finance/VendorPayment";
-
+import SalesPaymentPage from "./pages/modules/sales/components/SalesPaymentPage";
+import SalesInvoicePage from "./pages/modules/sales/components/SalesInvoicePage";
+import SalesInvoiceList from "./pages/modules/sales/components/SalesInvoiceList";
+import SalesReturn from "./pages/modules/sales/components/SalesReturn";
+import SalesReturnList from "./pages/modules/sales/components/SalesReturnList";
+import CustomerLedger from "./pages/modules/sales/pages/CustomerLedger";
+import VendorLedger from "./pages/modules/sales/pages/VendorLedger";
+import PurchaseReturnCreate from "./pages/modules/finance/pages/PurchaseReturnCreate";
+import GSTReconciliation from "./pages/modules/finance/pages/GSTReconciliation";
+import BankReconciliation from "./pages/modules/finance/pages/BankReconciliation";
+import ProfitLossStatement from "./pages/modules/finance/pages/ProfitLossStatement";
+import BalanceSheet from "./pages/modules/finance/pages/BalanceSheet";
+import Test_CRM from "./pages/modules/crm/components/TestCRM";
+import OpportunityDetails from "./pages/modules/crm/components/testcrm/Opportunity";
+import TestCustomerDetails from "./pages/modules/crm/components/testcrm/TestCustomerDetails";
+import TestContactsList from "./pages/modules/crm/components/testcrm/TestContactsList";
+import TestContactForm from "./pages/modules/crm/components/testcrm/TestContactForm";
+import TestContactDetail from "./pages/modules/crm/components/testcrm/TestContactDetail";
+import TestCallLogs from "./pages/modules/crm/components/testcrm/TestCallLogs";
+import CustomerDetails from "./pages/modules/crm/components/testcrm/TestCustomerDetails";
 
 
 
@@ -374,7 +393,6 @@ function App() {
             }
           />
           <Route path="/vendors" element={<VendorList />} />
-          {/* -------- REDIRECTS -------- */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route
             path="/payroll"
@@ -429,12 +447,33 @@ function App() {
           <Route path='/capacity/dashboard' element={<CapacityDashboard/>} />
           <Route path='/machine-assign' element={<MachineAssignmentForm/>} />
           <Route path="/workorder-list" element={<WorkOrdersList/>}/>
-
+   
           <Route path="/planned-orders" element={<PlannedOrders />} />
           <Route path="/manufacture-orders" element={<ManufacturingOrders/>}/>
           {/* <Route path="/workorder-list" element={<WorkOrderList/>}/> */}
           <Route path="/vendor-invoice" element={<VendorInvoice />} />
           <Route path="/vendor-payment" element={<VendorPayment/>}/>
+          <Route path="/sales-payments" element={<SalesPaymentPage />} />
+          <Route path="/sales-invoice" element={<SalesInvoicePage/>} />
+          <Route path="/sales-invoice-list" element={<SalesInvoiceList/>} />
+          <Route path="/sales-return" element={<SalesReturn />} />
+          <Route path="/sales-return-list" element={<SalesReturnList />} />
+          <Route path="/customer-ledger/:id" element={<CustomerLedger />} />
+          <Route path="/vendor-ledger" element={<VendorLedger />} />
+          <Route path ="/purchase-return" element={<PurchaseReturnCreate/>}/>
+          <Route path="/gst-reconciliation" element={<GSTReconciliation/>} />
+          <Route path="/bank-reconciliation" element={<BankReconciliation />} />
+          <Route path="/profit-loss" element={<ProfitLossStatement />} />
+          <Route path="/balance-sheet" element={<BalanceSheet/>}/>
+<Route path="/crm-test" element={<Test_CRM />} />
+<Route path="/crm/contacts-test" element={<TestContactsList />} />
+<Route path="/crm/contacts/new-test" element={<TestContactForm />} />
+<Route path="/crm/contacts-test/:id" element={<TestContactDetail />} />
+<Route path="/crm/contacts-test/:id/edit" element={<TestContactForm />} />
+<Route path="/crm/customers-test/:id" element={<CustomerDetails />} />
+<Route path="/crm/opportunities-test/:id" element={<OpportunityDetails />} />
+<Route path="/crm/call-logs-test" element={<CallLogs />} />
+        
         </Routes>
 
       </Router>

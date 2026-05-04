@@ -209,13 +209,14 @@ const SubOrganizationDashboard = () => {
                 >
                   + Create User
                 </button>
-
+               
                 <button
                   onClick={logout}
                   className="bg-blue-300 hover:bg-cyan-600 text-gray-950 px-4 py-2 rounded-lg font-medium transition"
                 >
                   Logout
                 </button>
+          <button onClick={()=>navigate("/crm-test")}  className="w-auto bg-cyan-600 hover:bg-cyan-500 text-gray-950 py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed">Test CRM</button>
               </div>
             </div>
           </div>

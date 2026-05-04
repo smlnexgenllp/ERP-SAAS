@@ -31,16 +31,20 @@ export default function DispatchPage() {
   ]);
 
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [confirmingId, setConfirmingId] = useState(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [currentDC, setCurrentDC] = useState(null);
+  const [printLoading, setPrintLoading] = useState(false);
 
   useEffect(() => {
-    fetchItems();
-    fetchDispatches();
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+    fetchInitialData();
   }, []);
 
-  const fetchItems = async () => {
+  const fetchInitialData = async () => {
+    setPageLoading(true);
     try {
       const res = await api.get("/inventory/items/");
       setItemList(res.data);
@@ -85,11 +89,83 @@ export default function DispatchPage() {
     }
   };
 
-  const handleSalesOrderChange = (index, soId) => {
+  const refreshDispatchList = async () => {
+    try {
+      const res = await api.get("/inventory/dispatch/");
+      setDispatchList(res.data);
+      applyFilters(res.data); // Apply current filters after refresh
+    } catch (err) {
+      console.error("Failed to refresh dispatch list:", err);
+    }
+  };
+
+  // Apply filters whenever searchTerm or statusFilter or dispatchList changes
+  const applyFilters = (list = dispatchList) => {
+    let result = [...list];
+
+    // Status Filter
+    if (statusFilter !== "All") {
+      result = result.filter(item => 
+        item.status.toLowerCase() === statusFilter.toLowerCase()
+      );
+    }
+
+    // Search Filter (DC Number or Customer Name)
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      result = result.filter(item => 
+        (item.dc_number && item.dc_number.toLowerCase().includes(term)) ||
+        (item.customer_name && item.customer_name.toLowerCase().includes(term))
+      );
+    }
+
+    setFilteredList(result);
+  };
+
+  // Re-apply filters when dependencies change
+  useEffect(() => {
+    applyFilters();
+  }, [dispatchList, statusFilter, searchTerm]);
+
+  const handleItemChange = useCallback(async (index, itemId) => {
+    const updatedItems = [...items];
+    updatedItems[index] = { 
+      ...updatedItems[index], 
+      item: itemId, 
+      sales_order: "", 
+      so_number: "", 
+      ordered_qty: 0, 
+      dispatch_qty: 0, 
+      available_stock: 0 
+    };
+    setItems(updatedItems);
+
+    if (!itemId) return;
+
+    try {
+      const [soRes, stockRes] = await Promise.all([
+        api.get(`/inventory/sales-orders/by-item/${itemId}/`),
+        api.get(`/inventory/item/${itemId}/department/0/stock/`)
+      ]);
+
+      setSalesOrdersForItem(soRes.data);
+      updatedItems[index].available_stock = parseFloat(stockRes.data.available_stock || 0);
+      setItems([...updatedItems]);
+    } catch (err) {
+      console.error("Error fetching SO or stock:", err);
+    }
+  }, [items]);
+
+  const handleSalesOrderChange = useCallback((index, soId) => {
     const selectedSO = salesOrdersForItem.find(so => so.id === parseInt(soId));
     if (!selectedSO) return;
 
     const updatedItems = [...items];
+    const maxDispatch = Math.min(
+      selectedSO.pending_qty || 0,
+      updatedItems[index].available_stock || 0
+    );
+
     updatedItems[index] = {
       ...updatedItems[index],
       sales_order: selectedSO.id,
@@ -108,14 +184,25 @@ export default function DispatchPage() {
         customer_gst: selectedSO.customer_gst || "",
       }));
     }
-  };
+  }, [salesOrdersForItem, items]);
 
-  const handleDispatchQtyChange = (index, value) => {
+  const handleDispatchQtyChange = useCallback((index, value) => {
     const numValue = parseFloat(value) || 0;
-    const maxAllowed = Math.min(items[index].ordered_qty || 0, items[index].available_stock || 0);
+    const maxAllowed = Math.min(
+      items[index].ordered_qty || 0,
+      items[index].available_stock || 0
+    );
+
     const updatedItems = [...items];
     updatedItems[index].dispatch_qty = Math.min(numValue, maxAllowed);
     setItems(updatedItems);
+  }, [items]);
+
+  const addRow = () => {
+    setItems(prev => [
+      ...prev,
+      { item: "", sales_order: "", so_number: "", ordered_qty: 0, dispatch_qty: 0, available_stock: 0 }
+    ]);
   };
 
   const addRow = () => {
@@ -154,7 +241,8 @@ export default function DispatchPage() {
 
       await api.post("/inventory/dispatch/", payload);
       alert("Draft Dispatch created successfully!");
-      fetchDispatches();
+
+      await refreshDispatchList();
       resetForm();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to create dispatch");
@@ -169,13 +257,11 @@ export default function DispatchPage() {
     setConfirmingId(id);
     try {
       const res = await api.post(`/inventory/dispatch/${id}/confirm_dispatch/`);
+      
+      alert(res.data.message || "Dispatch confirmed successfully!");
+
       if (res.data.dc_data) {
-        const dc = res.data.dc_data;
-        setCurrentDC({
-          ...dc,
-          dc_date: new Date(dc.dc_date).toLocaleDateString("en-GB"),
-          sales_order_number: dc.sales_order_number || "",
-        });
+        setCurrentDC(res.data.dc_data);
         setShowPrintModal(true);
       }
       alert(res.data.message || "Dispatch confirmed successfully!");
@@ -188,6 +274,7 @@ export default function DispatchPage() {
   };
 
   const printExistingDC = async (dispatchId) => {
+    setPrintLoading(true);
     try {
       const res = await api.get(`/inventory/dispatch/${dispatchId}/`);
       if (res.data) {
@@ -219,26 +306,29 @@ export default function DispatchPage() {
 
   const printDC = () => {
     const printContent = document.getElementById("printable-dc");
-    const newWindow = window.open("", "", "width=900,height=700");
+    if (!printContent) return;
+
+    const newWindow = window.open("", "", "width=1000,height=800");
     newWindow.document.write(`
       <html>
         <head>
           <title>Delivery Challan</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            table, th, td { border: 1px solid black; }
-            th, td { padding: 8px; text-align: center; }
-            .header { border-bottom: 3px solid #0B5ED7; padding-bottom: 10px; }
-            .blue-text { color: #0B5ED7; }
+            body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid black; padding: 8px; text-align: center; }
+            .header { border-bottom: 4px solid #0B5ED7; padding-bottom: 15px; margin-bottom: 20px; }
           </style>
         </head>
         <body>${printContent.innerHTML}</body>
       </html>
     `);
     newWindow.document.close();
-    newWindow.focus();
-    setTimeout(() => { newWindow.print(); newWindow.close(); }, 500);
+    setTimeout(() => {
+      newWindow.focus();
+      newWindow.print();
+      setTimeout(() => newWindow.close(), 500);
+    }, 500);
   };
 
   const resetForm = () => {

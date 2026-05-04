@@ -126,12 +126,18 @@ const VendorList = ({ onEdit, onVendorDeleted }) => {
         </div>
 
         {/* Add Vendor Button */}
-        <div className="flex justify-end mb-6">
+        <div className="flex justify-end mb-6 gap-4">
           <button
             onClick={() => openFormModal()}
             className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-6 py-3 rounded-xl font-medium transition flex items-center gap-2 shadow-lg shadow-cyan-900/30"
           >
             <Plus size={18} /> Add New Vendor
+          </button>
+          <button
+            onClick={() => navigate('/vendor-ledger')}
+            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-6 py-3 rounded-xl font-medium transition flex items-center gap-2 shadow-lg shadow-cyan-900/30"
+          >
+            vendor ledger
           </button>
         </div>
 

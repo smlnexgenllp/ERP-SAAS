@@ -430,7 +430,22 @@ class VendorInvoice(models.Model):
 
     def __str__(self):
         return self.invoice_number
+# ========================= VENDOR INVOICE ITEMS =========================
+class VendorInvoiceItem(models.Model):
+    invoice = models.ForeignKey(
+        VendorInvoice,
+        related_name="items",
+        on_delete=models.CASCADE
+    )
 
+    item = models.ForeignKey(Item, on_delete=models.PROTECT)
+
+    qty = models.DecimalField(max_digits=10, decimal_places=2)
+    rate = models.DecimalField(max_digits=10, decimal_places=2)
+    tax = models.DecimalField(max_digits=5, decimal_places=2, default=18)
+
+    def __str__(self):
+        return f"{self.invoice.invoice_number} - {self.item.name}"
 
 # ========================= VENDOR PAYMENT =========================
 class VendorPayment(models.Model):
@@ -451,7 +466,49 @@ class VendorPayment(models.Model):
 
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+# ========================= PURCHASE RETURN (DEBIT NOTE) =========================
 
+class PurchaseReturn(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+
+    vendor = models.ForeignKey(Vendor, on_delete=models.PROTECT)
+    invoice = models.ForeignKey('inventory.VendorInvoice', on_delete=models.PROTECT)
+
+    debit_note_number = models.CharField(max_length=50, unique=True, editable=False)
+
+    return_date = models.DateField()
+    reason = models.TextField(blank=True, null=True)
+
+    taxable_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cgst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    sgst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    igst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.debit_note_number:
+            self.debit_note_number = get_next_number("DN", self.organization_id, PurchaseReturn)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.debit_note_number
+
+
+class PurchaseReturnItem(models.Model):
+    purchase_return = models.ForeignKey(PurchaseReturn, related_name="items", on_delete=models.CASCADE)
+
+    item = models.ForeignKey(Item, on_delete=models.PROTECT)
+    qty = models.DecimalField(max_digits=10, decimal_places=2)
+    rate = models.DecimalField(max_digits=10, decimal_places=2)
+
+    tax = models.DecimalField(max_digits=5, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.item.name} - {self.qty}"
 
 # ========================= STOCK LEDGER =========================
 class StockLedger(models.Model):
