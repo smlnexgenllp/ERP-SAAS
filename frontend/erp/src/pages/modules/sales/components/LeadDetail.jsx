@@ -1,3 +1,4 @@
+// src/pages/sales/LeadDetail.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../../../services/api";
@@ -14,6 +15,7 @@ import {
 export default function LeadDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -72,7 +74,7 @@ export default function LeadDetail() {
   useEffect(() => {
     const fetchOrganization = async () => {
       try {
-        const res = await api.get("/sale/gst-settings/"); // Reuse or adjust endpoint if you have separate org endpoint
+        const res = await api.get("/sale/gst-settings/");
         if (res.data) {
           setOrganization({
             company_name: res.data.company_name || "Your Company Name",
@@ -94,7 +96,7 @@ export default function LeadDetail() {
     fetchOrganization();
   }, []);
 
-  // Pre-fill customer info
+  // Pre-fill customer info from lead
   useEffect(() => {
     if (lead) {
       setFormData(prev => ({
@@ -207,28 +209,29 @@ export default function LeadDetail() {
         total: subtotal,
         gst_percentage: gstRate,
         gst_amount: gstAmount,
-        organization: organization, // Sending org details to backend if needed
+        organization: organization,
       };
       await api.post("/sale/quotations/create-from-lead/", payload);
       setFormMessage("Quotation created and sent successfully!");
       setTimeout(() => {
         setShowQuotationForm(false);
+        // Optional: navigate back or refresh
       }, 1800);
     } catch (err) {
       console.error(err);
-      setFormMessage(err.response?.data?.detail || "Failed to create quotation(Already created for this mail ID).");
+      setFormMessage(err.response?.data?.detail || "Failed to create quotation.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ==================== RENDER ====================
+  // ==================== UI (Matching QuotationsList Theme) ====================
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 flex items-center justify-center">
-        <div className="text-cyan-400 text-xl animate-pulse flex items-center gap-3">
-          <div className="w-6 h-6 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
-          Loading lead details...
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-600 mt-6 text-lg font-medium">Loading lead details...</p>
         </div>
       </div>
     );
@@ -236,14 +239,14 @@ export default function LeadDetail() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 flex items-center justify-center p-6">
-        <div className="bg-gray-900/90 backdrop-blur-lg p-10 rounded-2xl border border-red-900/50 text-center max-w-md w-full">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-red-400 mb-3">Error</h2>
-          <p className="text-gray-300 mb-6">{error}</p>
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-6">
+        <div className="bg-white border border-zinc-200 rounded-3xl p-12 max-w-md w-full text-center">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-6" />
+          <h2 className="text-2xl font-bold text-zinc-900 mb-3">Error</h2>
+          <p className="text-zinc-600 mb-8">{error}</p>
           <button
             onClick={() => navigate("/sales/qualifiedleads")}
-            className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 rounded-xl text-white font-medium"
+            className="px-8 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl font-medium transition"
           >
             Back to Leads
           </button>
@@ -253,109 +256,142 @@ export default function LeadDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 pb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <button
-            onClick={() => navigate("/sales/qualifiedleads")}
-            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span>Back to Qualified Leads</span>
-          </button>
-          <h1 className="text-2xl md:text-3xl font-bold text-cyan-300">
-            Lead: {lead?.full_name || "—"}
-          </h1>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => navigate("/sales/qualifiedleads")}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <ArrowLeft size={20} />
+              <span className="font-medium">Back to Qualified Leads</span>
+            </button>
+
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center shadow">
+                <FileText className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                  Lead: {lead?.full_name || "—"}
+                </h1>
+                <p className="text-zinc-500">Create quotation from this lead</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Lead Info Card */}
-        <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 md:p-8 shadow-xl mb-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div><p className="text-sm text-gray-400">Name</p><p className="text-lg font-medium">{lead?.full_name || "—"}</p></div>
-            <div><p className="text-sm text-gray-400">Company</p><p className="text-lg font-medium">{lead?.company || "—"}</p></div>
-            <div><p className="text-sm text-gray-400">Email</p><p className="text-lg font-medium break-all">{lead?.email || "—"}</p></div>
-            <div><p className="text-sm text-gray-400">Phone</p><p className="text-lg font-medium">{lead?.phone || "—"}</p></div>
-            <div><p className="text-sm text-gray-400">Status</p>
-              <span className="inline-block px-3 py-1 bg-green-900/60 text-green-300 rounded-full text-sm font-medium">
+        <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm mb-10">
+          <h3 className="text-lg font-semibold text-zinc-900 mb-6">Lead Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-8">
+            <div>
+              <p className="text-sm text-zinc-500">Name</p>
+              <p className="font-medium text-zinc-900 mt-1">{lead?.full_name || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-zinc-500">Company</p>
+              <p className="font-medium text-zinc-900 mt-1">{lead?.company || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-zinc-500">Email</p>
+              <p className="font-medium text-zinc-900 mt-1 break-all">{lead?.email || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-zinc-500">Phone</p>
+              <p className="font-medium text-zinc-900 mt-1">{lead?.phone || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-zinc-500">Status</p>
+              <span className="inline-block px-4 py-1.5 mt-1 bg-emerald-100 text-emerald-700 rounded-2xl text-xs font-medium">
                 {lead?.status || "Qualified"}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Quotation Form */}
+        {/* Create Quotation Button / Form */}
         {!showQuotationForm ? (
           <div className="flex justify-center">
             <button
               onClick={() => setShowQuotationForm(true)}
-              className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl shadow-lg text-lg font-medium"
+              className="flex items-center gap-3 px-10 py-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-3xl text-lg font-medium shadow-sm transition"
             >
-              <FileText size={22} />
-              Create Quotation
+              <FileText size={24} />
+              Create New Quotation
             </button>
           </div>
         ) : (
-          <div className="bg-gray-900/60 backdrop-blur-sm border border-cyan-900/40 rounded-2xl p-6 md:p-8 shadow-xl">
-            <h2 className="text-2xl font-bold text-purple-300 mb-6 flex items-center gap-3">
-              <FileText size={24} /> New Quotation for {lead?.full_name}
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8">
+            <h2 className="text-3xl font-bold text-zinc-900 mb-8 flex items-center gap-4">
+              <FileText className="text-zinc-700" size={32} />
+              New Quotation for {lead?.full_name}
             </h2>
 
             {formMessage && (
-              <div className={`p-4 rounded-xl mb-6 ${formMessage.includes("success")
-                ? "bg-green-900/50 border border-green-700 text-green-300"
-                : "bg-red-900/50 border border-red-700 text-red-300"}`}>
+              <div className={`p-5 rounded-2xl mb-8 text-sm font-medium ${
+                formMessage.includes("success")
+                  ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                  : "bg-red-100 text-red-700 border border-red-200"
+              }`}>
                 {formMessage}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-10">
-              {/* Organization (Seller) Details - Quotation Header Style */}
-              {/* <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-6">
-                <h3 className="text-lg font-semibold text-amber-300 mb-4">From (Your Organization)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                  <div>
-                    <p className="font-medium text-gray-200">{organization.company_name}</p>
-                    <p className="text-gray-400">{organization.address}</p>
-                  </div>
-                  <div className="text-right md:text-left">
-                    <p><span className="text-gray-400">GSTIN:</span> <span className="font-mono">{organization.gstin || "—"}</span></p>
-                    {organization.pan && <p><span className="text-gray-400">PAN:</span> {organization.pan}</p>}
-                    <p><span className="text-gray-400">Phone:</span> {organization.phone}</p>
-                    <p><span className="text-gray-400">Email:</span> {organization.email}</p>
-                  </div>
-                </div>
-              </div> */}
-
               {/* Customer Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Customer Name *</label>
-                  <input type="text" name="customer_name" value={formData.customer_name} onChange={handleChange}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:border-purple-500 outline-none" required />
+                  <label className="block text-sm font-medium text-zinc-600 mb-2">Customer Name *</label>
+                  <input
+                    type="text"
+                    name="customer_name"
+                    value={formData.customer_name}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
+                    required
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Email *</label>
-                  <input type="email" name="customer_email" value={formData.customer_email} onChange={handleChange}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:border-purple-500 outline-none" required />
+                  <label className="block text-sm font-medium text-zinc-600 mb-2">Email *</label>
+                  <input
+                    type="email"
+                    name="customer_email"
+                    value={formData.customer_email}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
+                    required
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Company</label>
-                  <input type="text" value={formData.customer_company} readOnly
-                    className="w-full bg-gray-700/50 border border-gray-700 rounded-lg px-4 py-3 text-gray-400 cursor-not-allowed" />
+                  <label className="block text-sm font-medium text-zinc-600 mb-2">Company</label>
+                  <input
+                    type="text"
+                    value={formData.customer_company}
+                    readOnly
+                    className="w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-500 cursor-not-allowed"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Valid Until *</label>
-                  <input type="date" name="validity_date" value={formData.validity_date} onChange={handleChange}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:border-purple-500 outline-none" required />
+                  <label className="block text-sm font-medium text-zinc-600 mb-2">Valid Until *</label>
+                  <input
+                    type="date"
+                    name="validity_date"
+                    value={formData.validity_date}
+                    onChange={handleChange}
+                    className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
+                    required
+                  />
                 </div>
               </div>
 
-              {/* GST Percentage */}
-              <div className="flex items-center gap-4 bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-amber-400">
-                  <Percent size={20} />
-                  <span className="font-medium">GST Rate</span>
+              {/* GST Rate */}
+              <div className="flex items-center gap-5 bg-zinc-50 border border-zinc-200 rounded-3xl p-6">
+                <div className="flex items-center gap-3 text-amber-600">
+                  <Percent size={24} />
+                  <span className="font-semibold text-zinc-700">GST Rate</span>
                 </div>
                 <input
                   type="number"
@@ -364,144 +400,153 @@ export default function LeadDetail() {
                   max="100"
                   value={formData.gst_percentage}
                   onChange={handleGstChange}
-                  className="w-24 bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-center text-lg font-semibold focus:border-amber-500 outline-none"
+                  className="w-28 bg-white border border-zinc-200 rounded-2xl px-5 py-3 text-center text-lg font-semibold focus:outline-none focus:border-zinc-400"
                 />
-                <span className="text-gray-400 font-medium">%</span>
-                <p className="text-sm text-gray-500 ml-4">Change as required</p>
+                <span className="font-medium text-zinc-600">%</span>
+                <p className="text-zinc-500 text-sm ml-4">You can change this as needed</p>
               </div>
 
-              {/* Items Table - Same as before */}
+              {/* Items Table */}
               <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-semibold text-cyan-300 flex items-center gap-2">
-                    <Calculator size={20} /> Items
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-bold text-zinc-900 flex items-center gap-3">
+                    <Calculator size={26} /> Quotation Items
                   </h3>
-                  <button type="button" onClick={addNewItem}
-                    className="flex items-center gap-2 px-5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition">
-                    <Plus size={18} /> Add Item
+                  <button
+                    type="button"
+                    onClick={addNewItem}
+                    className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 hover:text-zinc-900 transition"
+                  >
+                    <Plus size={20} />
+                    <span className="font-medium">Add Item</span>
                   </button>
                 </div>
-                <div className="overflow-x-auto rounded-lg border border-gray-700">
-                  <table className="min-w-full divide-y divide-gray-700">
-                    <thead className="bg-gray-800">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Description / Product</th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-300">Qty</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-gray-300">Unit Price (₹)</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-gray-300">Line Total (₹)</th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-gray-300">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-700 bg-gray-900/40">
-                      {formData.items.map((item, index) => (
-                        <tr key={index} className="hover:bg-gray-800/50">
-                          <td className="px-6 py-4">
-                            <select
-                              value={item.inventory_id || ""}
-                              onChange={(e) => selectInventoryItem(index, e.target.value)}
-                              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-200 mb-2"
-                            >
-                              <option value="">— Select Product —</option>
-                              {inventoryItems.map((prod) => (
-                                <option key={prod.id} value={prod.id}>
-                                  {prod.name} ({prod.code}) – ₹{Number(prod.standard_price || 0).toFixed(2)}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              type="text"
-                              placeholder="Or enter custom description"
-                              value={item.description}
-                              onChange={(e) => updateItem(index, "description", e.target.value)}
-                              className="w-full bg-transparent border-none focus:ring-0 text-gray-300 placeholder-gray-500 text-sm mt-1"
-                            />
-                          </td>
-                          <td className="px-6 py-4">
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                              className="w-20 mx-auto block bg-gray-800 border border-gray-700 rounded px-3 py-2 text-center"
-                              required
-                            />
-                          </td>
-                          <td className="px-6 py-4">
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={item.unit_price}
-                              onChange={(e) => updateItem(index, "unit_price", e.target.value)}
-                              className="w-32 mx-auto block bg-gray-800 border border-gray-700 rounded px-3 py-2 text-right"
-                              required
-                            />
-                          </td>
-                          <td className="px-6 py-4 text-right font-medium text-emerald-400">
-                            ₹{((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)).toFixed(2)}
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeItem(index)}
-                              className="text-red-400 hover:text-red-300 p-1"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </td>
+
+                <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-zinc-100">
+                      <thead className="bg-zinc-50">
+                        <tr>
+                          <th className="px-8 py-5 text-left text-sm font-semibold text-zinc-600">Description / Product</th>
+                          <th className="px-8 py-5 text-center text-sm font-semibold text-zinc-600">Qty</th>
+                          <th className="px-8 py-5 text-right text-sm font-semibold text-zinc-600">Unit Price (₹)</th>
+                          <th className="px-8 py-5 text-right text-sm font-semibold text-zinc-600">Line Total (₹)</th>
+                          <th className="px-8 py-5 text-center text-sm font-semibold text-zinc-600">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-800/80">
-                      <tr>
-                        <td colSpan={3} className="px-6 py-4 text-right font-semibold">Subtotal</td>
-                        <td className="px-6 py-4 text-right text-emerald-400">₹{subtotal.toFixed(2)}</td>
-                        <td></td>
-                      </tr>
-                      <tr>
-                        <td colSpan={3} className="px-6 py-4 text-right font-semibold">GST ({gstRate}%)</td>
-                        <td className="px-6 py-4 text-right text-emerald-400">₹{gstAmount.toFixed(2)}</td>
-                        <td></td>
-                      </tr>
-                      <tr className="font-bold border-t border-gray-600">
-                        <td colSpan={3} className="px-6 py-4 text-right text-lg">Grand Total</td>
-                        <td className="px-6 py-4 text-right text-xl text-emerald-400">₹{grandTotal.toFixed(2)}</td>
-                        <td></td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {formData.items.map((item, index) => (
+                          <tr key={index} className="hover:bg-zinc-50">
+                            <td className="px-8 py-6">
+                              <select
+                                value={item.inventory_id || ""}
+                                onChange={(e) => selectInventoryItem(index, e.target.value)}
+                                className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-zinc-900 mb-3 focus:outline-none focus:border-zinc-400"
+                              >
+                                <option value="">— Select from Inventory —</option>
+                                {inventoryItems.map((prod) => (
+                                  <option key={prod.id} value={prod.id}>
+                                    {prod.name} ({prod.code}) – ₹{Number(prod.standard_price || 0).toFixed(2)}
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                type="text"
+                                placeholder="Or enter custom description"
+                                value={item.description}
+                                onChange={(e) => updateItem(index, "description", e.target.value)}
+                                className="w-full bg-transparent text-zinc-700 placeholder-zinc-400 focus:outline-none text-sm"
+                              />
+                            </td>
+                            <td className="px-8 py-6">
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                                className="w-24 mx-auto block bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-center focus:outline-none focus:border-zinc-400"
+                                required
+                              />
+                            </td>
+                            <td className="px-8 py-6">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.unit_price}
+                                onChange={(e) => updateItem(index, "unit_price", e.target.value)}
+                                className="w-36 mx-auto block bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-right focus:outline-none focus:border-zinc-400"
+                                required
+                              />
+                            </td>
+                            <td className="px-8 py-6 text-right font-semibold text-emerald-600">
+                              ₹{((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)).toLocaleString('en-IN')}
+                            </td>
+                            <td className="px-8 py-6 text-center">
+                              <button
+                                type="button"
+                                onClick={() => removeItem(index)}
+                                className="text-red-500 hover:text-red-600 transition p-2"
+                              >
+                                <Trash2 size={20} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-zinc-50">
+                        <tr>
+                          <td colSpan={3} className="px-8 py-6 text-right font-semibold text-zinc-700">Subtotal</td>
+                          <td className="px-8 py-6 text-right font-semibold text-emerald-600">₹{subtotal.toLocaleString('en-IN')}</td>
+                          <td></td>
+                        </tr>
+                        <tr>
+                          <td colSpan={3} className="px-8 py-6 text-right font-semibold text-zinc-700">GST ({gstRate}%)</td>
+                          <td className="px-8 py-6 text-right font-semibold text-emerald-600">₹{gstAmount.toLocaleString('en-IN')}</td>
+                          <td></td>
+                        </tr>
+                        <tr className="border-t border-zinc-200">
+                          <td colSpan={3} className="px-8 py-6 text-right text-lg font-bold text-zinc-900">Grand Total</td>
+                          <td className="px-8 py-6 text-right text-2xl font-bold text-emerald-600">₹{grandTotal.toLocaleString('en-IN')}</td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               </div>
 
               {/* Notes */}
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Notes / Terms & Conditions</label>
+                <label className="block text-sm font-medium text-zinc-600 mb-2">Notes / Terms & Conditions</label>
                 <textarea
                   name="notes"
                   value={formData.notes}
                   onChange={handleChange}
                   rows={5}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:border-purple-500 outline-none resize-y"
-                  placeholder="Payment terms, delivery timeline, etc..."
+                  className="w-full px-5 py-4 bg-white border border-zinc-200 rounded-3xl focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100 resize-y"
+                  placeholder="Payment terms, delivery timeline, warranty, etc..."
                 />
               </div>
 
-              {/* Buttons */}
-              <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t border-gray-800">
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t border-zinc-100">
                 <button
                   type="button"
                   onClick={() => setShowQuotationForm(false)}
-                  className="px-8 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl text-gray-200 transition"
+                  className="px-8 py-3.5 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 hover:text-zinc-900 font-medium transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting || grandTotal <= 0}
-                  className={`px-8 py-3 rounded-xl text-white font-medium shadow-lg transition ${
-                    submitting || grandTotal <= 0 ? "bg-gray-600 cursor-not-allowed" : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+                  className={`px-10 py-3.5 rounded-2xl font-medium transition ${
+                    submitting || grandTotal <= 0
+                      ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                      : "bg-zinc-900 hover:bg-zinc-800 text-white shadow-sm"
                   }`}
                 >
-                  {submitting ? "Sending..." : "Create & Send Quotation"}
+                  {submitting ? "Creating Quotation..." : "Create & Send Quotation"}
                 </button>
               </div>
             </form>

@@ -3,9 +3,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 import { 
-  FiPackage, FiArrowLeft, FiRefreshCw, FiDownload, 
-  FiFilter, FiSearch 
-} from 'react-icons/fi';
+  Package, ArrowLeft, RefreshCw, Download, 
+  Filter, Search 
+} from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function FullStockLedger() {
@@ -34,7 +34,7 @@ export default function FullStockLedger() {
     setError(null);
     try {
       const res = await api.get('/stock/ledger/', { 
-        params: { limit: 500 }   // Increase limit or implement pagination on backend
+        params: { limit: 500 }
       });
       setMovements(res.data.results || res.data);
     } catch (err) {
@@ -92,10 +92,26 @@ export default function FullStockLedger() {
 
   const getTypeStyle = (type) => {
     switch (type) {
-      case 'IN':  return { color: 'text-green-400', icon: '↑', label: 'IN' };
-      case 'OUT': return { color: 'text-red-400',   icon: '↓', label: 'OUT' };
-      case 'ADJ': return { color: 'text-yellow-400', icon: '↻', label: 'ADJ' };
-      default:    return { color: 'text-gray-400',   icon: '?', label: type };
+      case 'IN':  return { 
+        bg: 'bg-emerald-100 text-emerald-700', 
+        icon: '↑', 
+        label: 'IN' 
+      };
+      case 'OUT': return { 
+        bg: 'bg-red-100 text-red-700', 
+        icon: '↓', 
+        label: 'OUT' 
+      };
+      case 'ADJ': return { 
+        bg: 'bg-amber-100 text-amber-700', 
+        icon: '↻', 
+        label: 'ADJ' 
+      };
+      default:    return { 
+        bg: 'bg-zinc-100 text-zinc-600', 
+        icon: '?', 
+        label: type 
+      };
     }
   };
 
@@ -129,10 +145,10 @@ export default function FullStockLedger() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-cyan-400 text-xl">
-          <FiRefreshCw className="animate-spin" size={28} />
-          Loading full stock ledger...
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-600 mt-6 text-lg font-medium">Loading stock ledger...</p>
         </div>
       </div>
     );
@@ -140,87 +156,100 @@ export default function FullStockLedger() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-950 p-8 text-center">
-        <p className="text-red-400 text-xl mb-6">{error}</p>
-        <button
-          onClick={fetchAllMovements}
-          className="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium"
-        >
-          Try Again
-        </button>
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-6">
+        <div className="bg-white border border-zinc-200 rounded-3xl p-12 max-w-md w-full text-center">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-6" />
+          <h2 className="text-2xl font-bold text-zinc-900 mb-3">Error</h2>
+          <p className="text-zinc-600 mb-8">{error}</p>
+          <button
+            onClick={fetchAllMovements}
+            className="px-8 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl font-medium transition"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
         
         {/* Header */}
-        <div className="flex items-center gap-4 mb-10">
-          <button
-            onClick={handleGoBack}
-            className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
-          >
-            <FiArrowLeft size={22} />
-            <span className="font-medium">Back</span>
-          </button>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={handleGoBack}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <ArrowLeft size={20} />
+              <span className="font-medium">Back</span>
+            </button>
 
-          <div className="flex-1">
-            <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-              <FiPackage className="text-cyan-500" /> Full Stock Ledger
-            </h1>
-            <p className="text-cyan-500 mt-1">Complete history of all stock IN, OUT & ADJ movements</p>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center shadow">
+                <Package className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                  Full Stock Ledger
+                </h1>
+                <p className="text-zinc-500">Complete history of all stock movements</p>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-3">
             <button
               onClick={fetchAllMovements}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-cyan-300 border border-gray-700"
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 hover:text-zinc-900 transition"
             >
-              <FiRefreshCw size={18} /> Refresh
+              <RefreshCw size={20} />
+              <span className="font-medium">Refresh</span>
             </button>
             <button
               onClick={exportToCSV}
               disabled={filteredMovements.length === 0}
-              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 rounded-lg text-white border border-emerald-600 disabled:opacity-50"
+              className="flex items-center gap-3 px-6 py-3 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-300 text-white rounded-2xl transition disabled:cursor-not-allowed"
             >
-              <FiDownload size={18} /> Export CSV
+              <Download size={20} />
+              <span className="font-medium">Export CSV</span>
             </button>
           </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-          <SummaryCard title="Total IN" value={summary.totalIn} color="green" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <SummaryCard title="Total IN" value={summary.totalIn} color="emerald" />
           <SummaryCard title="Total OUT" value={summary.totalOut} color="red" />
-          <SummaryCard title="Net Movement" value={summary.netMovement} color="cyan" />
-          <SummaryCard title="Transactions" value={summary.totalTransactions} color="purple" />
+          <SummaryCard title="Net Movement" value={summary.netMovement} color="zinc" />
+          <SummaryCard title="Total Transactions" value={summary.totalTransactions} color="amber" />
         </div>
 
         {/* Filters */}
-        <div className="bg-gray-900 p-5 rounded-xl border border-gray-800 mb-8">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[240px]">
-              <label className="text-xs text-gray-400 block mb-1">Search Item</label>
+        <div className="bg-white border border-zinc-200 rounded-3xl p-8 mb-8 shadow-sm">
+          <div className="flex flex-wrap gap-6 items-end">
+            <div className="flex-1 min-w-[260px]">
+              <label className="block text-sm font-medium text-zinc-600 mb-2">Search Item</label>
               <div className="relative">
-                <FiSearch className="absolute left-3 top-3 text-gray-500" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
                 <input
                   type="text"
-                  placeholder="Item name or code..."
+                  placeholder="Search by item name or code..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-10 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                  className="w-full pl-12 pr-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Type</label>
+              <label className="block text-sm font-medium text-zinc-600 mb-2">Transaction Type</label>
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                className="bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 text-zinc-900 focus:outline-none focus:border-zinc-400"
               >
                 <option value="ALL">All Types</option>
                 <option value="IN">IN (Receipt)</option>
@@ -230,88 +259,95 @@ export default function FullStockLedger() {
             </div>
 
             <div>
-              <label className="text-xs text-gray-400 block mb-1">From Date</label>
+              <label className="block text-sm font-medium text-zinc-600 mb-2">From Date</label>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                className="bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:outline-none focus:border-zinc-400"
               />
             </div>
 
             <div>
-              <label className="text-xs text-gray-400 block mb-1">To Date</label>
+              <label className="block text-sm font-medium text-zinc-600 mb-2">To Date</label>
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                className="bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:outline-none focus:border-zinc-400"
               />
             </div>
 
             <button
-              onClick={() => { setSearchTerm(''); setTypeFilter('ALL'); setFromDate(''); setToDate(''); setCurrentPage(1); }}
-              className="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
+              onClick={() => {
+                setSearchTerm('');
+                setTypeFilter('ALL');
+                setFromDate('');
+                setToDate('');
+                setCurrentPage(1);
+              }}
+              className="px-6 py-3.5 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 hover:text-zinc-900 transition font-medium"
             >
               Clear Filters
             </button>
           </div>
         </div>
 
-        {/* Movements Table */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="p-5 border-b border-gray-800 flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Stock Movement History</h2>
-            <p className="text-sm text-gray-400">
+        {/* Stock Ledger Table */}
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+          <div className="px-8 py-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50">
+            <h2 className="text-xl font-semibold text-zinc-900">Stock Movement History</h2>
+            <p className="text-sm text-zinc-500">
               Showing {currentMovements.length} of {filteredMovements.length} movements
             </p>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-800/80">
+            <table className="min-w-full divide-y divide-zinc-100">
+              <thead className="bg-zinc-50">
                 <tr>
-                  <th className="p-4 text-left">Date & Time</th>
-                  <th className="p-4 text-left">Item</th>
-                  <th className="p-4 text-center">Type</th>
-                  <th className="p-4 text-right">Quantity</th>
-                  <th className="p-4 text-left">Reference</th>
-                  <th className="p-4 text-left">UOM</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold text-zinc-600">Date & Time</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold text-zinc-600">Item</th>
+                  <th className="px-8 py-5 text-center text-sm font-semibold text-zinc-600">Type</th>
+                  <th className="px-8 py-5 text-right text-sm font-semibold text-zinc-600">Quantity</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold text-zinc-600">Reference</th>
+                  <th className="px-8 py-5 text-left text-sm font-semibold text-zinc-600">UOM</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-zinc-100">
                 {currentMovements.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="p-12 text-center text-gray-500">
-                      No movements found matching your filters.
+                    <td colSpan="6" className="px-8 py-20 text-center">
+                      <div className="flex flex-col items-center">
+                        <Package className="w-12 h-12 text-zinc-300 mb-4" />
+                        <p className="text-zinc-500 text-lg">No movements found</p>
+                        <p className="text-zinc-400 mt-1">Try adjusting your filters</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   currentMovements.map((mov) => {
                     const style = getTypeStyle(mov.transaction_type);
                     return (
-                      <tr 
-                        key={mov.id} 
-                        className="border-t border-gray-800 hover:bg-gray-800/60 transition-colors"
-                      >
-                        <td className="p-4 text-gray-400">
+                      <tr key={mov.id} className="hover:bg-zinc-50 transition-colors">
+                        <td className="px-8 py-6 text-zinc-600">
                           {format(new Date(mov.created_at), 'dd MMM yyyy • hh:mm a')}
                         </td>
-                        <td className="p-4">
-                          <div className="font-medium">{mov.item_name}</div>
-                          <div className="text-xs text-gray-500">{mov.item_code}</div>
+                        <td className="px-8 py-6">
+                          <div className="font-medium text-zinc-900">{mov.item_name}</div>
+                          <div className="text-sm text-zinc-500">{mov.item_code}</div>
                         </td>
-                        <td className="p-4 text-center">
-                          <span className={`inline-flex items-center gap-1.5 font-medium ${style.color}`}>
-                            <span className="text-lg">{style.icon}</span>
+                        <td className="px-8 py-6 text-center">
+                          <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-2xl text-xs font-medium ${style.bg}`}>
+                            <span className="text-base">{style.icon}</span>
                             {style.label}
                           </span>
                         </td>
-                        <td className="p-4 text-right font-semibold">
+                        <td className="px-8 py-6 text-right font-semibold text-zinc-900">
                           {Number(mov.quantity).toLocaleString('en-IN')}
                         </td>
-                        <td className="p-4 text-gray-300">{mov.reference || '—'}</td>
-                        <td className="p-4 text-gray-400">{mov.uom || '—'}</td>
+                        <td className="px-8 py-6 text-zinc-600">{mov.reference || '—'}</td>
+                        <td className="px-8 py-6 text-zinc-600">{mov.uom || '—'}</td>
                       </tr>
                     );
                   })
@@ -322,21 +358,21 @@ export default function FullStockLedger() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="p-5 border-t border-gray-800 flex justify-between items-center">
+            <div className="px-8 py-6 border-t border-zinc-100 flex justify-between items-center bg-zinc-50">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-lg"
+                className="px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 rounded-2xl disabled:cursor-not-allowed transition"
               >
                 Previous
               </button>
-              <span className="text-gray-400">
+              <span className="font-medium text-zinc-600">
                 Page {currentPage} of {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-lg"
+                className="px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50 rounded-2xl disabled:cursor-not-allowed transition"
               >
                 Next
               </button>
@@ -348,19 +384,19 @@ export default function FullStockLedger() {
   );
 }
 
-// Reusable Summary Card
+// Reusable Summary Card Component
 function SummaryCard({ title, value, color }) {
   const colorMap = {
-    green: 'text-green-400 border-green-500/30',
-    red: 'text-red-400 border-red-500/30',
-    cyan: 'text-cyan-400 border-cyan-500/30',
-    purple: 'text-purple-400 border-purple-500/30',
+    emerald: 'text-emerald-600 border-emerald-200 bg-emerald-50',
+    red: 'text-red-600 border-red-200 bg-red-50',
+    zinc: 'text-zinc-700 border-zinc-200 bg-zinc-50',
+    amber: 'text-amber-600 border-amber-200 bg-amber-50',
   };
 
   return (
-    <div className={`bg-gray-900 p-6 rounded-xl border ${colorMap[color]} hover:border-gray-700 transition-all`}>
-      <div className="text-gray-400 text-sm mb-2">{title}</div>
-      <div className="text-3xl font-bold">{value}</div>
+    <div className={`bg-white border rounded-3xl p-8 shadow-sm ${colorMap[color]}`}>
+      <div className="text-sm text-zinc-500 mb-3">{title}</div>
+      <div className="text-4xl font-bold tracking-tight">{value}</div>
     </div>
   );
 }
