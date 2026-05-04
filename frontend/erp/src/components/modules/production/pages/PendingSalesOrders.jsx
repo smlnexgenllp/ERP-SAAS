@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   ArrowRightCircle,
   ArrowLeft,
+  AlertCircle,
 } from "lucide-react";
 import api from "../../../../services/api";
 
@@ -66,7 +67,7 @@ export default function PendingSalesOrders() {
   // =========================
   const generateProductionPlan = async (item) => {
     if (!item.input_qty || item.input_qty <= 0) {
-      alert("Enter valid quantity");
+      alert("Please enter a valid quantity");
       return;
     }
 
@@ -79,7 +80,7 @@ export default function PendingSalesOrders() {
         sales_orders: item.sales_orders || []
       });
 
-      alert(`✅ Planned Order #${res.data.id} created`);
+      alert(`✅ Planned Order #${res.data.id} created successfully!`);
 
       // Instant UI Update
       setItems(prev =>
@@ -108,165 +109,182 @@ export default function PendingSalesOrders() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 flex items-center justify-center text-cyan-400">
-        <RefreshCw className="animate-spin" />
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-600 mt-6 text-lg font-medium">Loading...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header with Back Button */}
-        <div className="flex items-center gap-4 mb-8">
-          <button
-            onClick={() => navigate('/manufacturing/dashboard')}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-cyan-800 rounded-xl transition"
-          >
-            <ArrowLeft size={18} />
-            Back
-          </button>
-          <div className="flex items-center gap-3">
-            <Factory className="text-cyan-400" size={28} />
-            <h1 className="text-3xl font-bold text-cyan-300">Pending Sales Orders - MRP Planning</h1>
-          </div>
-        </div>
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => navigate('/manufacturing/dashboard')}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <ArrowLeft size={20} />
+              <span className="font-medium">Back</span>
+            </button>
 
-        {/* Refresh Button */}
-        <div className="flex justify-end mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center shadow">
+                <Factory className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                  Pending Sales Orders
+                </h1>
+                <p className="text-zinc-500">MRP Planning & Production Planning</p>
+              </div>
+            </div>
+          </div>
+
           <button
             onClick={fetchItems}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-5 py-2.5 rounded-xl transition"
+            className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 hover:text-zinc-900 transition"
           >
-            <RefreshCw size={18} />
-            Refresh
+            <RefreshCw size={20} />
+            <span className="font-medium">Refresh</span>
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-900/50 border border-red-700 p-4 rounded-xl mb-6 flex items-center gap-2 text-red-300">
-            <AlertTriangle size={20} />
+          <div className="bg-red-100 border border-red-200 text-red-700 px-6 py-4 rounded-2xl mb-8 flex items-center gap-3">
+            <AlertTriangle size={22} />
             {error}
           </div>
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-cyan-400">
-            <RefreshCw className="animate-spin mr-3" size={24} />
-            Loading MRP Data...
+          <div className="flex items-center justify-center h-96">
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+              <p className="text-zinc-600 mt-6 text-lg font-medium">Loading MRP data...</p>
+            </div>
           </div>
         ) : items.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
-            No pending sales orders found
+          <div className="bg-white border border-zinc-200 rounded-3xl p-20 text-center">
+            <AlertCircle className="w-16 h-16 text-zinc-300 mx-auto mb-6" />
+            <p className="text-2xl font-medium text-zinc-600">No pending sales orders found</p>
+            <p className="text-zinc-500 mt-2">All demands have been planned or fulfilled.</p>
           </div>
         ) : (
-          <div className="bg-gray-900/70 border border-cyan-900/40 rounded-2xl overflow-hidden shadow-xl">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-800/80">
-                <tr>
-                  <th className="p-4 text-left">Item</th>
-                  <th className="p-4 text-left">Code</th>
-                  <th className="p-4 text-right">Sales Qty</th>
-                  <th className="p-4 text-right">Current Stock</th>
-                  <th className="p-4 text-right">Planned Qty</th>
-                  <th className="p-4 text-right text-yellow-300">Required Production</th>
-                  <th className="p-4 text-right">Plan Qty</th>
-                  <th className="p-4">Sales Orders</th>
-                  <th className="p-4 text-center">Action</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-gray-800">
-                {items.map(item => (
-                  <tr key={item.product__id} className="hover:bg-gray-800/50 transition-colors">
-                    <td className="p-4 font-medium text-gray-200">{item.product__name}</td>
-                    <td className="p-4 text-gray-400">{item.product__code}</td>
-
-                    <td className="p-4 text-right text-cyan-300 font-medium">
-                      {item.total_sales_qty}
-                    </td>
-
-                    <td className="p-4 text-right text-gray-300">
-                      {item.current_stock}
-                    </td>
-
-                    <td className="p-4 text-right text-purple-300">
-                      {item.planned_qty}
-                    </td>
-
-                    <td className="p-4 text-right font-semibold text-yellow-300">
-                      {item.required_production}
-                    </td>
-
-                    {/* Input Quantity */}
-                    <td className="p-4 text-right">
-                      <input
-                        type="number"
-                        value={item.input_qty}
-                        min="0"
-                        max={item.required_production}
-                        onChange={(e) => {
-                          const val = Math.min(
-                            Number(e.target.value),
-                            item.required_production
-                          );
-                          setItems(prev =>
-                            prev.map(i =>
-                              i.product__id === item.product__id
-                                ? { ...i, input_qty: val }
-                                : i
-                            )
-                          );
-                        }}
-                        className="w-24 bg-gray-800 border border-gray-700 px-3 py-2 rounded-xl text-right focus:border-cyan-500 outline-none"
-                      />
-                    </td>
-
-                    {/* Sales Orders */}
-                    <td className="p-4">
-                      <div className="flex flex-wrap gap-1 max-w-[220px]">
-                        {(item.sales_order_numbers || []).map((so, i) => (
-                          <span
-                            key={i}
-                            className="bg-gray-800 px-2.5 py-0.5 rounded-full text-xs text-cyan-300"
-                          >
-                            {so}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-
-                    {/* Action Button */}
-                    <td className="p-4 text-center">
-                      <button
-                        disabled={
-                          item.required_production === 0 ||
-                          planningItems[item.product__id]
-                        }
-                        onClick={() => generateProductionPlan(item)}
-                        className={`px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 mx-auto transition-all ${
-                          item.required_production === 0
-                            ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700 text-white"
-                        }`}
-                      >
-                        {planningItems[item.product__id] ? (
-                          <>
-                            <RefreshCw size={16} className="animate-spin" />
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            <ArrowRightCircle size={16} />
-                            Generate Plan
-                          </>
-                        )}
-                      </button>
-                    </td>
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-zinc-100">
+                <thead className="bg-zinc-50">
+                  <tr>
+                    <th className="px-8 py-5 text-left text-sm font-semibold text-zinc-600">Item</th>
+                    <th className="px-8 py-5 text-left text-sm font-semibold text-zinc-600">Code</th>
+                    <th className="px-8 py-5 text-right text-sm font-semibold text-zinc-600">Sales Qty</th>
+                    <th className="px-8 py-5 text-right text-sm font-semibold text-zinc-600">Current Stock</th>
+                    <th className="px-8 py-5 text-right text-sm font-semibold text-zinc-600">Planned Qty</th>
+                    <th className="px-8 py-5 text-right text-sm font-semibold text-amber-600">Required Production</th>
+                    <th className="px-8 py-5 text-right text-sm font-semibold text-zinc-600">Plan Qty</th>
+                    <th className="px-8 py-5 text-left text-sm font-semibold text-zinc-600">Sales Orders</th>
+                    <th className="px-8 py-5 text-center text-sm font-semibold text-zinc-600">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+
+                <tbody className="divide-y divide-zinc-100">
+                  {items.map(item => (
+                    <tr key={item.product__id} className="hover:bg-zinc-50 transition-colors">
+                      <td className="px-8 py-6 font-medium text-zinc-900">{item.product__name}</td>
+                      <td className="px-8 py-6 text-zinc-500 font-mono">{item.product__code}</td>
+
+                      <td className="px-8 py-6 text-right font-semibold text-blue-600">
+                        {item.total_sales_qty}
+                      </td>
+
+                      <td className="px-8 py-6 text-right text-zinc-600">
+                        {item.current_stock}
+                      </td>
+
+                      <td className="px-8 py-6 text-right text-purple-600 font-medium">
+                        {item.planned_qty}
+                      </td>
+
+                      <td className="px-8 py-6 text-right font-bold text-amber-600">
+                        {item.required_production}
+                      </td>
+
+                      {/* Input Quantity */}
+                      <td className="px-8 py-6 text-right">
+                        <input
+                          type="number"
+                          value={item.input_qty}
+                          min="0"
+                          max={item.required_production}
+                          onChange={(e) => {
+                            const val = Math.min(
+                              Number(e.target.value) || 0,
+                              item.required_production
+                            );
+                            setItems(prev =>
+                              prev.map(i =>
+                                i.product__id === item.product__id
+                                  ? { ...i, input_qty: val }
+                                  : i
+                              )
+                            );
+                          }}
+                          className="w-28 text-right bg-white border border-zinc-200 rounded-2xl px-4 py-3 focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
+                        />
+                      </td>
+
+                      {/* Sales Orders */}
+                      <td className="px-8 py-6">
+                        <div className="flex flex-wrap gap-2 max-w-[260px]">
+                          {(item.sales_order_numbers || []).map((so, i) => (
+                            <span
+                              key={i}
+                              className="bg-zinc-100 text-zinc-600 px-3 py-1 rounded-2xl text-xs font-medium"
+                            >
+                              {so}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+
+                      {/* Action Button */}
+                      <td className="px-8 py-6 text-center">
+                        <button
+                          disabled={
+                            item.required_production === 0 ||
+                            planningItems[item.product__id]
+                          }
+                          onClick={() => generateProductionPlan(item)}
+                          className={`px-8 py-3 rounded-2xl text-sm font-medium flex items-center gap-3 mx-auto transition-all ${
+                            item.required_production === 0 || planningItems[item.product__id]
+                              ? "bg-zinc-200 text-zinc-500 cursor-not-allowed"
+                              : "bg-zinc-900 hover:bg-zinc-800 text-white shadow-sm"
+                          }`}
+                        >
+                          {planningItems[item.product__id] ? (
+                            <>
+                              <RefreshCw size={18} className="animate-spin" />
+                              Creating...
+                            </>
+                          ) : (
+                            <>
+                              <ArrowRightCircle size={18} />
+                              Generate Plan
+                            </>
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
