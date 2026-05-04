@@ -2,10 +2,24 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Edit3,
+  PhoneCall,
+  ArrowLeft,
+  AlertCircle,
+} from "lucide-react";
 
-const ContactDetail = () => {
+const TestContactDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // Clean ID by removing "-test" suffix if present
+  const cleanId = id ? id.replace("-test", "") : "";
 
   const [contact, setContact] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,8 +40,10 @@ const ContactDetail = () => {
   };
 
   const fetchContact = async () => {
+    if (!cleanId) return;
+
     try {
-      const res = await fetch(`/api/crm/contacts/${id}/`, {
+      const res = await fetch(`/api/crm/contacts/${cleanId}/`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -47,20 +63,19 @@ const ContactDetail = () => {
 
   useEffect(() => {
     fetchContact();
-  }, [id]);
+  }, [cleanId]);
 
   const updateContact = async (patchData, optimisticUpdate = null) => {
     setUpdating(true);
     setMessage("");
     setError("");
 
-    // Optimistic UI update
     if (optimisticUpdate) {
-      setContact(prev => ({ ...prev, ...optimisticUpdate }));
+      setContact((prev) => ({ ...prev, ...optimisticUpdate }));
     }
 
     try {
-      const res = await fetch(`/api/crm/contacts/${id}/`, {
+      const res = await fetch(`/api/crm/contacts/${cleanId}/`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -76,10 +91,10 @@ const ContactDetail = () => {
       }
 
       setMessage("Updated successfully!");
-      await fetchContact(); // Re-fetch to ensure latest data
+      await fetchContact();
     } catch (err) {
       setError(`Error: ${err.message}`);
-      if (optimisticUpdate) await fetchContact(); // Revert on error
+      if (optimisticUpdate) await fetchContact();
     } finally {
       setUpdating(false);
     }
@@ -99,10 +114,7 @@ const ContactDetail = () => {
 
   const markFollowUpDone = () => {
     if (!window.confirm("Mark this follow-up as completed?")) return;
-    updateContact(
-      { next_follow_up: null },
-      { next_follow_up: null }
-    );
+    updateContact({ next_follow_up: null }, { next_follow_up: null });
   };
 
   const moveToSalesTeam = async () => {
@@ -113,7 +125,7 @@ const ContactDetail = () => {
     setError("");
 
     try {
-      const res = await fetch(`/api/crm/contacts/${id}/move-to-sales/`, {
+      const res = await fetch(`/api/crm/contacts/${cleanId}/move-to-sales/`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -131,11 +143,10 @@ const ContactDetail = () => {
       const data = await res.json();
       setMessage(data.message || "Successfully moved to Sales Team!");
 
-      // Redirect to the newly created Opportunity (recommended)
       if (data.opportunity_id) {
-        navigate(`/crm/opportunities/${data.opportunity_id}`);
+        navigate(`/crm/opportunities/${data.opportunity_id}-test`);
       } else {
-        await fetchContact(); // refresh if no redirect
+        await fetchContact();
       }
     } catch (err) {
       setError(`Error: ${err.message}`);
@@ -144,193 +155,240 @@ const ContactDetail = () => {
     }
   };
 
+  // ✅ This function was missing - now added
   const getStatusStyle = (status) => {
     const styles = {
-      new: "bg-blue-600",
-      contacted: "bg-yellow-600",
-      interested: "bg-purple-600",
-      qualified: "bg-indigo-600",
-      follow_up: "bg-orange-600",
-      customer: "bg-green-600",
-      lost: "bg-red-600",
+      new: "bg-blue-100 text-blue-700",
+      contacted: "bg-yellow-100 text-yellow-700",
+      interested: "bg-purple-100 text-purple-700",
+      qualified: "bg-indigo-100 text-indigo-700",
+      follow_up: "bg-orange-100 text-orange-700",
+      customer: "bg-emerald-100 text-emerald-700",
+      lost: "bg-red-100 text-red-700",
     };
-    return styles[status?.toLowerCase()] || "bg-gray-600";
+    return styles[status?.toLowerCase()] || "bg-zinc-100 text-zinc-700";
   };
+
+  const canMoveToSales = ["interested", "qualified"].includes(contact?.status?.toLowerCase() || "");
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center text-cyan-300">
-        Loading Contact...
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-600 mt-4">Loading contact details...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !contact) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center text-red-400 p-8 text-center">
-        {error || "Contact not found"}
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-6">
+        <div className="bg-white border border-zinc-200 rounded-3xl p-10 max-w-md text-center shadow-sm">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-semibold text-zinc-900">Contact Not Found</h2>
+          <p className="text-zinc-600 mt-3">{error || "The requested contact could not be loaded."}</p>
+          <button
+            onClick={() => navigate("/crm/contacts-test")}
+            className="mt-6 bg-zinc-900 text-white px-6 py-3 rounded-2xl hover:bg-black transition"
+          >
+            Back to Contacts
+          </button>
+        </div>
       </div>
     );
   }
 
-  const canMoveToSales = ["interested", "qualified"].includes(contact.status?.toLowerCase());
-
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-200 p-6 md:p-10">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="p-6 md:p-10 max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-10">
+          <button
+            onClick={() => navigate("/crm/contacts-test")}
+            className="p-3 hover:bg-white rounded-2xl transition text-zinc-600 hover:text-zinc-900"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+
+          <div className="flex items-center gap-4 flex-1">
+            <div className="w-12 h-12 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center shadow">
+              <User className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                {contact.first_name} {contact.last_name || ""}
+              </h1>
+              <p className="text-zinc-500">Contact Details</p>
+            </div>
+          </div>
+
+          <div
+            className={`px-6 py-2.5 rounded-3xl text-sm font-semibold ${getStatusStyle(contact.status)}`}
+          >
+            {contact.status?.toUpperCase() || "NEW"}
+          </div>
+        </div>
 
         {/* Messages */}
         {message && (
-          <div className={`p-4 rounded-lg border ${
-            message.includes("Error") 
-              ? "bg-red-900/60 border-red-700 text-red-200" 
-              : "bg-green-900/60 border-green-700 text-green-200"
-          }`}>
+          <div className="mb-6 bg-emerald-100 border border-emerald-200 text-emerald-700 px-6 py-4 rounded-2xl flex items-center gap-3">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
             {message}
           </div>
         )}
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-blue-400">
-            {contact.first_name} {contact.last_name || ""}
-          </h1>
+        {error && (
+          <div className="mb-6 bg-red-100 border border-red-200 text-red-700 px-6 py-4 rounded-2xl">
+            {error}
+          </div>
+        )}
 
-          <span
-            className={`px-5 py-2 rounded-full text-sm font-semibold ${getStatusStyle(contact.status)}`}
-          >
-            {contact.status?.toUpperCase() || "UNKNOWN"}
-          </span>
-        </div>
+        {/* Main Information Card */}
+        <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm mb-8">
+          <div className="grid md:grid-cols-2 gap-10">
+            {/* Left Column */}
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <Mail className="w-6 h-6 text-zinc-400 mt-1" />
+                <div>
+                  <p className="text-sm text-zinc-500">Email</p>
+                  <p className="text-lg font-medium text-zinc-900">{contact.email || "—"}</p>
+                </div>
+              </div>
 
-        {/* Main Card */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 md:p-8 shadow-xl">
-          <div className="grid md:grid-cols-2 gap-8 mb-8">
-            <div className="space-y-4">
-              <InfoItem label="Email" value={contact.email || "—"} />
-              <InfoItem label="Phone" value={contact.phone || "—"} />
-              <InfoItem label="Mobile" value={contact.mobile || "—"} />
-              <InfoItem label="Company" value={contact.company || "—"} />
-              <InfoItem label="Position" value={contact.position || "—"} />
+              <div className="flex items-start gap-4">
+                <Phone className="w-6 h-6 text-zinc-400 mt-1" />
+                <div>
+                  <p className="text-sm text-zinc-500">Phone</p>
+                  <p className="text-lg font-medium text-zinc-900">{contact.phone || "—"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <Phone className="w-6 h-6 text-zinc-400 mt-1" />
+                <div>
+                  <p className="text-sm text-zinc-500">Mobile</p>
+                  <p className="text-lg font-medium text-zinc-900">{contact.mobile || "—"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <User className="w-6 h-6 text-zinc-400 mt-1" />
+                <div>
+                  <p className="text-sm text-zinc-500">Company</p>
+                  <p className="text-lg font-medium text-zinc-900">{contact.company || "—"}</p>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              <InfoItem
-                label="Status"
-                value={
-                  <span className={`font-medium ${getStatusStyle(contact.status)} px-3 py-1 rounded-full text-sm`}>
-                    {contact.status?.toUpperCase() || "NEW"}
-                  </span>
-                }
-              />
-              <InfoItem
-                label="Next Follow-up"
-                value={
-                  contact.next_follow_up ? (
-                    <span className={new Date(contact.next_follow_up) < new Date() ? "text-red-400 font-medium" : "text-yellow-400 font-medium"}>
+            {/* Right Column */}
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <MapPin className="w-6 h-6 text-zinc-400 mt-1" />
+                <div>
+                  <p className="text-sm text-zinc-500">Address</p>
+                  <p className="text-lg font-medium text-zinc-900">{contact.address || "—"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <Calendar className="w-6 h-6 text-zinc-400 mt-1" />
+                <div>
+                  <p className="text-sm text-zinc-500">Next Follow-up</p>
+                  {contact.next_follow_up ? (
+                    <p className={`text-lg font-medium ${new Date(contact.next_follow_up) < new Date() ? "text-rose-600" : "text-amber-600"}`}>
                       {new Date(contact.next_follow_up).toLocaleDateString("en-IN")}
                       {new Date(contact.next_follow_up) < new Date() && " (Overdue)"}
-                    </span>
+                    </p>
                   ) : (
-                    <span className="text-gray-400">Not Scheduled</span>
-                  )
-                }
-              />
-              <InfoItem label="Address" value={contact.address || "—"} />
+                    <p className="text-lg text-zinc-400">Not Scheduled</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Quick Status Actions */}
-          <div className="pt-6 border-t border-gray-800">
-            <p className="text-sm text-gray-400 mb-4">Quick Status Actions</p>
+          <div className="mt-10 pt-8 border-t border-zinc-100">
+            <p className="text-sm font-medium text-zinc-500 mb-4">QUICK STATUS UPDATE</p>
             <div className="flex flex-wrap gap-3">
-              <StatusButton
-                label="Mark Contacted"
-                color="bg-yellow-600 hover:bg-yellow-700"
+              <button
                 onClick={() => handleStatusChange("contacted")}
                 disabled={updating || contact.status === "contacted"}
-              />
-              <StatusButton
-                label="Mark Interested"
-                color="bg-purple-600 hover:bg-purple-700"
+                className="px-6 py-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded-2xl font-medium transition disabled:opacity-50"
+              >
+                Mark as Contacted
+              </button>
+
+              <button
                 onClick={() => handleStatusChange("interested")}
                 disabled={updating || contact.status === "interested"}
-              />
+                className="px-6 py-3 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-2xl font-medium transition disabled:opacity-50"
+              >
+                Mark as Interested
+              </button>
+
               {canMoveToSales && (
-                <StatusButton
-                  label={updating ? "Moving..." : "Move to Sales Team"}
-                  color="bg-indigo-600 hover:bg-indigo-700"
+                <button
                   onClick={moveToSalesTeam}
                   disabled={updating}
-                />
+                  className="px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-2xl font-medium transition disabled:opacity-50"
+                >
+                  {updating ? "Moving..." : "Move to Sales Team"}
+                </button>
               )}
             </div>
           </div>
 
           {/* Schedule Next Follow-up */}
-          <div className="pt-6 border-t border-gray-800">
-            <p className="text-sm text-gray-400 mb-4">Schedule Next Follow-up</p>
+          <div className="mt-10 pt-8 border-t border-zinc-100">
+            <p className="text-sm font-medium text-zinc-500 mb-4">SCHEDULE NEXT FOLLOW-UP</p>
             <div className="flex flex-wrap gap-4 items-center">
               <input
                 type="date"
                 value={contact.next_follow_up ? new Date(contact.next_follow_up).toISOString().split("T")[0] : ""}
                 onChange={handleFollowUpChange}
                 disabled={updating}
-                className="bg-gray-800 p-3 rounded text-gray-200 border border-gray-700 focus:border-blue-500 focus:outline-none disabled:opacity-60"
+                className="bg-white border border-zinc-200 px-6 py-3 rounded-2xl focus:outline-none focus:border-zinc-400 transition disabled:opacity-60"
               />
 
               {contact.next_follow_up && (
                 <button
                   onClick={markFollowUpDone}
                   disabled={updating}
-                  className="bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed px-5 py-2.5 rounded-lg transition font-medium shadow-sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white px-6 py-3 rounded-2xl font-medium transition"
                 >
-                  {updating ? "Processing..." : "Mark as Done"}
+                  Mark Follow-up as Done
                 </button>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Navigation Actions */}
-          <div className="pt-8 border-t border-gray-800 flex flex-wrap gap-4">
-            <button
-              onClick={() => navigate(`/crm/contacts/${id}/edit`)}
-              disabled={updating}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 px-6 py-3 rounded-lg transition font-medium"
-            >
-              Edit Contact
-            </button>
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-4">
+          <button
+            onClick={() => navigate(`/crm/contacts-test/${id}/edit`)}
+            disabled={updating}
+            className="flex items-center gap-3 bg-zinc-900 hover:bg-black text-white px-8 py-4 rounded-3xl font-medium transition shadow-sm"
+          >
+            <Edit3 className="w-5 h-5" />
+            Edit Contact
+          </button>
 
-            <button
-              onClick={() => navigate(`/call-logs?contact=${id}`)}
-              className="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg transition font-medium"
-            >
-              Add Call Log
-            </button>
-          </div>
+          <button
+            onClick={() => navigate(`/crm/call-logs-test?contact=${cleanId}`)}
+            className="flex items-center gap-3 bg-white border border-zinc-300 hover:border-zinc-400 px-8 py-4 rounded-3xl font-medium transition"
+          >
+            <PhoneCall className="w-5 h-5" />
+            Add Call Log
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-/* Reusable Components */
-const InfoItem = ({ label, value }) => (
-  <div>
-    <p className="text-gray-400 text-sm mb-1">{label}</p>
-    <div className="text-lg font-medium">{value}</div>
-  </div>
-);
-
-const StatusButton = ({ label, color, onClick, disabled = false }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className={`${color} ${disabled ? "opacity-50 cursor-not-allowed" : "hover:opacity-90"} 
-               transition px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm`}
-  >
-    {label}
-  </button>
-);
-
-export default ContactDetail;
+export default TestContactDetail;

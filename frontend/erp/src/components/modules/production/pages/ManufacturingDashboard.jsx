@@ -10,7 +10,6 @@ import {
   Truck,
   History,
   Settings,
-  Users,
   LogOut,
   Zap,
   PlayCircle,
@@ -24,69 +23,26 @@ const Sidebar = ({ active = 'dashboard' }) => {
   const navigate = useNavigate();
 
   const menuItems = [
-    {
-      icon: BarChart3,
-      label: 'Dashboard',
-      path: '/production/dashboard',
-      key: 'dashboard',
-    },
-    {
-      icon: ClipboardList,
-      label: 'MRP & Demand',
-      path: '/production/pending-sales-orders',
-      key: 'plans',
-    },
-    {
-      icon: Package,
-      label: 'Planned Orders',
-      path: '/planned-orders',
-      key: 'planned-orders',
-    },
-    {
-      icon: PlayCircle,
-      label: 'Manufacturing Orders',
-      path: '/manufacture-orders',
-      key: 'manufacturing-orders',
-    },
-    {
-      icon: Truck,
-      label: 'Material Transfer',
-      path: '/department-transaction',
-      key: 'Transactions',
-    },
-    {
-      icon: History,
-      label: 'Transfer History',
-      path: '/transaction-history',
-      key: 'History',
-    },
-    {
-      icon: Settings,
-      label: 'Machines',
-      path: '/machines-list',
-      key: 'List of machines',
-    },
-    {
-      icon: Settings,
-      label: 'Add New Machine',
-      path: '/machines/create',
-      key: 'New machine Add',
-    },
-    {
-      icon: ClipboardList,
-      label: 'Overall Stock',
-      path: '/overall-stock',
-      key: 'stocks',
-    },
+    { icon: BarChart3, label: 'Dashboard', path: '/production/dashboard', key: 'dashboard' },
+    { icon: ClipboardList, label: 'MRP & Demand', path: '/production/pending-sales-orders', key: 'plans' },
+    { icon: Package, label: 'Planned Orders', path: '/planned-orders', key: 'planned-orders' },
+    { icon: PlayCircle, label: 'Manufacturing Orders', path: '/manufacture-orders', key: 'manufacturing-orders' },
+    { icon: Truck, label: 'Material Transfer', path: '/department-transaction', key: 'Transactions' },
+    { icon: History, label: 'Transfer History', path: '/transaction-history', key: 'History' },
+    { icon: Settings, label: 'Machines', path: '/machines-list', key: 'List of machines' },
+    { icon: Settings, label: 'Add New Machine', path: '/machines/create', key: 'New machine Add' },
+    { icon: ClipboardList, label: 'Overall Stock', path: '/overall-stock', key: 'stocks' },
   ];
 
   return (
-    <div className="w-72 bg-slate-950 border-r border-slate-800 flex flex-col h-screen overflow-hidden">
+    <div className="w-72 bg-zinc-900 border-r border-zinc-800 flex flex-col h-screen overflow-hidden">
       {/* Logo / Brand */}
-      <div className="p-6 border-b border-slate-800">
+      <div className="p-6 border-b border-zinc-800">
         <div className="flex items-center gap-3">
-          <Factory className="h-8 w-8 text-cyan-500" />
-          <h2 className="text-xl font-semibold text-white tracking-tight">Manufacturing</h2>
+          <div className="w-9 h-9 bg-gradient-to-br from-zinc-700 to-zinc-800 rounded-2xl flex items-center justify-center">
+            <Factory className="h-6 w-6 text-white" />
+          </div>
+          <h2 className="text-2xl font-semibold text-white tracking-tight">Manufacturing</h2>
         </div>
       </div>
 
@@ -96,10 +52,10 @@ const Sidebar = ({ active = 'dashboard' }) => {
           <button
             key={item.key}
             onClick={() => navigate(item.path)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm font-medium ${
+            className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium ${
               active === item.key
-                ? 'bg-cyan-900/40 text-cyan-300 border-l-4 border-cyan-500'
-                : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+                ? 'bg-zinc-800 text-white border-l-4 border-zinc-400'
+                : 'text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200'
             }`}
           >
             <item.icon className="h-5 w-5" />
@@ -109,10 +65,10 @@ const Sidebar = ({ active = 'dashboard' }) => {
       </nav>
 
       {/* Logout */}
-      <div className="p-4 border-t border-slate-800 mt-auto">
+      <div className="p-4 border-t border-zinc-800 mt-auto">
         <button
           onClick={() => navigate('/logout')}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-red-950/60 hover:bg-red-900/80 text-red-300 transition text-sm font-medium"
+          className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-red-950/70 hover:bg-red-900/80 text-red-300 hover:text-red-200 transition text-sm font-medium"
         >
           <LogOut className="h-5 w-5" />
           <span>Sign Out</span>
@@ -185,134 +141,130 @@ export default function ManufacturingDashboard() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-5">
-          <div className="animate-spin h-14 w-14 border-4 border-cyan-500 border-t-transparent rounded-full"></div>
-          <p className="text-cyan-400 font-medium text-lg">Loading Manufacturing Dashboard...</p>
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-14 h-14 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-600 mt-6 text-lg font-medium">Loading Manufacturing Dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex overflow-hidden">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800 flex overflow-hidden">
       {/* Sidebar */}
       <Sidebar active="dashboard" />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-slate-900 border-b border-slate-800 px-6 md:px-10 py-5 flex justify-between items-center shadow-sm">
+        <header className="bg-white border-b border-zinc-200 px-8 py-6 flex justify-between items-center shadow-sm">
           <div className="flex items-center gap-4">
-            <Factory className="h-10 w-10 text-cyan-500 flex-shrink-0" />
+            <div className="w-12 h-12 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
+              <Factory className="h-8 w-8 text-white" />
+            </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-cyan-300 tracking-tight">
+              <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
                 Manufacturing Dashboard
               </h1>
-              <p className="text-slate-400 text-sm mt-1">
+              <p className="text-zinc-500 text-sm mt-1">
                 {new Date().toLocaleDateString('en-IN', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
-                })}{' '}
-                • {user?.username || 'User'}
+                })} • {user?.username || 'User'}
               </p>
             </div>
           </div>
 
-          {/* <button
+          {/* MRP Button - Uncomment when ready */}
+          {/* 
+          <button
             onClick={handleRunMRP}
-            className="hidden md:flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 px-6 py-3 rounded-lg font-medium shadow-lg transition-all transform hover:scale-105"
+            className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-white px-8 py-3.5 rounded-2xl font-medium transition shadow-sm"
           >
-            <Zap size={18} />
+            <Zap size={20} />
             Run MRP Now
-          </button> */}
+          </button>
+          */}
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto">
+        <main className="flex-1 p-8 overflow-y-auto">
           {error && (
-            <div className="bg-red-950/70 border border-red-800 text-red-200 px-6 py-4 rounded-xl mb-8 flex items-center gap-3">
-              <AlertTriangle size={20} className="flex-shrink-0" />
+            <div className="bg-red-100 border border-red-200 text-red-700 px-6 py-4 rounded-2xl mb-8 flex items-center gap-3">
+              <AlertTriangle size={22} />
               <span>{error}</span>
             </div>
           )}
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-            {/* Manufacturing Orders */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 hover:border-cyan-700/50 transition-all duration-200 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-slate-400 text-sm font-medium uppercase tracking-wide">
-                  Manufacturing Orders
-                </p>
-                <PlayCircle className="h-6 w-6 text-cyan-500 opacity-80" />
+            <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all">
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-sm font-medium text-zinc-500">Manufacturing Orders</p>
+                <PlayCircle className="h-7 w-7 text-blue-600" />
               </div>
-              <p className="text-4xl md:text-5xl font-bold text-white">
+              <p className="text-5xl font-bold text-zinc-900 tracking-tighter">
                 {stats.manufacturingOrders}
               </p>
             </div>
 
-            {/* Planned Orders */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 hover:border-purple-700/50 transition-all duration-200 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-slate-400 text-sm font-medium uppercase tracking-wide">
-                  Planned Orders
-                </p>
-                <Package className="h-6 w-6 text-purple-500 opacity-80" />
+            <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all">
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-sm font-medium text-zinc-500">Planned Orders</p>
+                <Package className="h-7 w-7 text-purple-600" />
               </div>
-              <p className="text-4xl md:text-5xl font-bold text-white">
+              <p className="text-5xl font-bold text-zinc-900 tracking-tighter">
                 {stats.plannedOrders}
               </p>
             </div>
 
-            {/* Running Production */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 hover:border-amber-700/50 transition-all duration-200 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-slate-400 text-sm font-medium uppercase tracking-wide">
-                  Running Production
-                </p>
-                <Clock className="h-6 w-6 text-amber-500 opacity-80" />
+            <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all">
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-sm font-medium text-zinc-500">Running Production</p>
+                <Clock className="h-7 w-7 text-amber-600" />
               </div>
-              <p className="text-4xl md:text-5xl font-bold text-white">
+              <p className="text-5xl font-bold text-zinc-900 tracking-tighter">
                 {stats.runningProduction}
               </p>
             </div>
 
-            {/* Completed Production */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-6 hover:border-emerald-700/50 transition-all duration-200 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-slate-400 text-sm font-medium uppercase tracking-wide">
-                  Completed Orders
-                </p>
-                <CheckCircle2 className="h-6 w-6 text-emerald-500 opacity-80" />
+            <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all">
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-sm font-medium text-zinc-500">Completed Orders</p>
+                <CheckCircle2 className="h-7 w-7 text-emerald-600" />
               </div>
-              <p className="text-4xl md:text-5xl font-bold text-white">
+              <p className="text-5xl font-bold text-zinc-900 tracking-tighter">
                 {stats.completedProduction}
               </p>
             </div>
           </div>
 
           {/* MRP Quick Action Panel */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-xl p-8 shadow-lg">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div>
-                <h2 className="text-2xl font-semibold text-cyan-300 mb-2">
-                  Material Requirements Planning
+          <div className="bg-white border border-zinc-200 rounded-3xl p-10 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+              <div className="max-w-xl">
+                <h2 className="text-3xl font-semibold text-zinc-900 mb-3">
+                  Material Requirements Planning (MRP)
                 </h2>
-                <p className="text-slate-400 max-w-2xl">
-                  Run MRP to analyze sales demand, check stock levels, explode BOMs, and generate planned orders automatically.
+                <p className="text-zinc-600 leading-relaxed">
+                  Run MRP to analyze open sales demand, check current stock levels, explode BOMs, 
+                  and automatically generate planned orders for production.
                 </p>
               </div>
 
-              {/* <button
+              {/* Uncomment when you want to enable MRP button */}
+              {/* 
+              <button
                 onClick={handleRunMRP}
-                className="flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 px-10 py-4 rounded-xl font-medium text-lg shadow-xl transition-all transform hover:scale-105 min-w-[240px]"
+                className="flex items-center justify-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-white px-12 py-4 rounded-3xl font-medium text-lg shadow-sm transition min-w-[260px]"
               >
-                <Zap size={22} />
+                <Zap size={24} />
                 Execute MRP Run
-              </button> */}
+              </button>
+              */}
             </div>
           </div>
         </main>
