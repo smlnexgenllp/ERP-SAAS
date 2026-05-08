@@ -1,4 +1,4 @@
-// src/components/modules/hr/DailyChecklistManager.jsx (FINAL - PERFECT ALIGNMENT & RESPONSIVE)
+// src/components/modules/hr/DailyChecklistManager.jsx
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '../../../services/api';
 import ReactStars from 'react-stars';
@@ -31,7 +31,7 @@ const DailyChecklistManager = () => {
         setChecklists(pending);
       } catch (err) {
         console.error('Failed to load daily checklists:', err);
-        setError('CHECKLIST SYSTEM OFFLINE — Unable to retrieve performance data');
+        setError('Unable to retrieve performance data');
       } finally {
         setLoading(false);
       }
@@ -47,7 +47,7 @@ const DailyChecklistManager = () => {
       setChecklists(prev => prev.filter(c => c.id !== id));
     } catch (err) {
       console.error('Rating submission failed:', err);
-      alert('RATING FAILED — Please try again or check permissions');
+      alert('Failed to submit rating. Please try again.');
     } finally {
       setSubmittingId(null);
     }
@@ -57,18 +57,16 @@ const DailyChecklistManager = () => {
     setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Filtered & Sorted Data (Instant, client-side)
+  // Filtered & Sorted Data
   const filteredAndSorted = useMemo(() => {
     let filtered = checklists;
 
-    // Search by employee name
     if (searchTerm) {
       filtered = filtered.filter(cl =>
         cl.for_employee_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Date range
     if (dateFrom) {
       filtered = filtered.filter(cl => new Date(cl.date) >= new Date(dateFrom));
     }
@@ -76,14 +74,12 @@ const DailyChecklistManager = () => {
       filtered = filtered.filter(cl => new Date(cl.date) <= new Date(dateTo));
     }
 
-    // Filter by set_by
     if (setByFilter) {
       filtered = filtered.filter(cl =>
         cl.set_by_name?.toLowerCase().includes(setByFilter.toLowerCase())
       );
     }
 
-    // Sorting
     return filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name_asc':
@@ -102,92 +98,93 @@ const DailyChecklistManager = () => {
     });
   }, [checklists, searchTerm, dateFrom, dateTo, setByFilter, sortBy]);
 
-  if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950">
-      <Loader2 className="w-24 h-24 text-cyan-400 animate-spin mb-8" />
-      <p className="text-2xl font-bold text-cyan-300 font-mono">SYNCING PERFORMANCE DATA...</p>
-    </div>
-  );
-
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 p-8">
-      <div className="bg-red-900/40 border-4 border-red-600/60 rounded-3xl p-12 text-center max-w-2xl">
-        <AlertCircle className="w-32 h-32 text-red-400 mx-auto mb-8" />
-        <h2 className="text-4xl font-bold text-red-300 mb-6">SYSTEM ALERT</h2>
-        <p className="text-xl text-red-200 font-mono">{error}</p>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center">
+          <Loader2 className="w-10 h-10 animate-spin text-zinc-600" />
+          <p className="text-zinc-500 mt-4">Loading performance data...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-8 rounded-3xl text-center max-w-md">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+          <p className="font-medium">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-950 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-zinc-100">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
         {/* Header */}
         <div className="text-center mb-10">
-          <div className="flex items-center justify-center gap-6 mb-4">
-            <CalendarDays className="w-16 h-16 text-cyan-400" />
-            <h2 className="text-4xl font-bold text-cyan-300">RATE DAILY PERFORMANCE</h2>
-            <Star className="w-16 h-16 text-yellow-400" />
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <CalendarDays className="w-12 h-12 text-emerald-600" />
+            <h2 className="text-4xl font-bold text-zinc-900">Daily Performance Rating</h2>
+            <Star className="w-12 h-12 text-amber-500" />
           </div>
-          <p className="text-lg text-gray-400 font-mono">Search, filter, and evaluate pending ratings</p>
+          <p className="text-zinc-500">Rate team member performance and provide feedback</p>
         </div>
 
-        {/* Filters - PERFECT ALIGNMENT & RESPONSIVE */}
-        <div className="bg-gray-900/70 backdrop-blur-md border border-cyan-900/60 rounded-2xl p-6 mb-10 shadow-xl">
+        {/* Filters */}
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-6 mb-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
                 placeholder="Search employee..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 placeholder-gray-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm"
+                className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
               />
             </div>
 
             {/* Date Range */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm"
-                />
-              </div>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm"
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full px-4 py-3 border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
+              />
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full px-4 py-3 border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
+              />
             </div>
 
             {/* Set By Filter */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Set by (TL/Manager)"
+                placeholder="Rated by..."
                 value={setByFilter}
                 onChange={(e) => setSetByFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 placeholder-gray-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm"
+                className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
               />
             </div>
 
-            {/* Sort By - NO OVERLAP */}
+            {/* Sort By */}
             <div className="relative">
-              <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
+              <ArrowUpDown className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm appearance-none cursor-pointer"
+                className="w-full pl-11 pr-10 py-3 border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none appearance-none cursor-pointer"
               >
                 <option value="date_desc">Latest First</option>
                 <option value="date_asc">Oldest First</option>
@@ -195,24 +192,21 @@ const DailyChecklistManager = () => {
                 <option value="name_desc">Name Z–A</option>
                 <option value="updates_desc">Most Updates</option>
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
             </div>
           </div>
 
-          {/* Results Count */}
-          <div className="mt-4 pt-4 border-t border-cyan-900/40">
-            <p className="text-sm text-gray-400 font-mono">
-              Showing <span className="text-cyan-400 font-bold">{filteredAndSorted.length}</span> of{' '}
-              <span className="text-gray-400">{checklists.length}</span> pending rating{filteredAndSorted.length !== 1 ? 's' : ''}
+          <div className="mt-6 pt-4 border-t border-zinc-100">
+            <p className="text-sm text-zinc-500">
+              Showing <span className="font-semibold text-zinc-900">{filteredAndSorted.length}</span> of{' '}
+              <span className="font-medium">{checklists.length}</span> pending ratings
             </p>
           </div>
         </div>
 
         {/* No Results */}
         {filteredAndSorted.length === 0 && checklists.length > 0 && (
-          <div className="text-center py-16 bg-gray-900/50 rounded-2xl border border-cyan-900/40">
-            <p className="text-xl text-gray-400 font-mono mb-4">No checklists match your filters</p>
-            <p className="text-sm text-gray-500">Try adjusting search, date range, or clear all filters</p>
+          <div className="bg-white border border-zinc-200 rounded-3xl p-16 text-center">
+            <p className="text-xl text-zinc-500">No checklists match your current filters</p>
           </div>
         )}
 
@@ -226,65 +220,56 @@ const DailyChecklistManager = () => {
               return (
                 <div
                   key={cl.id}
-                  className="bg-gray-900/70 backdrop-blur-md border-2 border-cyan-900/80 rounded-2xl shadow-xl hover:shadow-cyan-500/60 hover:border-cyan-500 transition-all duration-400 overflow-hidden group"
+                  className="bg-white border border-zinc-200 rounded-3xl shadow-sm hover:shadow-md transition-all overflow-hidden"
                 >
-                  <div className="h-1.5 bg-gradient-to-r from-yellow-500 via-cyan-400 to-green-500"></div>
-                  
-                  <div className="p-5">
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <User className="w-9 h-9 text-cyan-400 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <h4 className="text-lg font-bold text-cyan-300 truncate">{cl.for_employee_name || 'Operative'}</h4>
-                          <p className="text-xs text-gray-400 font-mono">
-                            {new Date(cl.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </p>
-                          {cl.set_by_name && (
-                            <p className="text-xs text-gray-500 mt-1 truncate">
-                              <Edit3 className="w-3 h-3 inline mr-1" /> {cl.set_by_name}
-                            </p>
-                          )}
-                        </div>
+                  {/* Top Accent Bar */}
+                  <div className="h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" />
+
+                  <div className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <User className="w-6 h-6 text-zinc-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-zinc-900 text-lg">{cl.for_employee_name}</h4>
+                        <p className="text-sm text-zinc-500">
+                          {new Date(cl.date).toLocaleDateString('en-IN', { 
+                            weekday: 'short', month: 'short', day: 'numeric' 
+                          })}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Goals - Compact */}
-                    <div className="mb-4">
-                      <p className="text-sm font-semibold text-cyan-300 flex items-center gap-2 mb-2">
-                        <Target className="w-5 h-5" />
-                        Goals
-                      </p>
-                      <div className="bg-gray-800/60 border border-cyan-900/50 rounded-lg p-3 text-xs text-gray-300 font-mono line-clamp-3 hover:line-clamp-none group-hover:line-clamp-none transition-all">
-                        {cl.goals_description || 'No goals set'}
+                    {/* Goals */}
+                    <div className="mt-6">
+                      <p className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Goals</p>
+                      <div className="text-sm text-zinc-700 bg-zinc-50 border border-zinc-100 rounded-2xl p-4">
+                        {cl.goals_description || "No goals specified for today"}
                       </div>
                     </div>
 
-                    {/* Task Updates - Collapsible */}
-                    <div className="mb-5">
+                    {/* Updates */}
+                    <div className="mt-6">
                       <button
                         onClick={() => toggleExpand(cl.id)}
-                        className="w-full flex items-center justify-between text-sm font-semibold text-yellow-400 hover:text-yellow-300 py-2 transition-all group-hover:scale-[1.02]"
+                        className="w-full flex items-center justify-between text-sm font-medium py-2 text-zinc-700 hover:text-zinc-900"
                       >
-                        <span className="flex items-center gap-2">
-                          <Edit3 className="w-5 h-5" />
-                          Task Updates ({updateCount})
-                        </span>
-                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                        <span>Task Updates ({updateCount})</span>
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </button>
 
                       {isExpanded && (
-                        <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-2">
+                        <div className="mt-3 space-y-3 max-h-52 overflow-y-auto pr-1">
                           {updateCount === 0 ? (
-                            <p className="text-xs text-gray-500 italic px-3 py-2 bg-gray-900/50 rounded">No updates today</p>
+                            <p className="text-sm text-zinc-500 italic">No updates recorded today</p>
                           ) : (
                             cl.today_task_updates.map((update, i) => (
-                              <div key={i} className="bg-gray-900/50 border border-cyan-900/40 rounded-lg p-3 text-xs hover:bg-gray-900/70 transition">
-                                <p className="font-medium text-cyan-200 truncate">{update.task_title}</p>
-                                <p className="text-gray-300 mt-1 line-clamp-2 leading-tight">"{update.change_description}"</p>
-                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-cyan-900/30">
-                                  <span className="text-green-400 font-mono text-xs">{update.progress}</span>
-                                  <span className="text-gray-500 text-xs font-mono">{update.timestamp}</span>
+                              <div key={i} className="bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-sm">
+                                <p className="font-medium">{update.task_title}</p>
+                                <p className="text-zinc-600 mt-1">"{update.change_description}"</p>
+                                <div className="flex justify-between text-xs text-zinc-500 mt-3">
+                                  <span>{update.progress}</span>
+                                  <span>{update.timestamp}</span>
                                 </div>
                               </div>
                             ))
@@ -293,22 +278,22 @@ const DailyChecklistManager = () => {
                       )}
                     </div>
 
-                    {/* Rating */}
-                    <div className="text-center pt-4 border-t border-cyan-900/40 pb-2">
-                      <p className="text-sm font-bold text-cyan-300 mb-3">Rate Performance</p>
-                      <ReactStars
-                        count={5}
-                        size={52}
-                        color1="#1e293b"
-                        color2="#fbbf24"
-                        activeColor="#f59e0b"
-                        onChange={(rating) => rateChecklist(cl.id, rating)}
-                        value={0}
-                      />
-                      {submittingId === cl.id ? (
-                        <p className="text-xs text-cyan-400 font-mono mt-3 animate-pulse">Submitting...</p>
-                      ) : (
-                        <p className="text-xs text-gray-500 font-mono mt-3">Click stars to rate</p>
+                    {/* Rating Section */}
+                    <div className="mt-8 pt-6 border-t border-zinc-100">
+                      <p className="text-center text-sm font-medium text-zinc-600 mb-4">Rate Today's Performance</p>
+                      <div className="flex justify-center">
+                        <ReactStars
+                          count={5}
+                          size={48}
+                          color1="#e5e7eb"
+                          color2="#10b981"
+                          activeColor="#10b981"
+                          onChange={(rating) => rateChecklist(cl.id, rating)}
+                          value={0}
+                        />
+                      </div>
+                      {submittingId === cl.id && (
+                        <p className="text-center text-xs text-emerald-600 mt-3">Submitting rating...</p>
                       )}
                     </div>
                   </div>
@@ -318,12 +303,12 @@ const DailyChecklistManager = () => {
           </div>
         )}
 
-        {/* All Complete */}
+        {/* All Rated Message */}
         {checklists.length === 0 && (
-          <div className="text-center py-24 bg-gray-900/50 border-4 border-dashed border-cyan-900/50 rounded-3xl">
-            <Star className="w-40 h-40 text-yellow-400 mx-auto mb-8 opacity-60 animate-pulse" />
-            <h3 className="text-4xl font-bold text-cyan-300 mb-6">ALL RATINGS COMPLETE</h3>
-            <p className="text-2xl text-green-400 font-bold">Outstanding discipline across the team! 🎉</p>
+          <div className="bg-white border border-zinc-200 rounded-3xl p-20 text-center">
+            <Star className="w-20 h-20 text-amber-400 mx-auto mb-6" />
+            <h3 className="text-3xl font-semibold text-zinc-900 mb-3">All Ratings Completed</h3>
+            <p className="text-zinc-500 text-lg">Great work! All team members have been rated for today.</p>
           </div>
         )}
       </div>

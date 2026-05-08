@@ -1,4 +1,4 @@
-// src/components/modules/hr/CreateTaskForm.jsx (DROPDOWN WITH CHECKBOXES)
+// src/components/modules/hr/CreateTaskForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../services/api';
 import {
@@ -13,12 +13,16 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
+  ArrowLeft,
 } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 
 const CreateTaskForm = () => {
+  const navigate = useNavigate();
+
   const [employees, setEmployees] = useState([]);
   const [projects, setProjects] = useState([]);
-  const [selectedEmployees, setSelectedEmployees] = useState([]); // Array of IDs
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [selectedProject, setSelectedProject] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -46,13 +50,10 @@ const CreateTaskForm = () => {
       try {
         const empRes = await api.get('/hr/payroll/employees/');
         let employeeArray = [];
-        if (Array.isArray(empRes.data)) {
-          employeeArray = empRes.data;
-        } else if (empRes.data?.employees) {
-          employeeArray = empRes.data.employees;
-        } else if (empRes.data?.results) {
-          employeeArray = empRes.data.results;
-        } else if (typeof empRes.data === 'object') {
+        if (Array.isArray(empRes.data)) employeeArray = empRes.data;
+        else if (empRes.data?.employees) employeeArray = empRes.data.employees;
+        else if (empRes.data?.results) employeeArray = empRes.data.results;
+        else if (typeof empRes.data === 'object') {
           const found = Object.values(empRes.data).find(Array.isArray);
           employeeArray = found || [];
         }
@@ -61,11 +62,8 @@ const CreateTaskForm = () => {
         try {
           const projRes = await api.get('/hr/projects/');
           let projectArray = [];
-          if (Array.isArray(projRes.data)) {
-            projectArray = projRes.data;
-          } else if (projRes.data?.results) {
-            projectArray = projRes.data.results;
-          }
+          if (Array.isArray(projRes.data)) projectArray = projRes.data;
+          else if (projRes.data?.results) projectArray = projRes.data.results;
           setProjects(projectArray);
         } catch (projErr) {
           console.warn('Projects not available:', projErr);
@@ -73,7 +71,7 @@ const CreateTaskForm = () => {
         }
       } catch (err) {
         console.error('Data load failed:', err);
-        setMessage('DATABASE LINK DOWN');
+        setMessage('Failed to load data');
         setEmployees([]);
       } finally {
         setFetchLoading(false);
@@ -94,7 +92,7 @@ const CreateTaskForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (selectedEmployees.length === 0 || !title.trim()) {
-      setMessage('AT LEAST ONE OPERATIVE AND TITLE REQUIRED');
+      setMessage('Please select at least one employee and enter a title');
       return;
     }
 
@@ -114,17 +112,14 @@ const CreateTaskForm = () => {
 
       await Promise.all(promises);
 
-      setMessage(`MISSION DEPLOYED TO ${selectedEmployees.length} OPERATIVE${selectedEmployees.length > 1 ? 'S' : ''}`);
+      setMessage(`Task successfully assigned to ${selectedEmployees.length} employee${selectedEmployees.length > 1 ? 's' : ''}`);
       setTitle('');
       setDescription('');
       setSelectedEmployees([]);
       setSelectedProject('');
       setDropdownOpen(false);
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.detail ||
-        err.response?.data?.non_field_errors?.[0] ||
-        'DEPLOYMENT FAILED';
+      const errorMsg = err.response?.data?.detail || 'Failed to create task';
       setMessage(errorMsg);
     } finally {
       setLoading(false);
@@ -132,50 +127,54 @@ const CreateTaskForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-zinc-100">
+      <div className="max-w-3xl mx-auto px-6 py-10">
+        
         {/* Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-cyan-300 flex items-center justify-center gap-4">
-            <Target className="w-10 h-10 text-cyan-400" />
-            ASSIGN MISSION
-            <Send className="w-10 h-10 text-cyan-400" />
-          </h2>
-          <p className="text-sm text-gray-400 mt-2">Select multiple operatives from dropdown</p>
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
+              <Target className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-zinc-900">Create New Task</h1>
+              <p className="text-zinc-500">Assign tasks to team members</p>
+            </div>
+          </div>
         </div>
 
         {/* Message */}
         {message && (
-          <div className={`p-4 rounded-xl text-center font-mono border-2 mb-6 text-sm ${
-            message.includes('DEPLOYED')
-              ? 'bg-green-900/30 border-green-600 text-green-300'
-              : 'bg-red-900/30 border-red-600 text-red-300'
+          <div className={`mb-6 p-4 rounded-2xl flex items-start gap-3 text-sm ${
+            message.includes('successfully') || message.includes('assigned')
+              ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+              : 'bg-red-50 border border-red-200 text-red-700'
           }`}>
-            {message.includes('DEPLOYED') ? (
-              <CheckCircle2 className="w-8 h-8 mx-auto mb-2" />
+            {message.includes('successfully') || message.includes('assigned') ? (
+              <CheckCircle2 className="w-5 h-5 mt-0.5" />
             ) : (
-              <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+              <AlertCircle className="w-5 h-5 mt-0.5" />
             )}
             <p>{message}</p>
           </div>
         )}
 
-        {/* Form */}
-        <div className="bg-gray-900/70 backdrop-blur border-2 border-cyan-900/60 rounded-2xl p-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Form Card */}
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
 
-            {/* Project */}
+            {/* Project Selection */}
             <div>
-              <label className="flex items-center gap-2 text-cyan-300 font-bold text-sm mb-2">
+              <label className="block text-zinc-700 font-medium mb-2 flex items-center gap-2">
                 <FolderOpen className="w-5 h-5" />
-                PROJECT
+                Project (Optional)
               </label>
               <select
                 value={selectedProject}
                 onChange={(e) => setSelectedProject(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-900 rounded-xl text-cyan-200 focus:border-cyan-500 transition"
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800"
               >
-                <option value="">-- No Project --</option>
+                <option value="">No Project</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -184,135 +183,112 @@ const CreateTaskForm = () => {
               </select>
             </div>
 
-            {/* Dropdown with Checkboxes */}
-            <div ref={dropdownRef}>
-              <label className="flex items-center gap-2 text-cyan-300 font-bold text-sm mb-2">
+            {/* Multi-Select Employees */}
+            <div ref={dropdownRef} className="relative">
+              <label className="block text-zinc-700 font-medium mb-2 flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                OPERATIVES * ({selectedEmployees.length} selected)
+                Assign To * ({selectedEmployees.length} selected)
               </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  disabled={fetchLoading}
-                  className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-900 rounded-xl text-cyan-200 flex items-center justify-between focus:border-cyan-500 transition disabled:opacity-50"
-                >
-                  <span>
-                    {selectedEmployees.length === 0
-                      ? 'Select operatives...'
-                      : `${selectedEmployees.length} selected`}
-                  </span>
-                  {dropdownOpen ? (
-                    <ChevronUp className="w-5 h-5" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5" />
-                  )}
-                </button>
+              <button
+                type="button"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                disabled={fetchLoading}
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl text-left flex items-center justify-between hover:border-zinc-400 transition"
+              >
+                <span className="text-zinc-700">
+                  {selectedEmployees.length === 0
+                    ? 'Select employees...'
+                    : `${selectedEmployees.length} employee${selectedEmployees.length > 1 ? 's' : ''} selected`}
+                </span>
+                {dropdownOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </button>
 
-                {dropdownOpen && (
-                  <div className="absolute z-10 w-full mt-2 bg-gray-900/90 backdrop-blur border-2 border-cyan-900 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
-                    {fetchLoading ? (
-                      <p className="p-4 text-center text-gray-400">SYNCING ROSTER...</p>
-                    ) : employees.length === 0 ? (
-                      <p className="p-4 text-center text-gray-400">NO OPERATIVES</p>
-                    ) : (
-                      employees.map((emp) => (
-                        <label
-                          key={emp.id}
-                          className="flex items-center gap-3 p-3 hover:bg-gray-800/60 transition cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedEmployees.includes(emp.id)}
-                            onChange={() => toggleEmployee(emp.id)}
-                            className="w-5 h-5 text-cyan-500 rounded focus:ring-cyan-500 border-gray-600"
-                          />
-                          <div>
-                            <p className="text-cyan-200 font-mono">
-                              {emp.full_name} ({emp.employee_code})
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {emp.department && `${emp.department}`}
-                              {emp.department && emp.designation && ' • '}
-                              {emp.designation}
-                            </p>
-                          </div>
-                        </label>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
+              {dropdownOpen && (
+                <div className="absolute z-20 w-full mt-2 bg-white border border-zinc-200 rounded-3xl shadow-lg max-h-80 overflow-y-auto py-2">
+                  {fetchLoading ? (
+                    <p className="p-6 text-center text-zinc-500">Loading employees...</p>
+                  ) : employees.length === 0 ? (
+                    <p className="p-6 text-center text-zinc-500">No employees found</p>
+                  ) : (
+                    employees.map((emp) => (
+                      <label
+                        key={emp.id}
+                        className="flex items-center gap-3 px-6 py-3 hover:bg-zinc-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedEmployees.includes(emp.id)}
+                          onChange={() => toggleEmployee(emp.id)}
+                          className="w-5 h-5 accent-zinc-900"
+                        />
+                        <div>
+                          <p className="font-medium text-zinc-900">{emp.full_name}</p>
+                          <p className="text-xs text-zinc-500">
+                            {emp.employee_code} • {emp.designation || emp.department}
+                          </p>
+                        </div>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Title */}
             <div>
-              <label className="flex items-center gap-2 text-cyan-300 font-bold text-sm mb-2">
-                <Target className="w-5 h-5" />
-                TITLE *
-              </label>
+              <label className="block text-zinc-700 font-medium mb-2">Task Title *</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Primary objective..."
+                placeholder="Enter task title"
                 required
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-900 rounded-xl text-cyan-200 focus:border-cyan-500 transition"
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label className="flex items-center gap-2 text-cyan-300 font-bold text-sm mb-2">
-                <FileText className="w-5 h-5" />
-                BRIEFING
-              </label>
+              <label className="block text-zinc-700 font-medium mb-2">Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows="3"
-                placeholder="Details and parameters..."
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-900 rounded-xl text-cyan-200 focus:border-cyan-500 transition resize-none"
+                rows="4"
+                placeholder="Task details and requirements..."
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none resize-y"
               />
             </div>
 
             {/* Deadline */}
             <div>
-              <label className="flex items-center gap-2 text-cyan-300 font-bold text-sm mb-2">
-                <Calendar className="w-5 h-5" />
-                DEADLINE
-              </label>
+              <label className="block text-zinc-700 font-medium mb-2">Deadline</label>
               <input
                 type="date"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-900 rounded-xl text-cyan-200 focus:border-cyan-500 transition"
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
               />
             </div>
 
-            {/* Submit */}
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || fetchLoading || selectedEmployees.length === 0}
-              className="w-full py-4 rounded-xl font-bold flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-500 hover:to-green-500 disabled:opacity-50 transition shadow-lg"
+              disabled={loading || fetchLoading || selectedEmployees.length === 0 || !title.trim()}
+              className="w-full py-4 bg-zinc-900 hover:bg-black text-white font-semibold rounded-2xl flex items-center justify-center gap-3 transition disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                  DEPLOYING...
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Creating Task...
                 </>
               ) : (
                 <>
-                  <Send className="w-6 h-6" />
-                  DEPLOY TO {selectedEmployees.length} OPERATIVE{selectedEmployees.length !== 1 ? 'S' : ''}
+                  <Send className="w-5 h-5" />
+                  Create & Assign Task
                 </>
               )}
             </button>
           </form>
-
-          <p className="text-center text-xs text-gray-500 mt-6 font-mono">
-            Click dropdown to select multiple operatives
-          </p>
         </div>
       </div>
     </div>

@@ -1,8 +1,8 @@
-// src/components/TaskList.jsx (WITH SEARCH & FILTERS - CYBERPUNK STYLE)
+// src/components/TaskList.jsx
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../../../services/api';
 import TaskCard from './TaskCard';
-import { Search, Filter, Calendar, ArrowUpDown, User, Target, ChevronDown } from 'lucide-react';
+import { Search, Filter, Calendar, ArrowUpDown, User, Target, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const TaskList = ({ userRole }) => {
   const [tasks, setTasks] = useState([]);
@@ -12,9 +12,13 @@ const TaskList = ({ userRole }) => {
   // Filter & Search States
   const [searchTerm, setSearchTerm] = useState('');
   const [assignedToFilter, setAssignedToFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // all, active, completed
-  const [progressFilter, setProgressFilter] = useState('all'); // all, 0-25, 26-50, 51-75, 76-100
-  const [sortBy, setSortBy] = useState('created_desc'); // created_desc, created_asc, deadline_asc, progress_desc
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [progressFilter, setProgressFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('created_desc');
+  
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -23,8 +27,8 @@ const TaskList = ({ userRole }) => {
       const res = await api.get('/hr/tasks/');
       setTasks(res.data || []);
     } catch (err) {
-      console.error('Task fetch failed:', err.response?.data || err);
-      setError('TASK SYSTEM OFFLINE — Unable to retrieve tasks');
+      console.error('Task fetch failed:', err);
+      setError('Unable to retrieve tasks');
       setTasks([]);
     } finally {
       setLoading(false);
@@ -34,6 +38,11 @@ const TaskList = ({ userRole }) => {
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, assignedToFilter, statusFilter, progressFilter, sortBy]);
 
   // Filtered & Sorted Tasks
   const filteredAndSorted = useMemo(() => {
@@ -94,72 +103,128 @@ const TaskList = ({ userRole }) => {
     });
   }, [tasks, searchTerm, assignedToFilter, statusFilter, progressFilter, sortBy]);
 
+  // Pagination Logic
+  const totalItems = filteredAndSorted.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = filteredAndSorted.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxPagesToShow = 5;
+    
+    if (totalPages <= maxPagesToShow) {
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+      }
+    }
+    
+    return pageNumbers;
+  };
+
   const handleTaskUpdate = useCallback((updatedTask) => {
     setTasks(prev => prev.map(task => task.id === updatedTask.id ? updatedTask : task));
   }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-cyan-400"></div>
-        <p className="mt-6 text-xl font-bold text-cyan-300 font-mono">LOADING TASKS...</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center">
+          <div className="w-8 h-8 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-500 mt-4">Loading tasks...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-zinc-100">
+      <div className="max-w-7xl mx-auto px-6 py-8">
 
-        {/* Filters - PERFECT RESPONSIVE ALIGNMENT */}
-        <div className="bg-gray-900/70 backdrop-blur-md border border-cyan-900/60 rounded-2xl p-6 mb-10 shadow-2xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Filters Bar */}
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            
             {/* Search */}
-            <div className="relative col-span-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
                 placeholder="Search tasks..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 placeholder-gray-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800"
               />
             </div>
 
             {/* Assigned To */}
-            <div className="relative col-span-1">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
                 placeholder="Assigned to..."
                 value={assignedToFilter}
                 onChange={(e) => setAssignedToFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 placeholder-gray-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800"
               />
             </div>
 
             {/* Status Filter */}
-            <div className="relative col-span-1 lg:col-span-1">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
+            <div className="relative">
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm appearance-none cursor-pointer"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800 appearance-none cursor-pointer"
               >
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
                 <option value="completed">Completed</option>
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
             </div>
 
             {/* Progress Filter */}
-            <div className="relative col-span-1 lg:col-span-1">
-              <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
+            <div className="relative">
+              <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <select
                 value={progressFilter}
                 onChange={(e) => setProgressFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm appearance-none cursor-pointer"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800 appearance-none cursor-pointer"
               >
                 <option value="all">All Progress</option>
                 <option value="0-25">0-25%</option>
@@ -167,69 +232,132 @@ const TaskList = ({ userRole }) => {
                 <option value="51-75">51-75%</option>
                 <option value="76-100">76-100%</option>
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
             </div>
 
             {/* Sort By */}
-            <div className="relative col-span-1 sm:col-span-1">
-              <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
+            <div className="relative">
+              <ArrowUpDown className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-800/60 border border-cyan-900/50 rounded-lg text-gray-200 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm appearance-none cursor-pointer"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800 appearance-none cursor-pointer"
               >
                 <option value="created_desc">Newest First</option>
                 <option value="created_asc">Oldest First</option>
                 <option value="deadline_asc">Earliest Deadline</option>
                 <option value="progress_desc">Most Progress</option>
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
             </div>
           </div>
 
           {/* Results Count */}
-          <div className="mt-6 pt-4 border-t border-cyan-900/40">
-            <p className="text-sm text-gray-400 font-mono">
-              Showing <span className="text-cyan-400 font-bold">{filteredAndSorted.length}</span> of{' '}
-              <span className="text-gray-400">{tasks.length}</span> task{filteredAndSorted.length !== 1 ? 's' : ''}
+          <div className="mt-6 pt-4 border-t border-zinc-100">
+            <p className="text-sm text-zinc-500">
+              Showing <span className="font-semibold text-zinc-900">{startIndex + 1}-{Math.min(endIndex, totalItems)}</span> of{' '}
+              <span className="font-medium">{totalItems}</span> tasks
             </p>
           </div>
         </div>
 
         {/* No Results */}
         {filteredAndSorted.length === 0 && tasks.length > 0 && (
-          <div className="text-center py-20 bg-gray-900/50 rounded-2xl border-4 border-dashed border-cyan-900/50">
-            <div className="w-24 h-24 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <Search className="w-12 h-12 text-gray-500" />
-            </div>
-            <h3 className="text-3xl font-bold text-cyan-300 mb-4">NO TASKS FOUND</h3>
-            <p className="text-lg text-gray-400 font-mono mb-6">Try adjusting your search or filters</p>
+          <div className="bg-white border border-zinc-200 rounded-3xl p-16 text-center">
+            <Search className="w-16 h-16 text-zinc-300 mx-auto mb-6" />
+            <h3 className="text-2xl font-semibold text-zinc-900 mb-2">No tasks found</h3>
+            <p className="text-zinc-500">Try adjusting your search or filters</p>
           </div>
         )}
 
         {/* Empty State */}
         {tasks.length === 0 && (
-          <div className="text-center py-24 bg-gray-900/50 border-4 border-dashed border-cyan-900/50 rounded-3xl">
-            <div className="w-32 h-32 bg-gray-800/50 rounded-2xl flex items-center justify-center mx-auto mb-8">
-              <Target className="w-16 h-16 text-gray-500" />
-            </div>
-            <h3 className="text-4xl font-bold text-cyan-300 mb-6">NO TASKS ASSIGNED</h3>
-            <p className="text-2xl text-gray-400 font-mono mb-8">You're all caught up!</p>
-            <p className="text-xl text-green-400 font-bold animate-pulse">🎉 Excellent work!</p>
+          <div className="bg-white border border-zinc-200 rounded-3xl p-20 text-center">
+            <Target className="w-20 h-20 text-zinc-300 mx-auto mb-6" />
+            <h3 className="text-3xl font-semibold text-zinc-900 mb-3">No Tasks Assigned</h3>
+            <p className="text-zinc-500 text-lg">You're all caught up!</p>
           </div>
         )}
 
         {/* Tasks Grid */}
-        {filteredAndSorted.length > 0 && (
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredAndSorted.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onUpdate={handleTaskUpdate}
-              />
-            ))}
-          </div>
+        {currentItems.length > 0 && (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {currentItems.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onUpdate={handleTaskUpdate}
+                />
+              ))}
+            </div>
+
+            {/* Pagination Component */}
+            {totalPages > 1 && (
+              <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-zinc-200 rounded-2xl p-4">
+                {/* Items per page selector */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-zinc-600">Show:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={handleItemsPerPageChange}
+                    className="px-3 py-1.5 bg-white border border-zinc-200 rounded-xl text-sm focus:border-zinc-400 outline-none cursor-pointer"
+                  >
+                    <option value={8}>8</option>
+                    <option value={12}>12</option>
+                    <option value={16}>16</option>
+                    <option value={24}>24</option>
+                    <option value={48}>48</option>
+                  </select>
+                  <span className="text-sm text-zinc-600">per page</span>
+                </div>
+
+                {/* Page navigation */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-zinc-600" />
+                  </button>
+                  
+                  <div className="flex gap-1">
+                    {getPageNumbers().map((page, index) => (
+                      page === '...' ? (
+                        <span key={`ellipsis-${index}`} className="px-3 py-2 text-zinc-400">
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`min-w-[38px] h-10 px-3 rounded-xl font-medium transition-all ${
+                            currentPage === page
+                              ? 'bg-zinc-900 text-white shadow-sm'
+                              : 'hover:bg-zinc-100 text-zinc-700'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-xl border border-zinc-200 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronRight className="w-5 h-5 text-zinc-600" />
+                  </button>
+                </div>
+
+                {/* Page info */}
+                <div className="text-sm text-zinc-500">
+                  Page {currentPage} of {totalPages}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
