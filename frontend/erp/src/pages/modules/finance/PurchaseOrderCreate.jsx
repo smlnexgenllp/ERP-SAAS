@@ -1,5 +1,6 @@
+// src/pages/PurchaseOrderCreate.jsx
 import React, { useEffect, useState } from "react";
-import { FiPlus, FiTrash2, FiSave, FiX, FiArrowLeft } from "react-icons/fi"; // Added FiArrowLeft
+import { FiPlus, FiTrash2, FiSave, FiX, FiArrowLeft } from "react-icons/fi";
 import api from "../../../services/api";
 
 export default function PurchaseOrderCreate() {
@@ -97,15 +98,9 @@ export default function PurchaseOrderCreate() {
     if (form.items.length === 0) newErrors.items = "Add at least one item";
 
     form.items.forEach((item, idx) => {
-      if (!item.item || item.item === "" || isNaN(Number(item.item))) {
-        newErrors[`item_${idx}`] = "Select a valid item";
-      }
-      if (!item.quantity || item.quantity <= 0) {
-        newErrors[`quantity_${idx}`] = "Quantity must be > 0";
-      }
-      if (!item.unit_price || item.unit_price < 0) {
-        newErrors[`unit_price_${idx}`] = "Unit price cannot be negative";
-      }
+      if (!item.item) newErrors[`item_${idx}`] = "Select a valid item";
+      if (!item.quantity || item.quantity <= 0) newErrors[`quantity_${idx}`] = "Quantity must be > 0";
+      if (item.unit_price < 0) newErrors[`unit_price_${idx}`] = "Unit price cannot be negative";
     });
 
     setErrors(newErrors);
@@ -113,44 +108,43 @@ export default function PurchaseOrderCreate() {
   };
 
   const handleSubmit = async () => {
-  if (!validateForm()) return;
+    if (!validateForm()) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const payload = {
-      vendor: Number(form.vendor),
-      department: form.department,
-      tax_percentage: Number(form.tax_percentage) || 0,
-      items: form.items.map(item => ({
-        item: Number(item.item),
-        ordered_qty: Number(item.quantity),
-        unit_price: Number(item.unit_price),
-      })),
-    };
+    try {
+      const payload = {
+        vendor: Number(form.vendor),
+        department: form.department,
+        tax_percentage: Number(form.tax_percentage) || 0,
+        items: form.items.map(item => ({
+          item: Number(item.item),
+          ordered_qty: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+        })),
+      };
 
-    await api.post("/inventory/purchase-orders/", payload);
-    
-    alert("Purchase Order created successfully!");
-    
-    // Reset form
-    setForm({
-      vendor: "",
-      department: "",
-      tax_percentage: 0,
-      items: [],
-    });
-    setErrors({});
-  } catch (err) {
-    console.error("PO creation error:", err?.response?.data || err);
-    const errorMsg = err.response?.data?.detail || "Failed to create Purchase Order";
-    alert(errorMsg);
-  } finally {
-    setLoading(false);
-  }
-};
+      await api.post("/inventory/purchase-orders/", payload);
+      
+      alert("Purchase Order created successfully!");
+      
+      // Reset form
+      setForm({
+        vendor: "",
+        department: "",
+        tax_percentage: 0,
+        items: [],
+      });
+      setErrors({});
+    } catch (err) {
+      console.error("PO creation error:", err?.response?.data || err);
+      const errorMsg = err.response?.data?.detail || "Failed to create Purchase Order";
+      alert(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Back Button Handler
   const handleGoBack = () => {
     if (window.confirm("Discard changes and go back?")) {
       window.history.back();
@@ -159,45 +153,53 @@ export default function PurchaseOrderCreate() {
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-50 px-4 py-6 md:px-8 md:py-10">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
         
-        {/* Back Button + Header */}
-        <div className="flex items-center gap-4 mb-10">
-          <button
-            onClick={handleGoBack}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
-          >
-            <FiArrowLeft size={22} />
-            <span className="font-medium">Back</span>
-          </button>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={handleGoBack}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <FiArrowLeft size={20} />
+              <span className="font-medium">Back</span>
+            </button>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
-            Create Purchase Order
-          </h1>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center shadow">
+                <FiPlus className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                  Create Purchase Order
+                </h1>
+                <p className="text-zinc-500">Add new purchase order with items</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Main Card */}
-        <div className="bg-gray-900/90 border border-cyan-900/60 rounded-xl shadow-xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-gray-900 to-gray-800 px-6 py-5 border-b border-cyan-900/50">
-            <h2 className="text-xl md:text-2xl font-semibold text-cyan-300 flex items-center gap-3">
-              <FiPlus className="text-cyan-400" /> New Purchase Order
-            </h2>
+        {/* Main Form Card */}
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+          
+          <div className="px-8 py-6 border-b border-zinc-100">
+            <h2 className="text-2xl font-semibold text-zinc-900">New Purchase Order</h2>
           </div>
 
-          <div className="p-6 md:p-8">
+          <div className="p-8">
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
               <div>
-                <label className="block text-sm text-cyan-400/90 font-medium mb-2">
-                  Department <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-zinc-600 mb-2">
+                  Department <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={form.department}
                   onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  className={`w-full bg-gray-800 border rounded-lg px-4 py-3 text-cyan-50 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600/40 transition-all ${
-                    errors.department ? 'border-red-500' : 'border-gray-700'
+                  className={`w-full bg-white border rounded-2xl px-5 py-3.5 focus:outline-none focus:border-zinc-400 ${
+                    errors.department ? 'border-red-500' : 'border-zinc-200'
                   }`}
                 >
                   <option value="">Select Department</option>
@@ -205,20 +207,18 @@ export default function PurchaseOrderCreate() {
                     <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
-                {errors.department && (
-                  <p className="mt-1 text-sm text-red-400">{errors.department}</p>
-                )}
+                {errors.department && <p className="mt-1 text-sm text-red-500">{errors.department}</p>}
               </div>
 
               <div>
-                <label className="block text-sm text-cyan-400/90 font-medium mb-2">
-                  Vendor <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-zinc-600 mb-2">
+                  Vendor <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={form.vendor}
                   onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                  className={`w-full bg-gray-800 border rounded-lg px-4 py-3 text-cyan-50 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600/40 transition-all ${
-                    errors.vendor ? 'border-red-500' : 'border-gray-700'
+                  className={`w-full bg-white border rounded-2xl px-5 py-3.5 focus:outline-none focus:border-zinc-400 ${
+                    errors.vendor ? 'border-red-500' : 'border-zinc-200'
                   }`}
                 >
                   <option value="">Select Vendor</option>
@@ -226,13 +226,11 @@ export default function PurchaseOrderCreate() {
                     <option key={v.id} value={v.id}>{v.name}</option>
                   ))}
                 </select>
-                {errors.vendor && (
-                  <p className="mt-1 text-sm text-red-400">{errors.vendor}</p>
-                )}
+                {errors.vendor && <p className="mt-1 text-sm text-red-500">{errors.vendor}</p>}
               </div>
 
               <div>
-                <label className="block text-sm text-cyan-400/90 font-medium mb-2">
+                <label className="block text-sm font-medium text-zinc-600 mb-2">
                   Tax Percentage (%)
                 </label>
                 <input
@@ -242,49 +240,47 @@ export default function PurchaseOrderCreate() {
                   step="0.1"
                   value={form.tax_percentage}
                   onChange={handleTaxChange}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-right text-cyan-50 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600/40 transition-all"
+                  className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 text-right focus:outline-none focus:border-zinc-400"
                   placeholder="0.00"
                 />
               </div>
             </div>
 
-            {/* Items Section - unchanged */}
+            {/* Items Table */}
             <div className="mb-10">
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-semibold text-cyan-300">Order Items</h3>
+                <h3 className="text-xl font-semibold text-zinc-900">Order Items</h3>
                 <button
                   type="button"
                   onClick={addItem}
-                  className="flex items-center gap-2 bg-cyan-700 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-lg transition-colors shadow-sm"
+                  className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white px-6 py-3 rounded-2xl transition"
                 >
                   <FiPlus /> Add Item
                 </button>
               </div>
 
-              {errors.items && (
-                <p className="mb-4 text-red-400 text-sm">{errors.items}</p>
-              )}
+              {errors.items && <p className="mb-4 text-red-500">{errors.items}</p>}
 
-              <div className="overflow-x-auto rounded-lg border border-cyan-900/40">
+              <div className="border border-zinc-200 rounded-3xl overflow-hidden">
                 <table className="w-full min-w-[700px]">
-                  <thead className="bg-gray-800/70">
-                    <tr className="text-cyan-300/90 text-sm uppercase tracking-wider">
-                      <th className="px-6 py-4 text-left font-medium">Item</th>
-                      <th className="px-6 py-4 text-center font-medium w-28">Quantity</th>
-                      <th className="px-6 py-4 text-right font-medium w-40">Unit Price</th>
-                      <th className="px-6 py-4 text-right font-medium w-40">Total</th>
+                  <thead className="bg-zinc-50">
+                    <tr>
+                      <th className="px-6 py-5 text-left font-semibold text-zinc-600">Item</th>
+                      <th className="px-6 py-5 text-center font-semibold text-zinc-600 w-28">Quantity</th>
+                      <th className="px-6 py-5 text-right font-semibold text-zinc-600 w-40">Unit Price</th>
+                      <th className="px-6 py-5 text-right font-semibold text-zinc-600 w-40">Total</th>
                       <th className="w-16"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-cyan-900/30">
+                  <tbody className="divide-y divide-zinc-100">
                     {form.items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-gray-800/40 transition-colors">
-                        <td className="px-6 py-4">
+                      <tr key={idx} className="hover:bg-zinc-50">
+                        <td className="px-6 py-5">
                           <select
                             value={item.item}
                             onChange={(e) => updateItem(idx, "item", e.target.value)}
-                            className={`w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-cyan-50 focus:outline-none focus:border-cyan-600 ${
-                              errors[`item_${idx}`] ? 'border-red-500' : 'border-gray-700'
+                            className={`w-full border rounded-2xl px-5 py-3 focus:outline-none focus:border-zinc-400 ${
+                              errors[`item_${idx}`] ? 'border-red-500' : 'border-zinc-200'
                             }`}
                           >
                             <option value="">Select item...</option>
@@ -294,48 +290,42 @@ export default function PurchaseOrderCreate() {
                               </option>
                             ))}
                           </select>
-                          {errors[`item_${idx}`] && (
-                            <p className="mt-1 text-xs text-red-400">{errors[`item_${idx}`]}</p>
-                          )}
+                          {errors[`item_${idx}`] && <p className="mt-1 text-xs text-red-500">{errors[`item_${idx}`]}</p>}
                         </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-5">
                           <input
                             type="number"
                             min="1"
                             value={item.quantity}
                             onChange={(e) => updateItem(idx, "quantity", e.target.value)}
-                            className={`w-full bg-gray-800 border rounded-lg px-3 py-2 text-center text-cyan-50 focus:outline-none focus:border-cyan-600 ${
-                              errors[`quantity_${idx}`] ? 'border-red-500' : 'border-gray-700'
+                            className={`w-full border rounded-2xl px-5 py-3 text-center focus:outline-none focus:border-zinc-400 ${
+                              errors[`quantity_${idx}`] ? 'border-red-500' : 'border-zinc-200'
                             }`}
                           />
-                          {errors[`quantity_${idx}`] && (
-                            <p className="mt-1 text-xs text-red-400">{errors[`quantity_${idx}`]}</p>
-                          )}
                         </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-5">
                           <input
                             type="number"
                             step="0.01"
                             min="0"
                             value={item.unit_price}
                             onChange={(e) => updateItem(idx, "unit_price", e.target.value)}
-                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-right text-cyan-50 focus:outline-none focus:border-cyan-600"
+                            className="w-full border border-zinc-200 rounded-2xl px-5 py-3 text-right focus:outline-none focus:border-zinc-400"
                           />
                         </td>
 
-                        <td className="px-6 py-4 text-right font-medium text-cyan-200">
+                        <td className="px-6 py-5 text-right font-semibold text-zinc-900">
                           ₹ {getItemTotal(item).toFixed(2)}
                         </td>
 
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-6 py-5 text-center">
                           <button
                             onClick={() => removeItem(idx)}
-                            className="text-red-400 hover:text-red-300 transition-colors p-1"
-                            title="Remove item"
+                            className="text-red-500 hover:text-red-600 transition p-2"
                           >
-                            <FiTrash2 size={18} />
+                            <FiTrash2 size={20} />
                           </button>
                         </td>
                       </tr>
@@ -343,7 +333,7 @@ export default function PurchaseOrderCreate() {
 
                     {form.items.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-gray-500 italic">
+                        <td colSpan={5} className="py-16 text-center text-zinc-500">
                           No items added yet. Click "Add Item" to begin.
                         </td>
                       </tr>
@@ -351,30 +341,22 @@ export default function PurchaseOrderCreate() {
                   </tbody>
 
                   {form.items.length > 0 && (
-                    <tfoot className="bg-gray-800/60">
+                    <tfoot className="bg-zinc-50">
                       <tr>
-                        <td colSpan={3} className="px-6 py-4 text-right text-cyan-200">
-                          Subtotal
-                        </td>
-                        <td className="px-6 py-4 text-right text-cyan-200">
-                          ₹ {subtotal.toFixed(2)}
-                        </td>
+                        <td colSpan={3} className="px-6 py-5 text-right text-zinc-600">Subtotal</td>
+                        <td className="px-6 py-5 text-right font-medium">₹ {subtotal.toFixed(2)}</td>
                         <td></td>
                       </tr>
                       <tr>
-                        <td colSpan={3} className="px-6 py-4 text-right text-cyan-200">
+                        <td colSpan={3} className="px-6 py-5 text-right text-zinc-600">
                           Tax ({form.tax_percentage}%)
                         </td>
-                        <td className="px-6 py-4 text-right text-cyan-200">
-                          ₹ {taxAmount.toFixed(2)}
-                        </td>
+                        <td className="px-6 py-5 text-right font-medium">₹ {taxAmount.toFixed(2)}</td>
                         <td></td>
                       </tr>
-                      <tr className="border-t border-cyan-800">
-                        <td colSpan={3} className="px-6 py-5 text-right text-lg font-semibold text-cyan-100">
-                          Grand Total
-                        </td>
-                        <td className="px-6 py-5 text-right text-xl font-bold text-cyan-300">
+                      <tr className="border-t border-zinc-200">
+                        <td colSpan={3} className="px-6 py-6 text-right text-lg font-semibold">Grand Total</td>
+                        <td className="px-6 py-6 text-right text-2xl font-bold text-zinc-900">
                           ₹ {grandTotal.toFixed(2)}
                         </td>
                         <td></td>
@@ -386,11 +368,11 @@ export default function PurchaseOrderCreate() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-end gap-4 mt-10">
+            <div className="flex justify-end gap-4">
               <button
                 type="button"
-                onClick={handleGoBack}   // Now using the clean handler
-                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-cyan-100 rounded-lg transition-colors flex items-center gap-2"
+                onClick={handleGoBack}
+                className="px-8 py-3.5 border border-zinc-200 hover:bg-zinc-50 rounded-2xl flex items-center gap-2 text-zinc-700"
               >
                 <FiX /> Cancel
               </button>
@@ -398,10 +380,10 @@ export default function PurchaseOrderCreate() {
               <button
                 onClick={handleSubmit}
                 disabled={loading || !form.vendor || !form.department || form.items.length === 0}
-                className={`px-8 py-3 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-green-900/30 ${
+                className={`px-10 py-3.5 rounded-2xl font-medium flex items-center gap-3 transition-all ${
                   loading || !form.vendor || !form.department || form.items.length === 0
-                    ? "opacity-60 cursor-not-allowed"
-                    : ""
+                    ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                    : "bg-zinc-900 hover:bg-zinc-800 text-white"
                 }`}
               >
                 {loading ? "Creating..." : (
