@@ -1,5 +1,4 @@
-// src/pages/TaskDashboard.jsx – FINAL VERSION WITH TL REPORT HISTORY
-
+// src/pages/TaskDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import TaskList from '../../components/modules/hr/TaskList';
@@ -10,9 +9,9 @@ import CreateProjectForm from '../../components/modules/hr/CreateProjectForm';
 import ProjectList from '../../components/modules/hr/ProjectList';
 
 // TL Components
-import DailyTLReportForm from '../../components/modules/hr/DailyTLReportForm';           // Submit today's report
-import TLReportHistory from '../../components/modules/hr/TLReportHistory';                 // View past reports (new component)
-import ManagerTLReportsView from '../../components/modules/hr/ManagerTLReportsView';       // Manager sees all incoming
+import DailyTLReportForm from '../../components/modules/hr/DailyTLReportForm';
+import TLReportHistory from '../../components/modules/hr/TLReportHistory';
+import ManagerTLReportsView from '../../components/modules/hr/ManagerTLReportsView';
 
 import {
   CheckCircle2,
@@ -23,10 +22,13 @@ import {
   FolderOpen,
   FileText,
   Eye,
-  History
+  History,
+  ArrowLeft,
 } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 
 const TaskDashboard = () => {
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [view, setView] = useState('my-tasks');
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ const TaskDashboard = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950 text-cyan-300 font-mono">
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100 text-zinc-600">
         Please log in to access Task Dashboard
       </div>
     );
@@ -47,8 +49,11 @@ const TaskDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950 text-cyan-300 font-mono">
-        Initializing Task System...
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
+        <div className="flex flex-col items-center">
+          <div className="w-8 h-8 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-500 mt-4">Initializing Task System...</p>
+        </div>
       </div>
     );
   }
@@ -77,137 +82,129 @@ const TaskDashboard = () => {
     { key: 'create-project', label: 'Create Project', icon: FolderOpen, show: hasFullAccess },
     { key: 'projects', label: 'Projects', icon: FolderOpen, show: hasFullAccess },
 
-    // TEAM LEAD: Submit today's report
-    {
-      key: 'submit-tl-report',
-      label: 'Submit Today\'s Report',
-      icon: FileText,
-      show: isTeamLead
-    },
+    // TEAM LEAD
+    { key: 'submit-tl-report', label: "Submit Today's Report", icon: FileText, show: isTeamLead },
+    { key: 'my-tl-reports', label: 'My Daily Reports', icon: History, show: isTeamLead },
 
-    // TEAM LEAD: View their own report history
-    {
-      key: 'my-tl-reports',
-      label: 'My Daily Reports',
-      icon: History,
-      show: isTeamLead
-    },
-
-    // MANAGER+: View reports from all TLs reporting to them
-    {
-      key: 'view-tl-reports',
-      label: 'Team Lead Reports',
-      icon: Eye,
-      show: isManagerOrAbove
-    },
+    // MANAGER+
+    { key: 'view-tl-reports', label: 'Team Lead Reports', icon: Eye, show: isManagerOrAbove },
   ];
 
   const visibleTabs = tabs.filter(tab => tab.alwaysShow || tab.show);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono flex flex-col">
-      <div className="flex-1 overflow-y-auto pb-32">
-        <div className="p-6 max-w-7xl mx-auto">
-          <header className="border-b-2 border-cyan-800 pb-5 mb-10 flex items-center justify-between">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
+        {/* Header with Back Button */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => navigate("/hr/dashboard")}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <ArrowLeft size={20} />
+              <span className="font-medium">Back</span>
+            </button>
+
             <div className="flex items-center gap-4">
-              <div className="w-4 h-4 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400/50 animate-pulse"></div>
-              <h1 className="font-bold text-blue-300">
-                ALU-CORE: TASK & PERFORMANCE
-              </h1>
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                  Task & Performance
+                </h1>
+                <p className="text-zinc-500">Manage tasks, performance, and team reporting</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-gray-400">
-                [{user.first_name || user.email}] • [{displayedRole.toUpperCase()}]
-              </p>
-            </div>
-          </header>
+          </div>
 
-          <div className="text-center mb-12">
-            <h2 className="font-bold text-cyan-300 mb-3">
-              Welcome back, {user.first_name || user.email.split('@')[0]}
-            </h2>
-            <p className="text-gray-400">
-              Manage tasks, performance, and team reporting
+          <div className="text-right">
+            <p className="text-zinc-600 font-medium">
+              {user.first_name || user.email.split('@')[0]}
             </p>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-6 mb-12">
-            {visibleTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setView(tab.key)}
-                className={`flex items-center gap-4 px-8 py-5 rounded-xl transition-all duration-300 font-semibold
-                  ${view === tab.key
-                    ? 'bg-cyan-900/50 border-2 border-cyan-500 shadow-lg shadow-cyan-500/50 scale-105'
-                    : 'bg-gray-900/30 border border-cyan-900 hover:bg-gray-800/40 hover:shadow-cyan-800/30'
-                  }`}
-              >
-                <tab.icon className="w-8 h-8 text-cyan-400" />
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="bg-gray-900/40 backdrop-blur border-2 border-cyan-900 rounded-2xl shadow-2xl p-10 min-h-[600px]">
-            {view === 'my-tasks' && <TaskList />}
-
-            {view === 'assign-tasks' && canAssignTasks && <CreateTaskForm />}
-
-            {view === 'daily-checklists' && hasFullAccess && <DailyChecklistManager />}
-
-            {view === 'performance' && hasFullAccess && <PerformanceReport />}
-
-            {view === 'create-project' && hasFullAccess && <CreateProjectForm />}
-
-            {view === 'projects' && hasFullAccess && <ProjectList />}
-
-            {/* TEAM LEAD: Submit Today's Report */}
-            {view === 'submit-tl-report' && isTeamLead && (
-              <div>
-                <div className="flex items-center gap-4 mb-10">
-                  <FileText className="w-10 h-10 text-cyan-400" />
-                  <h3 className="font-bold text-2xl">Submit Today's Team Report</h3>
-                </div>
-                <DailyTLReportForm />
-              </div>
-            )}
-
-            {/* TEAM LEAD: View Their Own Report History */}
-            {view === 'my-tl-reports' && isTeamLead && (
-              <div>
-                <div className="flex items-center gap-4 mb-10">
-                  <History className="w-10 h-10 text-cyan-400" />
-                  <h3 className="font-bold text-2xl">My Submitted Daily Reports</h3>
-                </div>
-                <TLReportHistory />
-              </div>
-            )}
-
-            {/* MANAGER: View Incoming TL Reports */}
-            {view === 'view-tl-reports' && isManagerOrAbove && (
-              <div>
-                <div className="flex items-center gap-4 mb-10">
-                  <Eye className="w-10 h-10 text-cyan-400" />
-                  <h3 className="font-bold text-2xl">Incoming Team Lead Reports</h3>
-                </div>
-                <ManagerTLReportsView />
-              </div>
-            )}
-          </div>
-
-          <div className="mt-12 text-center text-gray-500">
-            <p>
-              Task System Online • {visibleTabs.length} Modules Active • {new Date().toLocaleDateString()}
-            </p>
+            <p className="text-sm text-zinc-500">[{displayedRole.toUpperCase()}]</p>
           </div>
         </div>
-      </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t-2 border-cyan-500 px-6 py-4 flex items-center shadow-2xl">
-        <span className="text-green-400 font-bold mr-4">&gt;</span>
-        <span className="text-gray-400">task-dashboard@{displayedRole}</span>
-        <span className="text-cyan-400 mx-2">~</span>
-        <span className="text-gray-500">type "help" for commands</span>
+        {/* Welcome Message */}
+        <div className="mb-10">
+          <h2 className="text-2xl font-semibold text-zinc-900">
+            Welcome back, {user.first_name || user.email.split('@')[0]}
+          </h2>
+          <p className="text-zinc-500">Manage your tasks and team performance</p>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-3 mb-10">
+          {visibleTabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setView(tab.key)}
+              className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-medium transition-all ${
+                view === tab.key
+                  ? "bg-zinc-900 text-white shadow"
+                  : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+              }`}
+            >
+              <tab.icon className="w-5 h-5" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content Area */}
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8 min-h-[650px]">
+          {view === 'my-tasks' && <TaskList />}
+
+          {view === 'assign-tasks' && canAssignTasks && <CreateTaskForm />}
+
+          {view === 'daily-checklists' && hasFullAccess && <DailyChecklistManager />}
+
+          {view === 'performance' && hasFullAccess && <PerformanceReport />}
+
+          {view === 'create-project' && hasFullAccess && <CreateProjectForm />}
+
+          {view === 'projects' && hasFullAccess && <ProjectList />}
+
+          {/* TEAM LEAD: Submit Today's Report */}
+          {view === 'submit-tl-report' && isTeamLead && (
+            <div>
+              <div className="flex items-center gap-4 mb-8">
+                <FileText className="w-8 h-8 text-emerald-600" />
+                <h3 className="text-2xl font-semibold text-zinc-900">Submit Today's Team Report</h3>
+              </div>
+              <DailyTLReportForm />
+            </div>
+          )}
+
+          {/* TEAM LEAD: View Their Own Report History */}
+          {view === 'my-tl-reports' && isTeamLead && (
+            <div>
+              <div className="flex items-center gap-4 mb-8">
+                <History className="w-8 h-8 text-emerald-600" />
+                <h3 className="text-2xl font-semibold text-zinc-900">My Submitted Daily Reports</h3>
+              </div>
+              <TLReportHistory />
+            </div>
+          )}
+
+          {/* MANAGER: View Incoming TL Reports */}
+          {view === 'view-tl-reports' && isManagerOrAbove && (
+            <div>
+              <div className="flex items-center gap-4 mb-8">
+                <Eye className="w-8 h-8 text-emerald-600" />
+                <h3 className="text-2xl font-semibold text-zinc-900">Incoming Team Lead Reports</h3>
+              </div>
+              <ManagerTLReportsView />
+            </div>
+          )}
+        </div>
+
+        <div className="mt-12 text-center text-zinc-500 text-sm">
+          Task System Online • {visibleTabs.length} Modules Active • {new Date().toLocaleDateString()}
+        </div>
       </div>
     </div>
   );

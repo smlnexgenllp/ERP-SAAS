@@ -1,67 +1,94 @@
-import React, { useState, useEffect } from "react";
-import { NavLink, useLocation, Outlet, useNavigate } from "react-router-dom";
+// src/pages/modules/inventory/InventoryDashboard.jsx
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  FileText,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Box,
-  ClipboardList,
-  LogOut,
-  UserCircle,
-  Boxes,
-} from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
+  Box, LayoutDashboard, Package, ShoppingCart, FileText,
+  ClipboardList, Boxes, LogOut, AlertTriangle
+} from 'lucide-react';
+import api from '../../services/api';
 
-const InventoryDashboard = () => {
-  const { user, logout } = useAuth();
+const Sidebar = ({ active = 'overview' }) => {
+  const navigate = useNavigate();
+
+  const navItems = [
+    { icon: LayoutDashboard, label: 'Overview', path: '/inventory/dashboard', key: 'overview' },
+    { icon: Package, label: 'Create Item', path: '/items/create', key: 'create-item' },
+    { icon: Boxes, label: 'Stock', path: '/inventory/items', key: 'stock' },
+    { icon: ShoppingCart, label: 'Create PO', path: '/purchase-orders', key: 'create-po' },
+    { icon: FileText, label: 'Purchase Orders', path: '/purchase/orders', key: 'po-list' },
+    { icon: Box, label: 'Gate Entry', path: '/gate-entry', key: 'gate-entry' },
+    { icon: ClipboardList, label: 'GRN', path: '/grns/create', key: 'grn' },
+    { icon: ClipboardList, label: 'GRN Approval', path: '/grn/pending-approval', key: 'grn-approval' },
+    { icon: FileText, label: 'Purchase Return', path: '/purchase-return', key: 'return' },
+  ];
+
+  return (
+    <div className="w-72 bg-zinc-900 border-r border-zinc-800 flex flex-col h-screen fixed left-0 top-0 overflow-hidden z-50">
+      {/* Logo */}
+      <div className="p-6 border-b border-zinc-800">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-gradient-to-br from-zinc-700 to-zinc-800 rounded-2xl flex items-center justify-center">
+            <Box className="h-6 w-6 text-white" />
+          </div>
+          <h2 className="text-2xl font-semibold text-white tracking-tight">Inventory</h2>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {navItems.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => navigate(item.path)}
+            className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium ${
+              active === item.key
+                ? 'bg-zinc-800 text-white border-l-4 border-zinc-400'
+                : 'text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200'
+            }`}
+          >
+            <item.icon className="h-5 w-5" />
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* Logout */}
+      <div className="p-4 border-t border-zinc-800 mt-auto">
+        <button
+          onClick={() => navigate('/logout')}
+          className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-red-950/70 hover:bg-red-900/80 text-red-300 hover:text-red-200 transition text-sm font-medium"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default function InventoryDashboard() {
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Dynamic dashboard data
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const navItems = [
-    { label: "Overview",        icon: LayoutDashboard,    path: "/inventory/dashboard" },
-    { label: "Create Item",     icon: Package,            path: "/items/create" },
-    // { label: "Items List",      icon: ClipboardList,      path: "/items" },
-    { label: "Stock",           icon: Boxes,           path: "/inventory/items" },
-    { label: "Create PO",       icon: ShoppingCart,       path: "/purchase-orders" },
-    { label: "Purchase Orders", icon: FileText,           path: "/purchase/orders" },
-    { label: "Gate Entry",      icon: Box,                path: "/gate-entry" },
-    { label: "Quality Check",      icon: Box,                path: "/QC" },
-    {label: "Quality Approval",  icon: Box,   path:"/Qc-list"},
-    { label: "PO Approval",      icon: Box,                path: "/pending-PO" },
-    { label: "GRN",             icon: ClipboardList,      path: "/grns/create" },
-    { label: "GRN Approval",      icon: ClipboardList,                path: "/grn/pending-approval" },
-    { label: "Purchase Return", icon: FileText,           path: "/purchase-return" },
-  ];
+  // Command Bar State
+  const [command, setCommand] = useState('');
+  const inputRef = useRef(null);
 
   const isOverviewPage = location.pathname === "/inventory/dashboard";
+
+  // Fetch Dashboard Stats
   useEffect(() => {
     const fetchDashboardStats = async () => {
       if (!isOverviewPage) return;
-
       try {
         setLoading(true);
-        setError(null);
-
-        const token = localStorage.getItem("access_token") || localStorage.getItem("token") || "";
-
-        const response = await api.get("/inventory/dashboard-stats/", {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        });
-
+        const response = await api.get("/inventory/dashboard-stats/");
         setStats(response.data);
       } catch (err) {
         console.error("Dashboard fetch error:", err);
@@ -74,22 +101,41 @@ const InventoryDashboard = () => {
     fetchDashboardStats();
   }, [isOverviewPage]);
 
-  const handleLogout = async () => {
-    if (isLoggingOut) return;
-    setIsLoggingOut(true);
-
-    try {
-      await logout();
-      navigate("/login", { replace: true });
-    } catch (err) {
-      console.error("Logout failed:", err);
-      alert("Logout failed. Please try again.");
-    } finally {
-      setIsLoggingOut(false);
+  // Command Handler
+  const handleCommand = (e) => {
+    if (e.key === 'Enter' && command.trim()) {
+      const cmd = command.trim().toLowerCase();
+      
+      switch (cmd) {
+        case 'help':
+          alert("Available commands:\n• stock → Go to Stock\n• po → Create Purchase Order\n• vendors → Vendor List\n• grn → Create GRN\n• dashboard → Overview\n• logout → Sign Out");
+          break;
+        case 'stock':
+          navigate('/inventory/items');
+          break;
+        case 'po':
+          navigate('/purchase-orders');
+          break;
+        case 'vendors':
+          navigate('/finance/vendors');        // Adjust path if needed
+          break;
+        case 'grn':
+          navigate('/grns/create');
+          break;
+        case 'dashboard':
+          navigate('/inventory/dashboard');
+          break;
+        case 'logout':
+          navigate('/logout');
+          break;
+        default:
+          alert(`Unknown command: ${cmd}\nType "help" for available commands.`);
+      }
+      
+      setCommand(''); // Clear input
     }
   };
 
-  // Simple number formatting helpers
   const formatNumber = (value) => {
     if (value === null || value === undefined) return "0";
     return Number(value).toLocaleString("en-IN");
@@ -103,200 +149,122 @@ const InventoryDashboard = () => {
       maximumFractionDigits: 0,
     }).format(value);
   };
-  if (!user) {
+
+  if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950 text-cyan-300">
-        <div className="text-xl">Session expired. Redirecting...</div>
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-14 h-14 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-600 mt-6 text-lg font-medium">Loading Inventory Dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-950 text-cyan-300">
-      {/* Sidebar */}
-      <aside
-        className={`bg-gray-900 border-r border-cyan-900/50 transition-all duration-300 h-screen overflow-y-auto ${
-          isCollapsed ? "w-20" : "w-64"
-        }`}
-      >
-        <div className="p-4 flex items-center justify-between border-b border-cyan-800/40">
-          {!isCollapsed && (
-            <div className="flex items-center gap-2">
-              <Box size={24} className="text-blue-400" />
-              <h2 className="text-xl font-bold text-cyan-300">Inventory</h2>
+    <div className="min-h-screen bg-zinc-100 flex overflow-hidden">
+      {/* Fixed Sidebar */}
+      <Sidebar active={isOverviewPage ? "overview" : ""} />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col ml-72 overflow-hidden">
+        {/* Header */}
+        <header className="bg-white border-b border-zinc-200 px-8 py-6 flex justify-between items-center shadow-sm z-40">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
+              <Box className="h-8 w-8 text-white" />
             </div>
-          )}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-cyan-400 hover:text-cyan-200 p-1 rounded hover:bg-gray-800"
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-          </button>
-        </div>
-
-        <nav className="mt-6 px-3 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? "bg-cyan-900/50 text-cyan-100 font-medium"
-                      : "text-cyan-400 hover:bg-gray-800 hover:text-cyan-200"
-                  }`
-                }
-              >
-                <Icon size={20} />
-                {!isCollapsed && <span>{item.label}</span>}
-              </NavLink>
-            );
-          })}
-        </nav>
-      </aside>
-
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col">
-        <header className="bg-gray-900 border-b border-cyan-900/50 p-4 flex justify-between items-center">
-          <h1 className="text-2xl font-semibold">
-            {isOverviewPage ? "Inventory Overview" : "Inventory Module"}
-          </h1>
-
-          <div className="flex items-center gap-5">
-            <div className="flex items-center gap-3">
-              <UserCircle size={28} className="text-cyan-400" />
-              <div className="text-right">
-                <div className="font-medium text-cyan-100">
-                  {user?.name || user?.username || "User"}
-                </div>
-                <div className="text-xs text-cyan-500">
-                  {user?.role || user?.org_role || "—"}
-                </div>
-              </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
+                Inventory Dashboard
+              </h1>
+              <p className="text-zinc-500 text-sm mt-1">
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} 
+                {' • '} {user?.username || user?.name || 'User'}
+              </p>
             </div>
-
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                isLoggingOut
-                  ? "bg-gray-700 cursor-not-allowed opacity-70"
-                  : "bg-red-600 hover:bg-red-700 text-white"
-              }`}
-            >
-              <LogOut size={18} />
-              {isLoggingOut ? "Logging out..." : "Logout"}
-            </button>
           </div>
         </header>
 
-        <main className="flex-1 p-6 md:p-8 overflow-auto">
+        {/* Scrollable Main Content */}
+        <main className="flex-1 p-8 overflow-y-auto">
+          {error && (
+            <div className="bg-red-100 border border-red-200 text-red-700 px-6 py-4 rounded-2xl mb-8 flex items-center gap-3">
+              <AlertTriangle size={22} />
+              <span>{error}</span>
+            </div>
+          )}
+
           {isOverviewPage ? (
             <div className="space-y-10">
-              <h2 className="text-3xl font-bold text-blue-300">
+              <h2 className="text-3xl font-semibold text-zinc-900">
                 Welcome back, {user?.name?.split(" ")[0] || "User"}!
               </h2>
 
               {/* KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 shadow-sm">
-                  <p className="text-cyan-500 text-sm font-medium">Total Items</p>
-                  {loading ? (
-                    <p className="text-4xl font-bold text-cyan-200 mt-2 animate-pulse">...</p>
-                  ) : error ? (
-                    <p className="text-xl text-red-400 mt-2">Error</p>
-                  ) : (
-                    <p className="text-4xl font-bold text-cyan-200 mt-2">
-                      {formatNumber(stats?.totalItems)}
-                    </p>
-                  )}
-                </div>
-
-                <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 shadow-sm">
-                  <p className="text-cyan-500 text-sm font-medium">Low Stock</p>
-                  {loading ? (
-                    <p className="text-4xl font-bold text-yellow-400 mt-2 animate-pulse">...</p>
-                  ) : error ? (
-                    <p className="text-xl text-red-400 mt-2">Error</p>
-                  ) : (
-                    <p className="text-4xl font-bold text-yellow-400 mt-2">
-                      {formatNumber(stats?.lowStock)}
-                    </p>
-                  )}
-                </div>
-
-                <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 shadow-sm">
-                  <p className="text-cyan-500 text-sm font-medium">Out of Stock</p>
-                  {loading ? (
-                    <p className="text-4xl font-bold text-red-400 mt-2 animate-pulse">...</p>
-                  ) : error ? (
-                    <p className="text-xl text-red-400 mt-2">Error</p>
-                  ) : (
-                    <p className="text-4xl font-bold text-red-400 mt-2">
-                      {formatNumber(stats?.outOfStock)}
-                    </p>
-                  )}
-                </div>
-
-                <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 shadow-sm">
-                  <p className="text-cyan-500 text-sm font-medium">Inventory Value</p>
-                  {loading ? (
-                    <p className="text-4xl font-bold text-green-400 mt-2 animate-pulse">...</p>
-                  ) : error ? (
-                    <p className="text-xl text-red-400 mt-2">Error</p>
-                  ) : (
-                    <p className="text-4xl font-bold text-green-400 mt-2">
-                      {formatCurrency(stats?.inventoryValue)}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Charts / Pending actions section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 h-96">
-                  <h3 className="text-xl font-semibold mb-4 text-cyan-200">Stock Status</h3>
-                  <div className="h-80 flex items-center justify-center text-cyan-600">
-                    [Chart placeholder]
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all">
+                  <div className="flex items-center justify-between mb-6">
+                    <p className="text-sm font-medium text-zinc-500">Total Items</p>
+                    <Boxes className="h-7 w-7 text-blue-600" />
                   </div>
+                  <p className="text-4xl font-bold text-zinc-900 tracking-tighter">
+                    {loading ? "..." : formatNumber(stats?.totalItems)}
+                  </p>
                 </div>
 
-                <div className="bg-gray-900/70 border border-cyan-800/50 rounded-xl p-6 h-96">
-                  <h3 className="text-xl font-semibold mb-4 text-cyan-200">Pending Actions</h3>
-                  {loading ? (
-                    <div className="h-80 flex items-center justify-center text-cyan-600 animate-pulse">
-                      Loading...
-                    </div>
-                  ) : (
-                    <div className="space-y-4 mt-4 text-lg">
-                      <p>
-                        Pending POs:{" "}
-                        <strong>{formatNumber(stats?.pendingPOs || 0)}</strong>
-                      </p>
-                      <p>
-                        Pending GRN Approvals:{" "}
-                        <strong>{formatNumber(stats?.pendingGRNs || 0)}</strong>
-                      </p>
-                    </div>
-                  )}
+                <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all">
+                  <div className="flex items-center justify-between mb-6">
+                    <p className="text-sm font-medium text-zinc-500">Low Stock</p>
+                    <AlertTriangle className="h-7 w-7 text-amber-600" />
+                  </div>
+                  <p className="text-4xl font-bold text-zinc-900 tracking-tighter">
+                    {loading ? "..." : formatNumber(stats?.lowStock)}
+                  </p>
+                </div>
+
+                <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all">
+                  <div className="flex items-center justify-between mb-6">
+                    <p className="text-sm font-medium text-zinc-500">Out of Stock</p>
+                    <AlertTriangle className="h-7 w-7 text-red-600" />
+                  </div>
+                  <p className="text-4xl font-bold text-zinc-900 tracking-tighter">
+                    {loading ? "..." : formatNumber(stats?.outOfStock)}
+                  </p>
+                </div>
+
+                <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all">
+                  <div className="flex items-center justify-between mb-6">
+                    <p className="text-sm font-medium text-zinc-500">Inventory Value</p>
+                    <Box className="h-7 w-7 text-emerald-600" />
+                  </div>
+                  <p className="text-4xl font-bold text-zinc-900 tracking-tighter">
+                    {loading ? "..." : formatCurrency(stats?.inventoryValue)}
+                  </p>
                 </div>
               </div>
-
-              <p className="text-center text-cyan-600 mt-12 italic">
-                Use the sidebar to manage items, purchase orders, gate entries, GRNs, and more.
-              </p>
             </div>
           ) : (
             <Outlet />
           )}
         </main>
+
+        {/* Bottom Command Bar */}
+        <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-white border-t border-zinc-200 px-6 py-4 flex items-center z-50 shadow-lg">
+          <span className="text-zinc-400 font-bold mr-4 text-xl">&gt;</span>
+          <input
+            ref={inputRef}
+            type="text"
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+            onKeyDown={handleCommand}
+            placeholder="Type command (help, stock, po, grn, vendors, dashboard, logout...)"
+            className="flex-1 bg-transparent text-zinc-700 outline-none font-mono text-base placeholder-zinc-400"
+            spellCheck={false}
+            autoComplete="off"
+          />
+        </div>
       </div>
     </div>
   );
-};
-
-export default InventoryDashboard;
+}
