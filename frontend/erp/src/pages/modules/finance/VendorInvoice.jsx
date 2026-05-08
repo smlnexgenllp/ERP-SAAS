@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
-import {
-  ArrowLeft,
-  FileText,
-  Search,
-  PlusCircle,
-} from 'lucide-react';
+import { 
+  FiArrowLeft, 
+  FiFileText, 
+  FiSearch, 
+  FiPlus 
+} from "react-icons/fi";
 import dayjs from 'dayjs';
 
 const VendorInvoice = () => {
@@ -39,13 +39,8 @@ const VendorInvoice = () => {
         api.get('/inventory/vendor-invoices/pending_for_invoice/'),
       ]);
 
-      if (invoicesRes.status === 'fulfilled') {
-        setInvoices(invoicesRes.value.data || []);
-      }
-
-      if (pendingRes.status === 'fulfilled') {
-        setPendingGRNs(pendingRes.value.data || []);
-      }
+      if (invoicesRes.status === 'fulfilled') setInvoices(invoicesRes.value.data || []);
+      if (pendingRes.status === 'fulfilled') setPendingGRNs(pendingRes.value.data || []);
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -99,91 +94,102 @@ const VendorInvoice = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
+          <div className="flex items-center gap-5">
+            {/* Fixed Back Button - Goes back one step */}
             <button
-              onClick={() => navigate('/sales/dashboard')}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-cyan-800 rounded-xl transition"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
             >
-              <ArrowLeft size={18} />
-              Back
+              <FiArrowLeft size={20} />
+              <span className="font-medium">Back</span>
             </button>
-            <div className="flex items-center gap-3">
-              <FileText className="text-cyan-400" size={28} />
-              <h1 className="text-3xl font-bold text-cyan-300">Vendor Invoices</h1>
+
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center shadow">
+                <FiFileText className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                  Vendor Invoices
+                </h1>
+                <p className="text-zinc-500">Manage GRN to Invoice conversion</p>
+              </div>
             </div>
           </div>
 
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+          <div className="relative w-full sm:w-96">
+            <FiSearch className="absolute left-4 top-3.5 text-zinc-400" size={20} />
             <input
               type="text"
-              placeholder="Search GRN, Invoice, Vendor..."
+              placeholder="Search GRN, Invoice or Vendor..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl text-gray-200 placeholder-gray-500 focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 outline-none"
+              className="w-full pl-12 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400"
             />
           </div>
         </div>
 
         {loading ? (
-          <div className="text-center py-20 text-cyan-400 animate-pulse flex items-center justify-center gap-3">
-            <div className="w-6 h-6 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
-            Loading vendor invoices...
+          <div className="flex justify-center items-center py-20">
+            <div className="w-8 h-8 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+            <p className="ml-4 text-zinc-500">Loading vendor invoices...</p>
           </div>
         ) : (
           <>
-            {/* Pending GRNs */}
-            <div className="mb-10">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-semibold text-cyan-300 flex items-center gap-3">
+            {/* Pending GRNs Section */}
+            <div className="mb-12">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-semibold text-zinc-900 flex items-center gap-3">
                   Pending GRNs for Invoicing
-                  <span className="text-sm bg-blue-900/70 text-blue-300 px-3 py-1 rounded-full border border-blue-700/50">
+                  <span className="text-sm bg-blue-100 text-blue-700 px-4 py-1.5 rounded-2xl font-medium">
                     {pendingGRNs.length} Pending
                   </span>
                 </h2>
               </div>
 
-              <div className="bg-gray-900/70 rounded-2xl overflow-hidden border border-cyan-900/40 shadow-xl">
+              <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-800">
-                    <thead className="bg-gray-800/80">
+                  <table className="w-full text-sm">
+                    <thead className="bg-zinc-50">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">GRN Number</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">PO Number</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Vendor</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Received Date</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-cyan-300">Total Value</th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-cyan-300">Action</th>
+                        <th className="px-8 py-5 text-left font-semibold text-zinc-600">GRN Number</th>
+                        <th className="px-8 py-5 text-left font-semibold text-zinc-600">PO Number</th>
+                        <th className="px-8 py-5 text-left font-semibold text-zinc-600">Vendor</th>
+                        <th className="px-8 py-5 text-left font-semibold text-zinc-600">Received Date</th>
+                        <th className="px-8 py-5 text-right font-semibold text-zinc-600">Total Value</th>
+                        <th className="px-8 py-5 text-center font-semibold text-zinc-600">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-800">
+                    <tbody className="divide-y divide-zinc-100">
                       {filteredPending.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
+                          <td colSpan={6} className="px-8 py-20 text-center text-zinc-500">
                             No pending GRNs for invoicing.
                           </td>
                         </tr>
                       ) : (
                         filteredPending.map((grn) => (
-                          <tr key={grn.id} className="hover:bg-gray-800/50 transition-colors">
-                            <td className="px-6 py-4 font-medium text-gray-200">{grn.grn_number}</td>
-                            <td className="px-6 py-4 text-gray-300">{grn.po_number || '—'}</td>
-                            <td className="px-6 py-4 text-gray-300">{grn.vendor_name}</td>
-                            <td className="px-6 py-4 text-gray-300">
+                          <tr key={grn.id} className="hover:bg-zinc-50 transition-colors">
+                            <td className="px-8 py-6 font-medium text-zinc-900">{grn.grn_number}</td>
+                            <td className="px-8 py-6 text-zinc-700">{grn.po_number || '—'}</td>
+                            <td className="px-8 py-6 text-zinc-700">{grn.vendor_name}</td>
+                            <td className="px-8 py-6 text-zinc-700">
                               {dayjs(grn.received_date).format('DD-MM-YYYY')}
                             </td>
-                            <td className="px-6 py-4 text-right font-medium text-emerald-400">
+                            <td className="px-8 py-6 text-right font-semibold text-emerald-600">
                               ₹{Number(grn.total_value || 0).toLocaleString('en-IN')}
                             </td>
-                            <td className="px-6 py-4 text-center">
+                            <td className="px-8 py-6 text-center">
                               <button
                                 onClick={() => openInvoiceModal(grn)}
-                                className="flex items-center gap-2 mx-auto px-5 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm font-medium transition"
+                                className="flex items-center gap-2 mx-auto px-6 py-3 bg-zinc-900 hover:bg-black text-white rounded-2xl text-sm font-medium transition"
                               >
-                                <PlusCircle size={18} />
+                                <FiPlus size={18} />
                                 Create Invoice
                               </button>
                             </td>
@@ -198,40 +204,40 @@ const VendorInvoice = () => {
 
             {/* Generated Invoices */}
             <div>
-              <h2 className="text-2xl font-semibold text-cyan-300 mb-4">Generated Invoices</h2>
-              <div className="bg-gray-900/70 rounded-2xl overflow-hidden border border-cyan-900/40 shadow-xl">
+              <h2 className="text-2xl font-semibold text-zinc-900 mb-6">Generated Invoices</h2>
+              <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-800">
-                    <thead className="bg-gray-800/80">
+                  <table className="w-full text-sm">
+                    <thead className="bg-zinc-50">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Invoice No</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">GRN No</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Vendor</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-cyan-300">Invoice Date</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-cyan-300">Total Amount</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-cyan-300">Paid Amount</th>
+                        <th className="px-8 py-5 text-left font-semibold text-zinc-600">Invoice No</th>
+                        <th className="px-8 py-5 text-left font-semibold text-zinc-600">GRN No</th>
+                        <th className="px-8 py-5 text-left font-semibold text-zinc-600">Vendor</th>
+                        <th className="px-8 py-5 text-left font-semibold text-zinc-600">Invoice Date</th>
+                        <th className="px-8 py-5 text-right font-semibold text-zinc-600">Total Amount</th>
+                        <th className="px-8 py-5 text-right font-semibold text-zinc-600">Paid Amount</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-800">
+                    <tbody className="divide-y divide-zinc-100">
                       {filteredInvoices.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
+                          <td colSpan={6} className="px-8 py-20 text-center text-zinc-500">
                             No invoices generated yet.
                           </td>
                         </tr>
                       ) : (
                         filteredInvoices.map((inv) => (
-                          <tr key={inv.id} className="hover:bg-gray-800/50 transition-colors">
-                            <td className="px-6 py-4 font-medium text-gray-200">{inv.invoice_number}</td>
-                            <td className="px-6 py-4 text-gray-300">{inv.grn_number || '—'}</td>
-                            <td className="px-6 py-4 text-gray-300">{inv.vendor_name}</td>
-                            <td className="px-6 py-4 text-gray-300">
+                          <tr key={inv.id} className="hover:bg-zinc-50 transition-colors">
+                            <td className="px-8 py-6 font-medium text-zinc-900">{inv.invoice_number}</td>
+                            <td className="px-8 py-6 text-zinc-700">{inv.grn_number || '—'}</td>
+                            <td className="px-8 py-6 text-zinc-700">{inv.vendor_name}</td>
+                            <td className="px-8 py-6 text-zinc-700">
                               {dayjs(inv.invoice_date).format('DD-MM-YYYY')}
                             </td>
-                            <td className="px-6 py-4 text-right font-medium text-emerald-400">
+                            <td className="px-8 py-6 text-right font-semibold text-emerald-600">
                               ₹{Number(inv.total_amount || 0).toLocaleString('en-IN')}
                             </td>
-                            <td className="px-6 py-4 text-right font-medium text-green-400">
+                            <td className="px-8 py-6 text-right font-semibold text-emerald-600">
                               ₹{Number(inv.paid_amount || 0).toLocaleString('en-IN')}
                             </td>
                           </tr>
@@ -246,51 +252,85 @@ const VendorInvoice = () => {
         )}
       </div>
 
-      {/* Modal (same as before) */}
+      {/* Create Invoice Modal */}
       {isModalOpen && selectedGRN && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-cyan-900 rounded-2xl w-full max-w-lg shadow-2xl">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-cyan-300">
-                Create Invoice - GRN: {selectedGRN.grn_number}
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="px-8 py-6 border-b border-zinc-200 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-zinc-900">
+                Create Invoice
               </h2>
-              <button onClick={() => { setIsModalOpen(false); setSelectedGRN(null); }} className="text-gray-400 hover:text-gray-200 text-xl">✕</button>
+              <button 
+                onClick={() => { setIsModalOpen(false); setSelectedGRN(null); }}
+                className="text-3xl text-zinc-400 hover:text-zinc-600 transition"
+              >
+                ×
+              </button>
             </div>
 
-            <form onSubmit={handleCreateInvoice} className="p-6 space-y-6">
-              {/* Disabled fields with black background */}
+            <form onSubmit={handleCreateInvoice} className="p-8 space-y-6">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">GRN Number</label>
-                <input type="text" value={selectedGRN.grn_number} disabled className="w-full p-3 bg-gray-950 border border-gray-700 rounded-xl text-gray-400 cursor-not-allowed" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">PO Number</label>
-                <input type="text" value={selectedGRN.po_number || ''} disabled className="w-full p-3 bg-gray-950 border border-gray-700 rounded-xl text-gray-400 cursor-not-allowed" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Vendor</label>
-                <input type="text" value={selectedGRN.vendor_name} disabled className="w-full p-3 bg-gray-950 border border-gray-700 rounded-xl text-gray-400 cursor-not-allowed" />
-              </div>
-
-              {/* Editable fields */}
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Invoice Number <span className="text-red-400">*</span></label>
-                <input type="text" value={formData.invoice_number} onChange={(e) => setFormData({...formData, invoice_number: e.target.value})} required className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl focus:border-cyan-500 outline-none" />
+                <label className="block text-zinc-700 text-sm font-medium mb-2">GRN Number</label>
+                <input type="text" value={selectedGRN.grn_number} disabled className="w-full px-5 py-3.5 bg-zinc-100 border border-zinc-200 rounded-2xl text-zinc-500" />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Invoice Date <span className="text-red-400">*</span></label>
-                <input type="date" value={formData.invoice_date} onChange={(e) => setFormData({...formData, invoice_date: e.target.value})} required className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl focus:border-cyan-500 outline-none" />
+                <label className="block text-zinc-700 text-sm font-medium mb-2">PO Number</label>
+                <input type="text" value={selectedGRN.po_number || ''} disabled className="w-full px-5 py-3.5 bg-zinc-100 border border-zinc-200 rounded-2xl text-zinc-500" />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Total Invoice Amount (₹) <span className="text-red-400">*</span></label>
-                <input type="number" step="0.01" value={formData.total_amount} onChange={(e) => setFormData({...formData, total_amount: e.target.value})} required className="w-full p-3 bg-gray-800 border border-gray-700 rounded-xl focus:border-cyan-500 outline-none" />
+                <label className="block text-zinc-700 text-sm font-medium mb-2">Vendor Name</label>
+                <input type="text" value={selectedGRN.vendor_name} disabled className="w-full px-5 py-3.5 bg-zinc-100 border border-zinc-200 rounded-2xl text-zinc-500" />
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => { setIsModalOpen(false); setSelectedGRN(null); }} className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl font-medium">Cancel</button>
-                <button type="submit" disabled={submitLoading} className="flex-1 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl font-semibold disabled:opacity-50">
+              <div>
+                <label className="block text-zinc-700 text-sm font-medium mb-2">Invoice Number <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={formData.invoice_number}
+                  onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
+                  required
+                  className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-700 text-sm font-medium mb-2">Invoice Date <span className="text-red-500">*</span></label>
+                <input
+                  type="date"
+                  value={formData.invoice_date}
+                  onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value })}
+                  required
+                  className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-700 text-sm font-medium mb-2">Total Invoice Amount (₹) <span className="text-red-500">*</span></label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.total_amount}
+                  onChange={(e) => setFormData({ ...formData, total_amount: e.target.value })}
+                  required
+                  className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-4 pt-6">
+                <button
+                  type="button"
+                  onClick={() => { setIsModalOpen(false); setSelectedGRN(null); }}
+                  className="flex-1 py-3.5 border border-zinc-200 hover:bg-zinc-50 rounded-2xl font-medium transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitLoading}
+                  className="flex-1 py-3.5 bg-zinc-900 hover:bg-black text-white rounded-2xl font-medium transition disabled:opacity-70"
+                >
                   {submitLoading ? 'Creating...' : 'Generate Invoice'}
                 </button>
               </div>

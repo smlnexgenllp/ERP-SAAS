@@ -1,3 +1,4 @@
+// src/pages/modules/hr/HRDashboardTailwind.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -11,10 +12,10 @@ import {
   CalendarCheck2,
   Clock,
   ClipboardList,
-  MessageSquare, // ← New icon for Chat
+  MessageSquare,
 } from "lucide-react";
 
-export default function HRDashboardTailwind() {
+export default function HRDashboard() {
   const { user, organization } = useAuth();
   const navigate = useNavigate();
 
@@ -50,80 +51,23 @@ export default function HRDashboardTailwind() {
       ]);
 
       setLoading(false);
-    }, 1000);
+    }, 800);
   }, []);
 
   const quickActions = [
-    {
-      icon: Users,
-      label: "Employee List",
-      description: "View all employees",
-      action: () => navigate("/hr/employees"),
-    },
-    {
-      icon: Users,
-      label: "Reimbursements",
-      description: "Check employee reimbursements",
-      action: () => navigate("/hr/reimbursements"),
-    },
-    {
-      icon: UserPlus,
-      label: "Add Employee",
-      description: "Onboard new team member",
-      action: () => navigate("/hr/employees/add"),
-    },
-    {
-      icon: CalendarDays,
-      label: "Leave Management",
-      description: "Approve or reject leaves",
-      action: () => navigate("/hr/leaves"),
-    },
-    {
-      icon: FileText,
-      label: "Organization Tree",
-      description: "View reporting structure",
-      action: () => navigate("/hr/org-tree"),
-    },
-    {
-      icon: DollarSign,
-      label: "Payroll Management",
-      description: "Process salaries",
-      action: () => navigate("/hr/payroll"),
-    },
-    {
-      icon: CalendarCheck2,
-      label: "Attendance",
-      description: "Track daily attendance",
-      action: () => navigate("/hr/attendance"),
-    },
-    {
-      icon: UserPlus,
-      label: "Recruitment",
-      description: "Manage job openings & hires",
-      action: () => navigate("/hr/jobopenings"),
-    },
-    {
-      icon: ClipboardList,
-      label: "Task Management",
-      description: "Assign and track tasks",
-      action: () => navigate("/hr/tasks"),
-    },
-    {
-      icon: UserPlus,
-      label: "Add Department/Designation",
-      description: "Manage Department & Designationsr",
-      action: () => navigate("/hr/departments"),
-    },
-    {
-      icon: MessageSquare, // ← Chat icon
-      label: "Internal Chat",
-      description: "Team & project communication",
-      action: () => navigate("/hr/chat"), // ← New route
-      highlight: true, // Optional: make it stand out
-    },
+    { icon: Users, label: "Employee List", description: "View all employees", action: () => navigate("/hr/employees") },
+    { icon: Users, label: "Reimbursements", description: "Check employee reimbursements", action: () => navigate("/hr/reimbursements") },
+    { icon: UserPlus, label: "Add Employee", description: "Onboard new team member", action: () => navigate("/hr/employees/add") },
+    { icon: CalendarDays, label: "Leave Management", description: "Approve or reject leaves", action: () => navigate("/hr/leaves") },
+    { icon: FileText, label: "Organization Tree", description: "View reporting structure", action: () => navigate("/hr/org-tree") },
+    { icon: DollarSign, label: "Payroll Management", description: "Process salaries", action: () => navigate("/hr/payroll") },
+    { icon: CalendarCheck2, label: "Attendance", description: "Track daily attendance", action: () => navigate("/hr/attendance") },
+    { icon: UserPlus, label: "Recruitment", description: "Manage job openings & hires", action: () => navigate("/hr/jobopenings") },
+    { icon: ClipboardList, label: "Task Management", description: "Assign and track tasks", action: () => navigate("/hr/tasks") },
+    { icon: Users, label: "Add Department/Designation", description: "Manage departments & designations", action: () => navigate("/hr/departments") },
+    { icon: MessageSquare, label: "Internal Chat", description: "Team & project communication", action: () => navigate("/hr/chat"), highlight: true },
   ];
 
-  // === COMMAND HANDLER ===
   const handleCommand = (e) => {
     if (e.key !== "Enter") return;
     const cmd = command.trim().toLowerCase();
@@ -142,77 +86,59 @@ export default function HRDashboardTailwind() {
       return;
     }
 
-    if (["chat", "messages", "team chat", "internal chat"].includes(cmd)) {
-      navigate("/hr/chat");
-      return;
-    }
-
-    if (["employees", "employee list"].includes(cmd)) {
-      navigate("/hr/employees");
-      return;
-    }
-    if (["add employee", "new employee", "hire"].includes(cmd)) {
-      navigate("/hr/employees/add");
-      return;
-    }
-    if (["leaves", "leave"].includes(cmd)) {
-      navigate("/hr/leaves");
-      return;
-    }
-    if (["org-tree", "org tree", "structure"].includes(cmd)) {
-      navigate("/hr/org-tree");
-      return;
-    }
-    if (["payroll", "salary"].includes(cmd)) {
-      showAlert(`Current monthly payroll: ₹${stats.totalPayroll.toLocaleString()}`);
-      return;
-    }
-    if (["attendance", "punch", "time"].includes(cmd)) {
-      navigate("/hr/attendance");
-      return;
-    }
-    if (["recruit", "jobs", "hiring"].includes(cmd)) {
-      navigate("/hr/jobopenings");
-      return;
-    }
-    if (["tasks", "projects", "assignments"].includes(cmd)) {
-      navigate("/hr/tasks");
-      return;
-    }
-    if (cmd === "clear") {
-      showAlert("Terminal cleared.");
-      return;
-    }
+    if (["chat", "messages"].includes(cmd)) { navigate("/hr/chat"); return; }
+    if (["employees"].includes(cmd)) { navigate("/hr/employees"); return; }
+    if (["add employee", "hire"].includes(cmd)) { navigate("/hr/employees/add"); return; }
+    if (["leaves"].includes(cmd)) { navigate("/hr/leaves"); return; }
+    if (["org-tree"].includes(cmd)) { navigate("/hr/org-tree"); return; }
+    if (["payroll"].includes(cmd)) { showAlert(`Current monthly payroll: ₹${stats.totalPayroll.toLocaleString()}`); return; }
+    if (["attendance"].includes(cmd)) { navigate("/hr/attendance"); return; }
+    if (["recruit"].includes(cmd)) { navigate("/hr/jobopenings"); return; }
+    if (["tasks"].includes(cmd)) { navigate("/hr/tasks"); return; }
+    if (cmd === "clear") { showAlert("Terminal cleared."); return; }
 
     showAlert(`Unknown command: "${cmd}". Type "help" for list.`);
   };
 
-  const handleCommandBarClick = () => {
-    inputRef.current?.focus();
-  };
+  const handleCommandBarClick = () => inputRef.current?.focus();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-950 text-cyan-300 text-xl font-mono">
-        Loading HR Dashboard...
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-zinc-500">Loading HR Dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono flex flex-col relative">
-      {/* Main Content */}
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
       <div className="flex-1 overflow-y-auto pb-20">
-        <div className="p-6">
-          <header className="border-b border-cyan-800 pb-3 mb-6 flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-cyan-400 shadow shadow-cyan-400/50"></div>
-            <h1 className="text-blue-300 text-lg font-bold">ALU-CORE: HR DASHBOARD</h1>
-            <span className="ml-auto text-gray-400 text-sm">
-              [ {organization?.name} ] • [ {user?.first_name || user?.email} ]
-            </span>
-          </header>
+        <div className="max-w-7xl mx-auto px-6 py-10">
+          
+          {/* Header */}
+          <div className="bg-white border border-zinc-200 rounded-3xl p-8 mb-8 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-5">
+                <div className="w-16 h-16 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
+                  <Users className="w-9 h-9 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold tracking-tight text-zinc-900">HR Dashboard</h1>
+                  <p className="text-zinc-500 mt-1">
+                    {organization?.name || "Organization"} • {user?.first_name || user?.email}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right text-sm text-zinc-500">
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              </div>
+            </div>
+          </div>
 
-          {/* Stats Grid */}
+          {/* Stats Grid - Structure Same */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             {[
               { label: "Total Employees", value: stats.totalEmployees, icon: Users },
@@ -222,55 +148,57 @@ export default function HRDashboardTailwind() {
             ].map((item, idx) => (
               <div
                 key={idx}
-                className="bg-gray-900/30 border border-cyan-900 rounded-xl shadow p-6 flex items-center gap-4 hover:shadow-cyan-800/50 transition"
+                className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all"
               >
-                <div className="bg-gray-900/20 p-3 rounded-lg">
-                  <item.icon className="w-6 h-6 text-cyan-400" />
+                <div className="flex items-center justify-between mb-6">
+                  <div className="bg-zinc-100 p-4 rounded-2xl">
+                    <item.icon className="w-7 h-7 text-zinc-700" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-400 text-sm">{item.label}</p>
-                  <p className="font-bold text-cyan-300 text-2xl">{item.value}</p>
-                </div>
+                <p className="text-zinc-500 text-sm">{item.label}</p>
+                <p className="font-bold text-zinc-900 text-3xl mt-3">{item.value}</p>
               </div>
             ))}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Quick Actions */}
-            <div className="bg-gray-900/30 border border-cyan-900 p-6 rounded-xl">
-              <h3 className="text-blue-300 text-xl font-bold mb-4">Quick Actions</h3>
+            {/* Quick Actions - Structure Same */}
+            <div className="bg-white border border-zinc-200 p-8 rounded-3xl shadow-sm">
+              <h3 className="text-2xl font-semibold text-zinc-900 mb-6">Quick Actions</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {quickActions.map((a, i) => (
                   <button
                     key={i}
                     onClick={a.action}
-                    className={`flex items-center gap-3 p-4 border rounded-xl hover:shadow-md transition bg-gray-900/20 hover:bg-gray-800/40
-                      ${a.highlight ? "border-cyan-500 shadow-lg shadow-cyan-500/20" : "border-cyan-900"}`}
+                    className={`flex items-center gap-4 p-6 border rounded-3xl hover:shadow transition-all text-left
+                      ${a.highlight 
+                        ? "border-emerald-300 bg-emerald-50" 
+                        : "border-zinc-200 hover:border-zinc-300"}`}
                   >
-                    <div className="bg-gray-900/20 p-3 rounded-lg">
-                      <a.icon className="w-6 h-6 text-cyan-400" />
+                    <div className="bg-zinc-100 p-4 rounded-2xl">
+                      <a.icon className={`w-6 h-6 ${a.highlight ? 'text-emerald-600' : 'text-zinc-700'}`} />
                     </div>
-                    <div className="text-left">
-                      <p className="text-cyan-300 font-semibold">{a.label}</p>
-                      <p className="text-gray-400 text-sm">{a.description}</p>
+                    <div>
+                      <p className="font-semibold text-zinc-900">{a.label}</p>
+                      <p className="text-sm text-zinc-500 mt-1">{a.description}</p>
                     </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-gray-900/30 border border-cyan-900 p-6 rounded-xl">
-              <h3 className="text-blue-300 text-xl font-bold mb-4">Recent Activity</h3>
-              <div className="space-y-4">
+            {/* Recent Activity - Structure Same */}
+            <div className="bg-white border border-zinc-200 p-8 rounded-3xl shadow-sm">
+              <h3 className="text-2xl font-semibold text-zinc-900 mb-6">Recent Activity</h3>
+              <div className="space-y-5">
                 {recentActivities.map((act) => (
-                  <div key={act.id} className="flex items-start gap-3">
-                    <div className="bg-gray-900/20 p-2 rounded-full">
-                      <Clock className="w-4 h-4 text-cyan-400" />
+                  <div key={act.id} className="flex items-start gap-4">
+                    <div className="bg-zinc-100 p-3 rounded-2xl">
+                      <Clock className="w-5 h-5 text-zinc-500" />
                     </div>
                     <div>
-                      <p className="text-cyan-300 text-sm">{act.message}</p>
-                      <p className="text-gray-400 text-xs mt-1">{act.time}</p>
+                      <p className="text-zinc-700">{act.message}</p>
+                      <p className="text-zinc-500 text-sm mt-1">{act.time}</p>
                     </div>
                   </div>
                 ))}
@@ -280,12 +208,12 @@ export default function HRDashboardTailwind() {
         </div>
       </div>
 
-      {/* Command Bar */}
+      {/* Command Bar - Light Theme */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t-2 border-cyan-500 px-6 py-4 flex items-center cursor-text shadow-2xl"
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-200 px-6 py-4 flex items-center z-50 shadow-lg cursor-text"
         onClick={handleCommandBarClick}
       >
-        <span className="text-green-400 font-bold mr-3">&gt;</span>
+        <span className="text-zinc-400 font-bold mr-4 text-xl">&gt;</span>
         <input
           ref={inputRef}
           type="text"
@@ -293,14 +221,14 @@ export default function HRDashboardTailwind() {
           onChange={(e) => setCommand(e.target.value)}
           onKeyDown={handleCommand}
           placeholder="Type command: help, employees, chat, leaves, tasks..."
-          className="flex-1 bg-transparent text-green-400 outline-none font-mono text-base"
+          className="flex-1 bg-transparent text-zinc-700 outline-none font-mono text-base placeholder-zinc-400"
           spellCheck={false}
         />
       </div>
 
       {/* Alert Toast */}
       {showAlert && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800/90 border border-cyan-500 text-cyan-200 px-6 py-3 rounded-lg shadow-xl text-sm font-mono">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-zinc-800 text-white px-6 py-3 rounded-2xl shadow-xl text-sm z-50">
           {alertMessage}
         </div>
       )}

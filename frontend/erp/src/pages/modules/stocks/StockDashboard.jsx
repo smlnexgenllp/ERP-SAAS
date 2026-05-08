@@ -6,11 +6,11 @@ import {
   FiPackage,
   FiAlertTriangle,
   FiDollarSign,
-  FiClock,
   FiArrowUpRight,
   FiArrowDownRight,
   FiRefreshCw,
   FiArrowLeft,
+  FiSearch,
 } from "react-icons/fi";
 import { format } from "date-fns";
 
@@ -29,6 +29,11 @@ export default function StockDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Search & Pagination State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   useEffect(() => {
     fetchStockDashboardData();
   }, []);
@@ -41,38 +46,24 @@ export default function StockDashboard() {
       const itemsRes = await api.get("/stock/items/");
       const items = itemsRes.data.results || itemsRes.data;
 
-      const lowStockCount = items.filter(
-        (item) => item.available_stock <= 10,
-      ).length;
+      const lowStockCount = items.filter((item) => item.available_stock <= 10).length;
       const stockValue = items.reduce(
-        (sum, item) =>
-          sum +
-          Number(item.current_stock || 0) * Number(item.standard_price || 0),
-        0,
+        (sum, item) => sum + Number(item.current_stock || 0) * Number(item.standard_price || 0),
+        0
       );
 
-      const ledgerRes = await api.get("/stock/ledger/", {
-        params: { limit: 15 },
-      });
+      const ledgerRes = await api.get("/stock/ledger/", { params: { limit: 100 } });
       const movements = ledgerRes.data.results || ledgerRes.data;
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       const recentReceived = movements
-        .filter(
-          (m) =>
-            m.transaction_type === "IN" &&
-            new Date(m.created_at) >= thirtyDaysAgo,
-        )
+        .filter((m) => m.transaction_type === "IN" && new Date(m.created_at) >= thirtyDaysAgo)
         .reduce((sum, m) => sum + Number(m.quantity), 0);
 
       const recentIssued = movements
-        .filter(
-          (m) =>
-            m.transaction_type === "OUT" &&
-            new Date(m.created_at) >= thirtyDaysAgo,
-        )
+        .filter((m) => m.transaction_type === "OUT" && new Date(m.created_at) >= thirtyDaysAgo)
         .reduce((sum, m) => sum + Number(m.quantity), 0);
 
       setStats({
@@ -84,11 +75,10 @@ export default function StockDashboard() {
       });
 
       setRecentMovements(movements);
+      setCurrentPage(1); // Reset to first page on refresh
     } catch (err) {
       console.error("Stock dashboard failed:", err);
-      setError(
-        "Unable to load stock dashboard data. Please check your connection.",
-      );
+      setError("Unable to load stock dashboard data. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -96,242 +86,225 @@ export default function StockDashboard() {
 
   const getTypeStyle = (type) => {
     switch (type) {
-      case "IN":
-        return { color: "text-green-400", icon: <FiArrowUpRight /> };
-      case "OUT":
-        return { color: "text-red-400", icon: <FiArrowDownRight /> };
-      case "ADJ":
-        return { color: "text-yellow-400", icon: <FiRefreshCw /> };
-      default:
-        return { color: "text-gray-400", icon: null };
+      case "IN": return { color: "text-emerald-600", icon: <FiArrowUpRight /> };
+      case "OUT": return { color: "text-red-600", icon: <FiArrowDownRight /> };
+      case "ADJ": return { color: "text-amber-600", icon: <FiRefreshCw /> };
+      default: return { color: "text-zinc-500", icon: null };
     }
   };
 
-  // Back Button Handler
-  const handleGoBack = () => {
-    navigate(-1); // Goes back to previous page
-    // Alternative: navigate('/dashboard'); // if you want to go to a specific page
-  };
+  // Filter movements based on search
+  const filteredMovements = recentMovements.filter((mov) =>
+    mov.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    mov.item_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    mov.reference?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
+  const paginatedMovements = filteredMovements.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleGoBack = () => navigate(-1);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-cyan-400 text-xl">
-          <FiRefreshCw className="animate-spin" size={28} />
-          Loading stock dashboard...
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-14 h-14 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-600 mt-6 text-lg font-medium">Loading Stock Dashboard...</p>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-950 p-8 text-center">
-        <p className="text-red-400 text-xl mb-6">{error}</p>
-        <button
-          onClick={fetchStockDashboardData}
-          className="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-medium"
-        >
-          Try Again
-        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header with Back Button */}
-        <div className="flex items-center gap-4 mb-10">
-          <button
-            onClick={handleGoBack}
-            className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
-          >
-            <FiArrowLeft size={22} />
-            <span className="font-medium">Back</span>
-          </button>
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
+          <div className="flex items-center gap-5">
+            <button onClick={handleGoBack} className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition">
+              <FiArrowLeft size={20} />
+              <span className="font-medium">Back</span>
+            </button>
 
-          <div className="flex-1">
-            <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-              <FiPackage className="text-cyan-500" /> Stock Dashboard
-            </h1>
-            <p className="text-cyan-500 mt-1">
-              Overview of current stock levels and movements
-            </p>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center shadow">
+                <FiPackage className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">Stock Dashboard</h1>
+                <p className="text-zinc-500">Overview of current stock levels and movements</p>
+              </div>
+            </div>
           </div>
 
-          <button
-            onClick={fetchStockDashboardData}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-cyan-300 border border-gray-700"
-          >
+          <button onClick={fetchStockDashboardData} className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 hover:text-zinc-900 transition">
             <FiRefreshCw size={18} /> Refresh
           </button>
         </div>
 
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl mb-8 flex items-center gap-3">
+            <FiAlertTriangle size={22} />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-12">
-          <StatCard
-            icon={<FiPackage className="text-blue-400" />}
-            title="Total Items"
-            value={stats.total_items}
-          />
-          <StatCard
-            icon={<FiAlertTriangle className="text-orange-400" />}
-            title="Low Stock"
-            value={stats.low_stock_items}
-            alert={stats.low_stock_items > 0}
-          />
-          <StatCard
-            icon={<FiDollarSign className="text-emerald-400" />}
-            title="Stock Value"
-            value={`₹ ${Number(stats.total_stock_value).toLocaleString("en-IN")}`}
-          />
-          <StatCard
-            icon={<FiArrowUpRight className="text-green-400" />}
-            title="Received (30d)"
-            value={stats.recent_received}
-          />
-          <StatCard
-            icon={<FiArrowDownRight className="text-red-400" />}
-            title="Issued (30d)"
-            value={stats.recent_issued}
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+          <StatCard icon={<FiPackage className="text-blue-600" />} title="Total Items" value={stats.total_items} />
+          <StatCard icon={<FiAlertTriangle className="text-amber-600" />} title="Low Stock" value={stats.low_stock_items} alert={stats.low_stock_items > 0} />
+          <StatCard icon={<FiDollarSign className="text-emerald-600" />} title="Stock Value" value={<span className="inline-flex whitespace-nowrap">₹ {Number(stats.total_stock_value).toLocaleString("en-IN")}</span>} />
+          <StatCard icon={<FiArrowUpRight className="text-emerald-600" />} title="Received (30d)" value={stats.recent_received} />
+          <StatCard icon={<FiArrowDownRight className="text-red-600" />} title="Issued (30d)" value={stats.recent_issued} />
         </div>
 
-        {/* Recent Movements Table */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden mb-12">
-          <div className="p-5 border-b border-gray-800">
-            <h2 className="text-xl font-semibold">Recent Stock Movements</h2>
+        {/* Recent Movements Table with Search & Pagination */}
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden mb-12">
+          <div className="px-8 py-6 border-b border-zinc-100 flex flex-col sm:flex-row gap-4 justify-between items-center">
+            <h2 className="text-2xl font-semibold text-zinc-900">Recent Stock Movements</h2>
+            
+            {/* Search Bar */}
+            <div className="relative w-full sm:w-80">
+              <FiSearch className="absolute left-4 top-3.5 text-zinc-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search by item name, code or reference..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1); // Reset to first page on search
+                }}
+                className="w-full pl-11 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400"
+              />
+            </div>
           </div>
 
-          {recentMovements.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              No stock movements recorded yet.
+          {filteredMovements.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-80 py-20">
+              <FiPackage className="w-16 h-16 text-zinc-300 mb-6" />
+              <p className="text-xl font-medium text-zinc-600">No matching movements found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-800/80">
-                  <tr>
-                    <th className="p-4 text-left">Item</th>
-                    <th className="p-4 text-center">Type</th>
-                    <th className="p-4 text-right">Qty</th>
-                    <th className="p-4 text-left">Reference</th>
-                    <th className="p-4 text-right">Date / Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentMovements.map((mov) => {
-                    const style = getTypeStyle(mov.transaction_type);
-                    return (
-                      <tr
-                        key={mov.id}
-                        className="border-t border-gray-800 hover:bg-gray-800/40 transition-colors"
-                      >
-                        <td className="p-4">
-                          <div className="font-medium">{mov.item_name}</div>
-                          <div className="text-xs text-gray-500">
-                            {mov.item_code} • {mov.uom}
-                          </div>
-                        </td>
-                        <td className="p-4 text-center">
-                          <div
-                            className={`flex items-center justify-center gap-1.5 ${style.color}`}
-                          >
-                            {style.icon}
-                            {mov.transaction_type}
-                          </div>
-                        </td>
-                        <td className="p-4 text-right font-medium">
-                          {Number(mov.quantity).toLocaleString("en-IN")}
-                        </td>
-                        <td className="p-4 text-gray-300">
-                          {mov.reference || "—"}
-                        </td>
-                        <td className="p-4 text-right text-gray-400">
-                          {format(
-                            new Date(mov.created_at),
-                            "dd MMM yyyy • hh:mm a",
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-zinc-50">
+                    <tr>
+                      <th className="p-5 text-left font-semibold text-zinc-600">Item</th>
+                      <th className="p-5 text-center font-semibold text-zinc-600">Type</th>
+                      <th className="p-5 text-right font-semibold text-zinc-600">Qty</th>
+                      <th className="p-5 text-left font-semibold text-zinc-600">Reference</th>
+                      <th className="p-5 text-right font-semibold text-zinc-600">Date & Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {paginatedMovements.map((mov) => {
+                      const style = getTypeStyle(mov.transaction_type);
+                      return (
+                        <tr key={mov.id} className="hover:bg-zinc-50 transition-colors">
+                          <td className="p-5">
+                            <div className="font-medium text-zinc-900">{mov.item_name}</div>
+                            <div className="text-xs text-zinc-500">{mov.item_code} • {mov.uom}</div>
+                          </td>
+                          <td className="p-5 text-center">
+                            <div className={`inline-flex items-center gap-1.5 ${style.color}`}>
+                              {style.icon}
+                              <span className="font-medium">{mov.transaction_type}</span>
+                            </div>
+                          </td>
+                          <td className="p-5 text-right font-semibold text-zinc-900">
+                            {Number(mov.quantity).toLocaleString("en-IN")}
+                          </td>
+                          <td className="p-5 text-zinc-600">{mov.reference || "—"}</td>
+                          <td className="p-5 text-right text-zinc-500">
+                            {format(new Date(mov.created_at), "dd MMM yyyy • hh:mm a")}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="px-8 py-5 border-t border-zinc-100 flex items-center justify-between">
+                  <p className="text-sm text-zinc-500">
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredMovements.length)} of {filteredMovements.length} movements
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 border border-zinc-200 rounded-xl disabled:opacity-50 hover:bg-zinc-50"
+                    >
+                      Previous
+                    </button>
+                    <span className="px-4 py-2 text-sm text-zinc-600">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 border border-zinc-200 rounded-xl disabled:opacity-50 hover:bg-zinc-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        {/* Quick Navigation */}
+        {/* Quick Navigation Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <ActionCard
-            title="New GRN"
-            desc="Receive materials from approved QC"
-            color="cyan"
-            onClick={() => {
-              navigate("/grns/create");
-            }}
-          />
-          <ActionCard
-            title="Stock Items"
-            desc="View all items & current levels"
-            color="blue"
-            onClick={() => {
-              navigate("/overall-stock");
-            }}
-          />
-          <ActionCard
-            title="Low Stock"
-            desc="Items needing reorder"
-            color="orange"
-            onClick={() => {
-              navigate("/low-stock");
-            }}
-          />
-          <ActionCard
-            title="Full Ledger"
-            desc="Complete stock movement history"
-            color="purple"
-            onClick={() => navigate("/full-ledger")} // or your route
-          />
+          <ActionCard title="New GRN" desc="Receive materials from approved QC" color="emerald" onClick={() => navigate("/grns/create")} />
+          <ActionCard title="Stock Items" desc="View all items & current levels" color="blue" onClick={() => navigate("/overall-stock")} />
+          <ActionCard title="Low Stock" desc="Items needing reorder" color="amber" onClick={() => navigate("/low-stock")} />
+          <ActionCard title="Full Ledger" desc="Complete stock movement history" color="purple" onClick={() => navigate("/full-ledger")} />
         </div>
       </div>
     </div>
   );
 }
 
-// Reusable Components (unchanged)
+/* ==================== Reusable Components ==================== */
+
 function StatCard({ icon, title, value, alert = false }) {
   return (
-    <div
-      className={`bg-gray-900 p-5 rounded-xl border ${alert ? "border-orange-600/40" : "border-gray-800"} hover:border-gray-700 transition-all`}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-3xl opacity-90">{icon}</div>
-        {alert && <FiAlertTriangle className="text-orange-400" size={20} />}
+    <div className={`bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all ${alert ? "border-amber-200" : ""}`}>
+      <div className="flex items-center justify-between mb-6">
+        <div className="text-4xl opacity-90">{icon}</div>
+        {alert && <FiAlertTriangle className="text-amber-500" size={28} />}
       </div>
-      <div className="text-gray-400 text-sm mb-1">{title}</div>
-      <div className="text-2xl md:text-3xl font-bold">{value}</div>
+      <div className="text-zinc-500 text-sm mb-2">{title}</div>
+      <div className="text-4xl font-bold tracking-tighter text-zinc-900">{value}</div>
     </div>
   );
 }
 
 function ActionCard({ title, desc, onClick, color }) {
-  const bgColors = {
-    cyan: "bg-cyan-700/80 hover:bg-cyan-600",
-    blue: "bg-blue-700/80 hover:bg-blue-600",
-    orange: "bg-orange-700/80 hover:bg-orange-600",
-    purple: "bg-purple-700/80 hover:bg-purple-600",
+  const colors = {
+    emerald: "bg-emerald-600 hover:bg-emerald-700",
+    blue: "bg-blue-600 hover:bg-blue-700",
+    amber: "bg-amber-600 hover:bg-amber-700",
+    purple: "bg-purple-600 hover:bg-purple-700",
   };
 
   return (
     <button
       onClick={onClick}
-      className={`${bgColors[color]} p-6 rounded-xl text-left transition-all hover:shadow-lg hover:scale-[1.02] border border-gray-700`}
+      className={`${colors[color]} text-white p-8 rounded-3xl text-left transition-all hover:shadow-lg`}
     >
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      <p className="text-sm text-gray-300">{desc}</p>
+      <h3 className="text-xl font-semibold mb-3">{title}</h3>
+      <p className="text-sm opacity-90">{desc}</p>
     </button>
   );
 }

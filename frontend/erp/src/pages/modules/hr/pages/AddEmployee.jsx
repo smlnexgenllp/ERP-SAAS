@@ -1,10 +1,8 @@
-// THEMED AddEmployee - Full Width
+// src/pages/modules/hr/AddEmployee.jsx
 import React, {
   useState,
   useEffect,
   useCallback,
-  createContext,
-  useContext,
 } from "react";
 import api from "../../../../services/api";
 import {
@@ -13,34 +11,8 @@ import {
   Loader2,
   ArrowLeft,
   AlertTriangle,
-  Ban,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-const AuthContext = createContext(null);
-const useAuth = () => {
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const mockUser = {
-        id: "user-001",
-        isAuthenticated: true,
-        role: "hr",
-      };
-      setUser(mockUser);
-      setIsLoadingAuth(false);
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  return {
-    user,
-    isLoadingAuth,
-  };
-};
 
 const roleOptions = [
   { value: "employee", label: "Employee" },
@@ -50,9 +22,6 @@ const roleOptions = [
 
 const AddEmployee = () => {
   const navigate = useNavigate();
-  const { user, isLoadingAuth } = useAuth();
-  const AUTHORIZED_ROLES = ["hr", "admin"];
-  const isAuthorized = user && AUTHORIZED_ROLES.includes(user.role);
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -76,7 +45,6 @@ const AddEmployee = () => {
   const [successMessage, setSuccessMessage] = useState(null);
 
   const fetchDependencies = useCallback(async () => {
-    if (!isAuthorized) return;
     setLoadingData(true);
     setError(null);
     try {
@@ -94,22 +62,17 @@ const AddEmployee = () => {
       if (desigRes.data.length > 0) {
         setFormData(prev => ({ ...prev, designation_id: desigRes.data[0].id }));
       }
-
     } catch (err) {
       console.error("API Error:", err.response?.data);
-      setError("Unable to load departments/designations. Are you logged in as HR?");
-      setDepartments([]);
-      setDesignations([]);
+      setError("Unable to load departments/designations.");
     } finally {
       setLoadingData(false);
     }
-  }, [isAuthorized]);
+  }, []);
 
   useEffect(() => {
-    if (!isLoadingAuth && isAuthorized) {
-      fetchDependencies();
-    }
-  }, [isLoadingAuth, isAuthorized, fetchDependencies]);
+    fetchDependencies();
+  }, [fetchDependencies]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -147,31 +110,10 @@ const AddEmployee = () => {
     };
 
     try {
-      const getCsrfToken = () => {
-        const name = "csrftoken";
-        const cookies = document.cookie.split("; ");
-        for (let cookie of cookies) {
-          const [key, value] = cookie.split("=");
-          if (key === name) return decodeURIComponent(value);
-        }
-        return null;
-      };
-
-      const response = await api.post(
-        "/hr/employees/create_with_invite/",
-        payload,
-        {
-          headers: {
-            "X-CSRFToken": getCsrfToken(),
-            "Content-Type": "application/json",
-          },
-          withCredentials: true,
-        }
-      );
+      const response = await api.post("/hr/employees/create_with_invite/", payload);
 
       setSuccessMessage(
-        `Employee ${response.data.employee.full_name} created successfully! ` +
-        `Invitation email sent to ${response.data.employee.email || payload.user_email}`
+        `Employee ${response.data.employee.full_name} created successfully! Invitation email sent.`
       );
 
       setFormData({
@@ -187,266 +129,164 @@ const AddEmployee = () => {
         ctc: "",
         notes: "",
       });
-
     } catch (err) {
-      console.error("Employee Creation Error:", err.response || err);
-
-      let errorMsg = "An unexpected error occurred. Check server connectivity.";
-
-      if (err.response?.data) {
-        const data = err.response.data;
-        if (data.errors) {
-          errorMsg = Object.entries(data.errors)
-            .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
-            .join(" | ");
-        } else if (typeof data === "object") {
-          errorMsg = Object.entries(data)
-            .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
-            .join(" | ");
-        } else {
-          errorMsg = data.detail || data.message || JSON.stringify(data);
-        }
-      }
-
-      setError(errorMsg);
+      console.error(err);
+      setError(err.response?.data?.detail || "Failed to create employee.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoadingAuth) {
-    return (
-      <div className="flex items-center justify-center w-full h-screen bg-gray-950 text-cyan-300 text-xl">
-        <Loader2 className="animate-spin mr-3" />
-        Checking user permissions...
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div className="flex items-center justify-center w-full h-screen bg-gray-950 text-cyan-300">
-        <div className="text-center p-8 w-full max-w-3xl bg-gray-900 border border-cyan-800 rounded-xl shadow-lg">
-          <Ban className="w-12 h-12 mx-auto text-pink-400 mb-4" />
-          <h1 className="text-2xl font-bold text-cyan-300 mb-2">Access Denied</h1>
-          <p className="text-gray-400">
-            You must be an HR or Administrator to access this page.
-          </p>
-          <p className="text-sm text-gray-500 mt-2">Current Role: {user?.role || "Guest"}</p>
-        </div>
-      </div>
-    );
-  }
-
   if (loadingData) {
     return (
-      <div className="flex items-center justify-center w-full h-screen bg-gray-950 text-cyan-300 text-xl">
-        <Loader2 className="animate-spin mr-3" />
-        Loading Departments and Designations...
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-zinc-500">Loading form data...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full min-h-screen bg-gray-950 text-cyan-300 font-mono py-10 px-4">
-      <div className="flex items-center justify-between mb-8 w-full max-w-full">
-        <h1 className="text-3xl font-bold flex items-center text-pink-400">
-          <UserPlus className="w-8 h-8 mr-3 text-cyan-400" />
-          Add New Employee
-        </h1>
-        <button
-          onClick={() => navigate("/hr/dashboard")}
-          className="flex items-center text-sm font-medium text-cyan-300 hover:text-pink-400 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Back to Dashboard
-        </button>
-      </div>
-
-      {successMessage && (
-        <div className="bg-gray-900 border border-cyan-800 text-cyan-300 px-4 py-3 rounded-lg mb-4 flex items-center w-full max-w-full">
-          <Save className="w-5 h-5 mr-3 flex-shrink-0 text-pink-400" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-gray-900 border border-pink-400 text-pink-400 px-4 py-3 rounded-lg mb-4 flex items-center w-full max-w-full">
-          <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <form
-        onSubmit={handleSubmit}
-        className="bg-gray-900 border border-cyan-800 rounded-xl p-8 space-y-8 shadow-lg w-full"
-      >
-        {/* Personal Section */}
-        <div>
-          <h2 className="text-xl font-semibold text-pink-400 border-b border-cyan-800 pb-2 mb-6">
-            Personal & User Account Details
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-            <InputGroup
-              label="Full Name"
-              name="full_name"
-              type="text"
-              value={formData.full_name}
-              onChange={handleChange}
-              required
-            />
-            <InputGroup
-              label="Email (Login ID)"
-              name="user_email"
-              type="email"
-              value={formData.user_email}
-              onChange={handleChange}
-              required
-              hint="Invitation and temporary password will be sent here."
-            />
-            <InputGroup
-              label="Employee Code"
-              name="employee_code"
-              type="text"
-              value={formData.employee_code}
-              onChange={handleChange}
-              required
-            />
-            <InputGroup
-              label="Phone"
-              name="phone"
-              type="tel"
-              value={formData.phone}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-
-        {/* Organizational Section */}
-        <div>
-          <h2 className="text-xl font-semibold text-pink-400 border-b border-cyan-800 pb-2 mb-6">
-            Organizational & Compensation
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-            <SelectGroup
-              label="Department"
-              name="department_id"
-              value={formData.department_id}
-              onChange={handleChange}
-              options={departments}
-              valueKey="id"
-              labelKey="name"
-              placeholder="-- Select Department --"
-            />
-            <SelectGroup
-              label="Designation"
-              name="designation_id"
-              value={formData.designation_id}
-              onChange={handleChange}
-              options={designations}
-              valueKey="id"
-              labelKey="title"
-              placeholder="-- Select Designation --"
-            />
-            <SelectGroup
-              label="System Role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              required
-              options={roleOptions}
-              valueKey="value"
-              labelKey="label"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 w-full">
-            <InputGroup
-              label="Date of Joining"
-              name="date_of_joining"
-              type="date"
-              value={formData.date_of_joining}
-              onChange={handleChange}
-            />
-            <InputGroup
-              label="CTC (Annual)"
-              name="ctc"
-              type="number"
-              step="0.01"
-              value={formData.ctc}
-              onChange={handleChange}
-              placeholder="e.g., 50000.00"
-            />
-            <div className="flex items-end pb-1">
-              <label
-                htmlFor="is_probation"
-                className="flex items-center space-x-2 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  name="is_probation"
-                  id="is_probation"
-                  checked={formData.is_probation}
-                  onChange={handleChange}
-                  className="h-5 w-5 text-cyan-400 border-gray-700 rounded focus:ring-cyan-500 transition-colors"
-                />
-                <span className="text-sm font-medium text-cyan-300 select-none">
-                  Currently on Probation
-                </span>
-              </label>
+    <div className="min-h-screen bg-zinc-100 text-zinc-800 py-10">
+      <div className="max-w-5xl mx-auto px-6">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
+              <UserPlus className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                Add New Employee
+              </h1>
+              <p className="text-zinc-500">Create account and send invitation</p>
             </div>
           </div>
-        </div>
 
-        {/* Notes Section */}
-        <div>
-          <label
-            htmlFor="notes"
-            className="block text-sm font-medium text-cyan-300"
-          >
-            Notes (Internal HR Only)
-          </label>
-          <textarea
-            name="notes"
-            id="notes"
-            rows="3"
-            value={formData.notes}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-cyan-800 rounded-md shadow-sm p-3 bg-gray-950 text-cyan-300 resize-none focus:ring-cyan-400 focus:border-cyan-400"
-          ></textarea>
-        </div>
-
-        <div className="pt-6 border-t border-cyan-800 mt-8 flex justify-end w-full">
           <button
-            type="submit"
-            disabled={isSubmitting || loadingData}
-            className={`inline-flex items-center px-8 py-3 text-base font-semibold rounded-xl shadow-lg transition-all duration-200 w-full md:w-auto
-              ${isSubmitting || loadingData
-                ? "bg-gray-800 cursor-not-allowed text-gray-500"
-                : "bg-gradient-to-r from-cyan-400 to-pink-400 text-gray-900 hover:from-cyan-300 hover:to-pink-300"
-              }`}
+            onClick={() => navigate("/hr/dashboard")}
+            className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5" />
-                Submitting...
-              </>
-            ) : (
-              <>
-                <Save className="-ml-1 mr-3 h-5 w-5" />
-                Create Employee & Send Invitation
-              </>
-            )}
+            <ArrowLeft size={20} />
+            <span className="font-medium">Back to Dashboard</span>
           </button>
         </div>
-      </form>
+
+        {successMessage && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-4 rounded-2xl mb-6 flex items-center gap-3">
+            <Save className="w-5 h-5" />
+            {successMessage}
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl mb-6 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5" />
+            {error}
+          </div>
+        )}
+
+        {/* Full Width Form */}
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white border border-zinc-200 rounded-3xl p-10 shadow-sm w-full"
+        >
+          {/* Personal Section */}
+          <div className="mb-10">
+            <h2 className="text-2xl font-semibold text-zinc-900 border-b border-zinc-100 pb-3 mb-6">
+              Personal & User Account Details
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <InputGroup label="Full Name" name="full_name" type="text" value={formData.full_name} onChange={handleChange} required />
+              <InputGroup label="Email (Login ID)" name="user_email" type="email" value={formData.user_email} onChange={handleChange} required />
+              <InputGroup label="Employee Code" name="employee_code" type="text" value={formData.employee_code} onChange={handleChange} required />
+              <InputGroup label="Phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} />
+            </div>
+          </div>
+
+          {/* Organizational Section */}
+          <div className="mb-10">
+            <h2 className="text-2xl font-semibold text-zinc-900 border-b border-zinc-100 pb-3 mb-6">
+              Organizational & Compensation
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <SelectGroup label="Department" name="department_id" value={formData.department_id} onChange={handleChange} options={departments} valueKey="id" labelKey="name" />
+              <SelectGroup label="Designation" name="designation_id" value={formData.designation_id} onChange={handleChange} options={designations} valueKey="id" labelKey="title" />
+              <SelectGroup label="System Role" name="role" value={formData.role} onChange={handleChange} options={roleOptions} valueKey="value" labelKey="label" required />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+              <InputGroup label="Date of Joining" name="date_of_joining" type="date" value={formData.date_of_joining} onChange={handleChange} />
+              <InputGroup label="CTC (Annual)" name="ctc" type="number" step="0.01" value={formData.ctc} onChange={handleChange} placeholder="e.g., 50000.00" />
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="is_probation"
+                    checked={formData.is_probation}
+                    onChange={handleChange}
+                    className="w-5 h-5 text-zinc-900 border-zinc-300 rounded focus:ring-zinc-500"
+                  />
+                  <span className="text-zinc-700 font-medium">Currently on Probation</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="mb-10">
+            <label htmlFor="notes" className="block text-zinc-700 font-medium mb-2">
+              Notes (Internal HR Only)
+            </label>
+            <textarea
+              name="notes"
+              id="notes"
+              rows="5"
+              value={formData.notes}
+              onChange={handleChange}
+              className="w-full border border-zinc-200 rounded-3xl p-5 focus:border-zinc-400 outline-none resize-y min-h-[120px]"
+              placeholder="Any additional notes..."
+            />
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-end pt-6 border-t border-zinc-100">
+            <button
+              type="submit"
+              disabled={isSubmitting || loadingData}
+              className={`px-12 py-4 rounded-3xl font-semibold text-lg flex items-center gap-3 transition-all ${
+                isSubmitting || loadingData
+                  ? "bg-zinc-200 text-zinc-500 cursor-not-allowed"
+                  : "bg-zinc-900 hover:bg-black text-white"
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin" size={24} />
+                  Creating Employee...
+                </>
+              ) : (
+                <>
+                  <Save size={24} />
+                  Create Employee & Send Invitation
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
 
+/* Reusable Components */
 const InputGroup = ({ label, name, type, value, onChange, required, hint, step, placeholder }) => (
   <div>
-    <label htmlFor={name} className="block text-sm font-medium text-cyan-300">
-      {label} {required && <span className="text-pink-400">*</span>}
+    <label htmlFor={name} className="block text-zinc-700 text-sm font-medium mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
     </label>
     <input
       type={type}
@@ -457,16 +297,16 @@ const InputGroup = ({ label, name, type, value, onChange, required, hint, step, 
       placeholder={placeholder}
       value={value}
       onChange={onChange}
-      className="mt-1 block w-full border border-cyan-800 rounded-md shadow-sm p-3 bg-gray-950 text-cyan-300 focus:ring-cyan-400 focus:border-cyan-400"
+      className="mt-1 block w-full border border-zinc-200 rounded-3xl px-5 py-4 focus:border-zinc-400 outline-none transition"
     />
-    {hint && <p className="mt-1 text-xs text-pink-400">{hint}</p>}
+    {hint && <p className="mt-1 text-xs text-amber-600">{hint}</p>}
   </div>
 );
 
 const SelectGroup = ({ label, name, value, onChange, required, options = [], valueKey, labelKey, placeholder }) => (
   <div>
-    <label htmlFor={name} className="block text-sm font-medium text-cyan-300">
-      {label} {required && <span className="text-pink-400">*</span>}
+    <label htmlFor={name} className="block text-zinc-700 text-sm font-medium mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
     </label>
     <select
       name={name}
@@ -474,12 +314,12 @@ const SelectGroup = ({ label, name, value, onChange, required, options = [], val
       value={value}
       onChange={onChange}
       required={required}
-      className="mt-1 block w-full border border-cyan-800 rounded-md shadow-sm p-3 bg-gray-950 text-cyan-300 cursor-pointer focus:ring-cyan-400 focus:border-cyan-400"
+      className="mt-1 block w-full border border-zinc-200 rounded-3xl px-5 py-4 focus:border-zinc-400 outline-none bg-white"
     >
       {placeholder && <option value="">{placeholder}</option>}
       {Array.isArray(options) && options.length > 0 ? (
         options.map((option) => (
-          <option key={option[valueKey]} value={option[valueKey]} className="bg-gray-950 text-cyan-300">
+          <option key={option[valueKey]} value={option[valueKey]}>
             {option[labelKey]}
           </option>
         ))

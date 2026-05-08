@@ -15,24 +15,28 @@ import {
   X,
   Search,
   Filter,
+  ArrowLeft,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const STATUS = ["submitted", "review", "interview", "selected", "rejected", "joined"];
 
 const getStatusBadge = (status) => {
-  const baseClasses = "px-2.5 py-0.5 rounded-full text-xs font-medium border";
+  const baseClasses = "px-3 py-1 rounded-full text-xs font-medium";
   switch (status) {
-    case "submitted": return `${baseClasses} bg-gray-800/70 text-gray-300 border-gray-700`;
-    case "review": return `${baseClasses} bg-blue-900/50 text-blue-300 border-blue-700`;
-    case "interview": return `${baseClasses} bg-purple-900/50 text-purple-300 border-purple-700`;
-    case "selected": return `${baseClasses} bg-green-900/50 text-green-300 border-green-700`;
-    case "rejected": return `${baseClasses} bg-red-900/50 text-red-300 border-red-700`;
-    case "joined": return `${baseClasses} bg-cyan-800/70 text-cyan-100 border-cyan-600`;
-    default: return `${baseClasses} bg-gray-800/70 text-gray-300`;
+    case "submitted": return `${baseClasses} bg-zinc-100 text-zinc-700 border border-zinc-200`;
+    case "review": return `${baseClasses} bg-blue-100 text-blue-700 border border-blue-200`;
+    case "interview": return `${baseClasses} bg-purple-100 text-purple-700 border border-purple-200`;
+    case "selected": return `${baseClasses} bg-emerald-100 text-emerald-700 border border-emerald-200`;
+    case "rejected": return `${baseClasses} bg-red-100 text-red-700 border border-red-200`;
+    case "joined": return `${baseClasses} bg-cyan-100 text-cyan-700 border border-cyan-200`;
+    default: return `${baseClasses} bg-zinc-100 text-zinc-700 border border-zinc-200`;
   }
 };
 
 const JobOpeningUpdate = () => {
+  const navigate = useNavigate();
+
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
   const [referrals, setReferrals] = useState([]);
@@ -83,7 +87,6 @@ const JobOpeningUpdate = () => {
     try {
       const res = await api.get(`/hr/referrals/?job_opening=${jobId}`);
       setReferrals(res.data || []);
-      console.log(res.data)
     } catch (err) {
       console.error("Failed to load referrals:", err);
       setReferrals([]);
@@ -127,16 +130,16 @@ const JobOpeningUpdate = () => {
   };
 
   const openOfferModal = (referral) => {
-  const job = referral.job_opening;
-  const branding = job.organization?.branding || {};
+    const job = referral.job_opening;
+    const branding = job.organization?.branding || {};
 
-  setCurrentReferral(referral);
-  setOfferData({
-    company_name: branding.name || job.organization?.name || "Your Company",
-    logo_preview: branding.logo || "",
-    from_email: branding.hr_email || "hr@company.com",
-    subject: `Job Offer – ${job.title} at ${branding.name || job.organization?.name || "Your Company"}`,
-    body: `Dear ${referral.candidate_name},
+    setCurrentReferral(referral);
+    setOfferData({
+      company_name: branding.name || job.organization?.name || "Your Company",
+      logo_preview: branding.logo || "",
+      from_email: branding.hr_email || "hr@company.com",
+      subject: `Job Offer – ${job.title} at ${branding.name || job.organization?.name || "Your Company"}`,
+      body: `Dear ${referral.candidate_name},
 
 Congratulations! We are delighted to extend a formal job offer for the position of **${job.title}** at **${branding.name || "our company"}**.
 
@@ -145,9 +148,9 @@ Please find the official offer letter attached.
 Best regards,
 HR Team
 ${branding.name || "Our Company"}`,
-  });
-  setShowOfferModal(true);
-};
+    });
+    setShowOfferModal(true);
+  };
 
   const sendDirectOffer = async () => {
     if (!directCandidate.name.trim() || !directCandidate.email.trim()) {
@@ -202,303 +205,260 @@ ${branding.name || "Our Company"}`,
   }, [referrals, searchQuery, statusFilter]);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-200 p-6">
-      {/* Header */}
-      <header className="mb-8 border-b border-cyan-900/40 pb-5">
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/50 animate-pulse"></div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-            ALU-CORE: Talent Acquisition
-          </h1>
-        </div>
-      </header>
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
+        {/* Header with Back Button */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => navigate("/hr/dashboard")}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <ArrowLeft size={20} />
+              <span className="font-medium">Back</span>
+            </button>
 
-      {/* Top: Form Left + Job List Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Left: Job Form */}
-        <div className="bg-gray-900/50 backdrop-blur-sm border border-cyan-800/40 rounded-xl shadow-xl p-6">
-          <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            {selectedJob ? "Edit Job Opening" : "Create New Job Opening"}
-          </h3>
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Job Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition"
-            />
-            <textarea
-              rows="5"
-              placeholder="Job Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition resize-none"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={saveJob}
-                disabled={!title.trim() || !description.trim()}
-                className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-cyan-600/40 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {selectedJob ? "Update" : "Create"}
-              </button>
-              {selectedJob && (
-                <button
-                  onClick={resetForm}
-                  className="px-5 py-2.5 border border-cyan-700 text-cyan-300 text-sm rounded-lg hover:bg-cyan-900/20 transition"
-                >
-                  Cancel
-                </button>
-              )}
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
+                <UserPlus className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                  Talent Acquisition
+                </h1>
+                <p className="text-zinc-500">Manage job openings and candidate referrals</p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right: Job List */}
-        <div className="bg-gray-900/50 backdrop-blur-sm border border-cyan-800/40 rounded-xl shadow-xl p-6">
-          <h3 className="text-lg font-semibold text-cyan-300 mb-4 flex items-center gap-2">
-            <UserPlus className="w-5 h-5" />
-            Active Openings ({jobs.length})
-          </h3>
-          {jobs.length === 0 ? (
-            <p className="text-center text-gray-500 py-10">No job openings yet. Create one to start receiving referrals.</p>
-          ) : (
-            <div className="space-y-3 max-h-80 overflow-y-auto">
-              {jobs.map((job) => (
-                <div
-                  key={job.id}
-                  onClick={() => selectJobForEdit(job)}
-                  className={`p-4 rounded-lg border cursor-pointer transition ${
-                    selectedJob?.id === job.id
-                      ? "border-cyan-500 bg-cyan-900/20 shadow-md"
-                      : "border-cyan-900/40 bg-gray-800/30 hover:border-cyan-600"
-                  }`}
+        {/* Top: Form + Job List */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Job Form */}
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8">
+            <h3 className="text-2xl font-semibold text-zinc-900 mb-6 flex items-center gap-3">
+              <FileText className="w-6 h-6" />
+              {selectedJob ? "Edit Job Opening" : "Create New Job Opening"}
+            </h3>
+            <div className="space-y-5">
+              <input
+                type="text"
+                placeholder="Job Title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800"
+              />
+              <textarea
+                rows="5"
+                placeholder="Job Description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800 resize-y"
+              />
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={saveJob}
+                  disabled={!title.trim() || !description.trim()}
+                  className="px-6 py-3 bg-zinc-900 text-white font-medium rounded-2xl hover:bg-black transition disabled:opacity-50"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-cyan-200">{job.title}</h4>
-                      {job.organization?.name && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          {job.organization.name}
-                        </p>
-                      )}
-                      <p className="text-sm text-gray-400 mt-1 line-clamp-2">{job.description}</p>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteJob(job.id);
-                      }}
-                      className="text-red-400 hover:text-red-300 transition ml-4"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom Full Width: Referrals */}
-      <div className="space-y-5">
-        {selectedJob ? (
-          <>
-            {/* Header + Direct Offer */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-900/50 backdrop-blur-sm border border-cyan-800/40 rounded-xl p-5 shadow-xl">
-              <h2 className="text-xl font-semibold text-cyan-300">
-                Referrals for:{' '}
-                <span className="text-cyan-100">
-                  {selectedJob.title}
-                  {selectedJob.organization?.name && ` - ${selectedJob.organization.name}`}
-                </span>
-              </h2>
-              <button
-                onClick={() => setShowDirectOfferModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-green-600/40 transition hover:scale-105"
-              >
-                <Plus className="w-4 h-4" />
-                Send Direct Offer
-              </button>
-            </div>
-
-            {/* Filters */}
-            <div className="bg-gray-900/50 backdrop-blur-sm border border-cyan-800/40 rounded-xl p-4 shadow-xl">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder="Search candidate, referrer..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-sm text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 transition"
-                  />
-                </div>
-                <div className="relative sm:w-48">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full pl-10 pr-8 py-2.5 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-sm text-cyan-100 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 transition appearance-none"
-                  >
-                    <option value="all">All Statuses</option>
-                    {STATUS.map((s) => (
-                      <option key={s} value={s} className="bg-gray-900">
-                        {s.charAt(0).toUpperCase() + s.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {(searchQuery || statusFilter !== "all") && (
+                  {selectedJob ? "Update Job" : "Create Job"}
+                </button>
+                {selectedJob && (
                   <button
-                    onClick={() => {
-                      setSearchQuery("");
-                      setStatusFilter("all");
-                    }}
-                    className="px-4 py-2.5 border border-cyan-700 text-cyan-300 text-sm rounded-lg hover:bg-cyan-900/20 transition"
+                    onClick={resetForm}
+                    className="px-6 py-3 border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 transition"
                   >
-                    Clear
+                    Cancel
                   </button>
                 )}
               </div>
             </div>
-
-            {/* Referrals Table */}
-            <div className="bg-gray-900/50 backdrop-blur-sm border border-cyan-800/40 rounded-xl shadow-xl overflow-hidden">
-              {filteredReferrals.length === 0 ? (
-                <div className="text-center py-16">
-                  <Clock className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-500">
-                    {referrals.length === 0 ? "No referrals yet." : "No matching referrals."}
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-cyan-900/20 border-b border-cyan-800/50">
-                      <tr>
-                        <th className="text-left py-3 px-5 font-medium text-cyan-200">Candidate</th>
-                        <th className="text-left py-3 px-5 font-medium text-cyan-200">Referred By</th>
-                        <th className="text-left py-3 px-5 font-medium text-cyan-200">Job</th>
-                        <th className="text-center py-3 px-5 font-medium text-cyan-200">Resume</th>
-                        <th className="text-center py-3 px-5 font-medium text-cyan-200">Status</th>
-                        <th className="text-center py-3 px-5 font-medium text-cyan-200">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-cyan-900/30">
-                      {filteredReferrals.map((r) => (
-                        <tr key={r.id} className="hover:bg-gray-800/30 transition">
-                          <td className="py-4 px-5 font-medium">{r.candidate_name}</td>
-                          <td className="py-4 px-5">
-                            <button
-                              onClick={() => setShowReferrerDetails(showReferrerDetails === r.id ? null : r.id)}
-                              className="flex items-center gap-2 text-cyan-300 hover:text-cyan-100 transition text-sm"
-                            >
-                              <User className="w-4 h-4" />
-                              {r.referred_by_name || "Unknown"}
-                            </button>
-                            {showReferrerDetails === r.id && (
-                              <div className="absolute z-20 mt-2 left-5 w-64 bg-gray-900/95 border border-cyan-700 rounded-lg shadow-xl p-4 text-sm">
-                                <div className="space-y-2">
-                                  <p className="flex items-center gap-2 font-medium">
-                                    <User className="w-4 h-4" /> {r.referred_by_name}
-                                  </p>
-                                  {r.referred_by_email && (
-                                    <p className="flex items-center gap-2 text-gray-400">
-                                      <Mail className="w-4 h-4" /> {r.referred_by_email}
-                                    </p>
-                                  )}
-                                  {r.referred_by_phone && (
-                                    <p className="flex items-center gap-2 text-gray-400">
-                                      <Phone className="w-4 h-4" /> {r.referred_by_phone}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="absolute -top-2 left-8 w-4 h-4 bg-gray-900/95 border-l border-t border-cyan-700 rotate-45"></div>
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-4 px-5">
-                            <div>
-                              <p className="font-medium text-cyan-300">
-                                {r.job_opening.title}
-                              </p>
-                              {r.job_opening.organization?.name && (
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {r.job_opening.organization.name}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-4 px-5 text-center">
-                            {r.resume ? (
-                              <a
-                                href={r.resume}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-cyan-400 hover:text-cyan-200 transition"
-                              >
-                                <Download className="w-4 h-4 inline" />
-                              </a>
-                            ) : (
-                              <span className="text-gray-600">—</span>
-                            )}
-                          </td>
-                          <td className="py-4 px-5 text-center">
-                            <select
-                              value={r.status}
-                              onChange={(e) => updateStatus(r.id, e.target.value)}
-                              disabled={r.status === "joined"}
-                              className="px-3 py-1 bg-gray-800/60 border border-cyan-800/50 rounded text-xs focus:border-cyan-400 transition mb-2"
-                            >
-                              {STATUS.map((s) => (
-                                <option key={s} value={s} className="bg-gray-900">
-                                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                                </option>
-                              ))}
-                            </select>
-                            <div>
-                              <span className={getStatusBadge(r.status)}>
-                                {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-5 text-center">
-                            {r.status === "selected" ? (
-                              <button
-                                onClick={() => openOfferModal(r)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-700/60 hover:bg-green-600 text-white text-xs font-medium rounded transition"
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                                Send Offer
-                              </button>
-                            ) : r.status === "joined" ? (
-                              <span className="text-cyan-400 text-xs font-medium flex items-center gap-1.5 justify-center">
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                Joined
-                              </span>
-                            ) : (
-                              <span className="text-gray-600 text-xs">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-cyan-800/40 rounded-xl shadow-xl p-12 text-center">
-            <UserPlus className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-500">Select or create a job opening to manage referrals.</p>
           </div>
-        )}
+
+          {/* Active Job Openings */}
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8">
+            <h3 className="text-2xl font-semibold text-zinc-900 mb-6 flex items-center gap-3">
+              <UserPlus className="w-6 h-6" />
+              Active Openings ({jobs.length})
+            </h3>
+            {jobs.length === 0 ? (
+              <p className="text-center text-zinc-500 py-16">No job openings yet. Create one above.</p>
+            ) : (
+              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-2">
+                {jobs.map((job) => (
+                  <div
+                    key={job.id}
+                    onClick={() => selectJobForEdit(job)}
+                    className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                      selectedJob?.id === job.id
+                        ? "border-zinc-900 bg-zinc-50 shadow"
+                        : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-zinc-900">{job.title}</h4>
+                        {job.organization?.name && (
+                          <p className="text-sm text-zinc-500 mt-1">{job.organization.name}</p>
+                        )}
+                        <p className="text-sm text-zinc-600 mt-2 line-clamp-2">{job.description}</p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteJob(job.id);
+                        }}
+                        className="text-red-500 hover:text-red-600 p-2"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Referrals Section */}
+        <div className="space-y-6">
+          {selectedJob ? (
+            <>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+                <h2 className="text-2xl font-semibold text-zinc-900">
+                  Referrals for: <span className="text-zinc-700">{selectedJob.title}</span>
+                </h2>
+                <button
+                  onClick={() => setShowDirectOfferModal(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-medium transition"
+                >
+                  <Plus className="w-5 h-5" />
+                  Send Direct Offer
+                </button>
+              </div>
+
+              {/* Filters */}
+              <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+                    <input
+                      type="text"
+                      placeholder="Search candidate or referrer..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="px-5 py-3 border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
+                  >
+                    <option value="all">All Statuses</option>
+                    {STATUS.map((s) => (
+                      <option key={s} value={s}>
+                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                  {(searchQuery || statusFilter !== "all") && (
+                    <button
+                      onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
+                      className="px-6 py-3 border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Referrals Table */}
+              <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+                {filteredReferrals.length === 0 ? (
+                  <div className="text-center py-20 text-zinc-500">
+                    {referrals.length === 0 ? "No referrals yet for this job." : "No matching referrals found."}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-zinc-50">
+                        <tr>
+                          <th className="px-8 py-5 text-left font-semibold text-zinc-600">Candidate</th>
+                          <th className="px-8 py-5 text-left font-semibold text-zinc-600">Referred By</th>
+                          <th className="px-8 py-5 text-left font-semibold text-zinc-600">Job</th>
+                          <th className="px-8 py-5 text-center font-semibold text-zinc-600">Resume</th>
+                          <th className="px-8 py-5 text-center font-semibold text-zinc-600">Status</th>
+                          <th className="px-8 py-5 text-center font-semibold text-zinc-600">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {filteredReferrals.map((r) => (
+                          <tr key={r.id} className="hover:bg-zinc-50 transition">
+                            <td className="px-8 py-5 font-medium">{r.candidate_name}</td>
+                            <td className="px-8 py-5">
+                              <button
+                                onClick={() => setShowReferrerDetails(showReferrerDetails === r.id ? null : r.id)}
+                                className="text-zinc-700 hover:text-zinc-900 flex items-center gap-2"
+                              >
+                                <User className="w-4 h-4" />
+                                {r.referred_by_name || "Unknown"}
+                              </button>
+                            </td>
+                            <td className="px-8 py-5">
+                              <p className="font-medium">{r.job_opening.title}</p>
+                              {r.job_opening.organization?.name && (
+                                <p className="text-xs text-zinc-500">{r.job_opening.organization.name}</p>
+                              )}
+                            </td>
+                            <td className="px-8 py-5 text-center">
+                              {r.resume ? (
+                                <a href={r.resume} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700">
+                                  <Download className="w-5 h-5 inline" />
+                                </a>
+                              ) : "—"}
+                            </td>
+                            <td className="px-8 py-5 text-center">
+                              <select
+                                value={r.status}
+                                onChange={(e) => updateStatus(r.id, e.target.value)}
+                                disabled={r.status === "joined"}
+                                className="px-4 py-2 bg-white border border-zinc-200 rounded-2xl text-sm focus:border-zinc-400"
+                              >
+                                {STATUS.map((s) => (
+                                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-8 py-5 text-center">
+                              {r.status === "selected" && (
+                                <button
+                                  onClick={() => openOfferModal(r)}
+                                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-medium flex items-center gap-2 mx-auto"
+                                >
+                                  <Send className="w-4 h-4" /> Send Offer
+                                </button>
+                              )}
+                              {r.status === "joined" && (
+                                <span className="text-emerald-600 font-medium">Joined</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-16 text-center">
+              <UserPlus className="w-16 h-16 text-zinc-300 mx-auto mb-4" />
+              <p className="text-zinc-500 text-lg">Select or create a job opening to manage referrals</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Custom Send Offer Modal */}

@@ -2,15 +2,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Building,
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+  FiSearch, 
+  FiPlus, 
+  FiEdit2, 
+  FiTrash2, 
+  FiUsers, 
+  FiArrowLeft,
+  FiRefreshCw 
+} from "react-icons/fi";
 import api from '../../../../services/api';
 import VendorForm from './VendorForm';
 
@@ -34,18 +33,15 @@ const VendorList = ({ onEdit, onVendorDeleted }) => {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('token') || '';
-      const res = await api.get('/finance/vendors/', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get('/finance/vendors/');
       setVendors(res.data || []);
-      setCurrentPage(1); // Reset to first page on refresh
+      setCurrentPage(1);
     } catch (err) {
       console.error('Failed to load vendors:', err);
       setError(
         err.response?.data?.detail ||
         err.response?.data?.error ||
-        'Failed to load vendors. Please check server logs.'
+        'Failed to load vendors.'
       );
     } finally {
       setLoading(false);
@@ -68,7 +64,6 @@ const VendorList = ({ onEdit, onVendorDeleted }) => {
     }
   };
 
-  // Open form for create or edit
   const openFormModal = (vendorId = null) => {
     setEditVendorId(vendorId);
     setShowFormModal(true);
@@ -81,229 +76,219 @@ const VendorList = ({ onEdit, onVendorDeleted }) => {
 
   const handleFormSuccess = () => {
     closeFormModal();
-    fetchVendors(); // refresh list
+    fetchVendors();
   };
 
-  // Filtered vendors
+  // Filtered & Paginated
   const filteredVendors = vendors.filter((v) =>
     [v.name, v.vendor_code, v.gst_number]
       .filter(Boolean)
       .some((val) => val.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Pagination logic
   const totalPages = Math.ceil(filteredVendors.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedVendors = filteredVendors.slice(startIndex, startIndex + itemsPerPage);
 
+  const formatPhone = (vendor) => {
+    return [vendor.phone, vendor.mobile].filter(Boolean).join(' / ') || '—';
+  };
+
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-cyan-300 font-mono">Loading vendors...</p>
+          <div className="w-8 h-8 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-zinc-500">Loading vendors...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-gray-900 text-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header with Back Button */}
-        <div className="flex items-center gap-4 mb-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-cyan-800 rounded-xl transition"
-          >
-            <ArrowLeft size={18} />
-            Back
-          </button>
-          <div className="flex items-center gap-3">
-            <Building className="text-cyan-400" size={28} />
-            <h1 className="text-3xl font-bold text-pink-400">Vendors Management</h1>
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <FiArrowLeft size={20} />
+              <span className="font-medium">Back</span>
+            </button>
+
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center shadow">
+                <FiUsers className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                  Vendors
+                </h1>
+                <p className="text-zinc-500">Manage your suppliers and vendors</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={fetchVendors}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 hover:text-zinc-900 transition"
+            >
+              <FiRefreshCw size={18} /> Refresh
+            </button>
+
+            <button
+              onClick={() => navigate('/vendor-ledger')}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 hover:text-zinc-900 transition"
+            >
+              Vendor Ledger
+            </button>
+
+            <button
+              onClick={() => openFormModal()}
+              className="flex items-center gap-3 px-6 py-3 bg-zinc-900 hover:bg-black text-white rounded-2xl font-medium transition shadow-sm"
+            >
+              <FiPlus size={20} /> Add New Vendor
+            </button>
           </div>
         </div>
 
-        {/* Add Vendor Button */}
-        <div className="flex justify-end mb-6 gap-4">
-          <button
-            onClick={() => openFormModal()}
-            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-6 py-3 rounded-xl font-medium transition flex items-center gap-2 shadow-lg shadow-cyan-900/30"
-          >
-            <Plus size={18} /> Add New Vendor
-          </button>
-          <button
-            onClick={() => navigate('/vendor-ledger')}
-            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-6 py-3 rounded-xl font-medium transition flex items-center gap-2 shadow-lg shadow-cyan-900/30"
-          >
-            vendor ledger
-          </button>
-        </div>
-
         {/* Search */}
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+        <div className="bg-white border border-zinc-200 rounded-3xl p-6 mb-8">
+          <div className="relative max-w-md">
+            <FiSearch className="absolute left-4 top-3.5 text-zinc-400" size={20} />
             <input
               type="text"
               placeholder="Search by name, vendor code or GSTIN..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-12 py-3 focus:border-cyan-500 outline-none text-gray-100"
+              className="w-full pl-12 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400"
             />
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-900/60 border border-red-700 text-red-200 px-6 py-4 rounded-xl mb-6">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl mb-8">
             {error}
           </div>
         )}
 
-        {/* Table or Empty State */}
-        {filteredVendors.length === 0 ? (
-          <div className="bg-gray-900/40 border border-cyan-800 rounded-xl shadow text-center py-16">
-            <div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Building className="w-12 h-12 text-cyan-500" />
-            </div>
-            <h3 className="text-2xl font-bold text-pink-400 mb-3">No Vendors Found</h3>
-            <p className="text-cyan-300 max-w-md mx-auto">
-              {searchTerm
-                ? `No results matching "${searchTerm}"`
-                : "You haven't added any vendors yet. Start by creating your first supplier."}
-            </p>
-            {!searchTerm && (
-              <button
-                onClick={() => openFormModal()}
-                className="mt-6 inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-xl font-medium transition"
-              >
-                <Plus size={18} /> Add First Vendor
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="bg-gray-900/40 border border-cyan-800 rounded-xl shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-900/60 border-b border-cyan-800">
+        {/* Table */}
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-50">
+                <tr>
+                  <th className="px-8 py-5 text-left font-semibold text-zinc-600">Vendor Name</th>
+                  <th className="px-8 py-5 text-left font-semibold text-zinc-600">Code</th>
+                  <th className="px-8 py-5 text-left font-semibold text-zinc-600">GSTIN</th>
+                  <th className="px-8 py-5 text-left font-semibold text-zinc-600">Contact</th>
+                  <th className="px-8 py-5 text-left font-semibold text-zinc-600">Type</th>
+                  <th className="px-8 py-5 text-center font-semibold text-zinc-600">Status</th>
+                  <th className="px-8 py-5 text-center font-semibold text-zinc-600">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {filteredVendors.length === 0 ? (
                   <tr>
-                    {["Name", "Code", "GSTIN", "Contact", "Type", "Status", "Actions"].map((head) => (
-                      <th
-                        key={head}
-                        className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-cyan-400 uppercase"
-                      >
-                        {head}
-                      </th>
-                    ))}
+                    <td colSpan={7} className="text-center py-20 text-zinc-500">
+                      {searchTerm ? `No vendors found for "${searchTerm}"` : "No vendors found"}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {paginatedVendors.map((vendor) => (
-                    <tr key={vendor.id} className="hover:bg-gray-900/60 transition-colors">
-                      <td className="px-6 py-5 font-medium text-pink-300">{vendor.name}</td>
-                      <td className="px-6 py-5 text-gray-300 font-mono">{vendor.vendor_code || '—'}</td>
-                      <td className="px-6 py-5 font-mono">{vendor.gst_number || '—'}</td>
-                      <td className="px-6 py-5">
-                        {[vendor.phone, vendor.mobile].filter(Boolean).join(' / ') || '—'}
-                      </td>
-                      <td className="px-6 py-5 capitalize text-cyan-200">{vendor.vendor_type || 'goods'}</td>
-                      <td className="px-6 py-5">
-                        <div className="flex gap-2 flex-wrap">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              vendor.is_active
-                                ? 'bg-green-900/60 text-green-300 border border-green-700/40'
-                                : 'bg-gray-800 text-gray-400 border border-gray-700'
-                            }`}
-                          >
+                ) : (
+                  paginatedVendors.map((vendor) => (
+                    <tr key={vendor.id} className="hover:bg-zinc-50 transition-colors">
+                      <td className="px-8 py-6 font-medium text-zinc-900">{vendor.name}</td>
+                      <td className="px-8 py-6 font-mono text-zinc-700">{vendor.vendor_code || '—'}</td>
+                      <td className="px-8 py-6 font-mono text-zinc-700">{vendor.gst_number || '—'}</td>
+                      <td className="px-8 py-6 text-zinc-700">{formatPhone(vendor)}</td>
+                      <td className="px-8 py-6 capitalize text-zinc-700">{vendor.vendor_type || 'goods'}</td>
+                      <td className="px-8 py-6 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <span className={`inline-block px-5 py-2 rounded-2xl text-xs font-medium ${vendor.is_active ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>
                             {vendor.is_active ? 'Active' : 'Inactive'}
                           </span>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              vendor.is_approved
-                                ? 'bg-blue-900/60 text-blue-300 border border-blue-700/40'
-                                : 'bg-yellow-900/40 text-yellow-300 border border-yellow-700/30'
-                            }`}
-                          >
+                          <span className={`inline-block px-5 py-2 rounded-2xl text-xs font-medium ${vendor.is_approved ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"}`}>
                             {vendor.is_approved ? 'Approved' : 'Pending'}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-4">
+                      <td className="px-8 py-6 text-center">
+                        <div className="flex items-center justify-center gap-4">
                           <button
                             onClick={() => openFormModal(vendor.id)}
-                            className="text-cyan-400 hover:text-pink-400 transition flex items-center gap-1"
+                            className="text-zinc-700 hover:text-zinc-900 transition p-3 hover:bg-zinc-100 rounded-xl"
+                            title="Edit"
                           >
-                            <Edit size={16} /> Edit
+                            <FiEdit2 size={20} />
                           </button>
                           <button
                             onClick={() => handleDelete(vendor.id)}
-                            className="text-red-400 hover:text-red-300 transition flex items-center gap-1"
+                            className="text-zinc-700 hover:text-red-600 transition p-3 hover:bg-zinc-100 rounded-xl"
+                            title="Delete"
                           >
-                            <Trash2 size={16} /> Delete
+                            <FiTrash2 size={20} />
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between p-6 border-t border-gray-800">
-                <div className="text-sm text-gray-400">
-                  Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredVendors.length)} 
-                  of {filteredVendors.length} vendors
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="flex items-center gap-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-xl transition"
-                  >
-                    <ChevronLeft size={18} /> Previous
-                  </button>
-
-                  <div className="px-5 py-2 bg-gray-800 rounded-xl text-sm font-medium">
-                    Page {currentPage} of {totalPages}
-                  </div>
-
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="flex items-center gap-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-xl transition"
-                  >
-                    Next <ChevronRight size={18} />
-                  </button>
-                </div>
-              </div>
-            )}
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-8 py-6 border-t border-zinc-100 flex items-center justify-between bg-white">
+              <div className="text-sm text-zinc-500">
+                Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredVendors.length)} of {filteredVendors.length} vendors
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-5 py-2.5 border border-zinc-200 rounded-2xl hover:bg-zinc-50 disabled:opacity-50 transition"
+                >
+                  Previous
+                </button>
+                <div className="px-6 py-2.5 bg-zinc-100 rounded-2xl font-medium text-sm">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-5 py-2.5 border border-zinc-200 rounded-2xl hover:bg-zinc-50 disabled:opacity-50 transition"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Vendor Form Modal */}
       {showFormModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-gray-900 border border-cyan-800 rounded-xl w-full max-w-4xl max-h-[95vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="bg-gray-900/80 px-6 py-4 border-b border-cyan-800 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-pink-400">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="px-8 py-6 border-b border-zinc-200 flex justify-between items-center">
+              <h3 className="text-2xl font-bold text-zinc-900">
                 {editVendorId ? 'Edit Vendor' : 'Add New Vendor'}
               </h3>
               <button
                 onClick={closeFormModal}
-                className="text-cyan-300 hover:text-red-400 text-2xl font-bold"
+                className="text-3xl text-zinc-400 hover:text-zinc-600 transition"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-6 md:p-8 overflow-y-auto flex-1">
+            <div className="p-8 overflow-y-auto flex-1">
               <VendorForm
                 vendorId={editVendorId}
                 onSuccess={handleFormSuccess}

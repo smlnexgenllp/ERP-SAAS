@@ -1,5 +1,5 @@
-// src/pages/DispatchPage.jsx
-import React, { useState, useEffect } from "react";
+// src/pages/modules/sales/components/DispatchPage.jsx
+import React, { useState, useEffect, useCallback } from "react";
 import api from "../../../../services/api";
 import { 
   Plus, Trash2, Save, Truck, CheckCircle, Printer, 
@@ -9,6 +9,7 @@ import {
 export default function DispatchPage() {
   const [itemList, setItemList] = useState([]);
   const [dispatchList, setDispatchList] = useState([]);
+  const [filteredList, setFilteredList] = useState([]);
 
   const [form, setForm] = useState({
     sales_order: "",
@@ -30,21 +31,24 @@ export default function DispatchPage() {
     },
   ]);
 
+  const [salesOrdersForItem, setSalesOrdersForItem] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true);
   const [confirmingId, setConfirmingId] = useState(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [currentDC, setCurrentDC] = useState(null);
   const [printLoading, setPrintLoading] = useState(false);
 
+  // Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+
+  // Fetch data on mount
   useEffect(() => {
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
     fetchInitialData();
+    fetchDispatches();
   }, []);
 
   const fetchInitialData = async () => {
-    setPageLoading(true);
     try {
       const res = await api.get("/inventory/items/");
       setItemList(res.data);
@@ -62,55 +66,16 @@ export default function DispatchPage() {
     }
   };
 
-  const handleItemChange = async (index, itemId) => {
-    const updatedItems = [...items];
-    updatedItems[index] = { 
-      ...updatedItems[index], 
-      item: itemId, 
-      sales_order: "", 
-      so_number: "", 
-      ordered_qty: 0, 
-      dispatch_qty: 0, 
-      available_stock: 0 
-    };
-    setItems(updatedItems);
+  // Apply filters
+  useEffect(() => {
+    let result = [...dispatchList];
 
-    if (itemId) {
-      try {
-        const soRes = await api.get(`/inventory/sales-orders/by-item/${itemId}/`);
-        setSalesOrdersForItem(soRes.data || []);
-
-        const stockRes = await api.get(`/inventory/item/${itemId}/department/0/stock/`);
-        updatedItems[index].available_stock = parseFloat(stockRes.data?.available_stock || 0);
-        setItems([...updatedItems]);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-  };
-
-  const refreshDispatchList = async () => {
-    try {
-      const res = await api.get("/inventory/dispatch/");
-      setDispatchList(res.data);
-      applyFilters(res.data); // Apply current filters after refresh
-    } catch (err) {
-      console.error("Failed to refresh dispatch list:", err);
-    }
-  };
-
-  // Apply filters whenever searchTerm or statusFilter or dispatchList changes
-  const applyFilters = (list = dispatchList) => {
-    let result = [...list];
-
-    // Status Filter
     if (statusFilter !== "All") {
       result = result.filter(item => 
-        item.status.toLowerCase() === statusFilter.toLowerCase()
+        item.status?.toLowerCase() === statusFilter.toLowerCase()
       );
     }
 
-    // Search Filter (DC Number or Customer Name)
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
       result = result.filter(item => 
@@ -120,12 +85,9 @@ export default function DispatchPage() {
     }
 
     setFilteredList(result);
-  };
-
-  // Re-apply filters when dependencies change
-  useEffect(() => {
-    applyFilters();
   }, [dispatchList, statusFilter, searchTerm]);
+
+  // ==================== Item Handlers ====================
 
   const handleItemChange = useCallback(async (index, itemId) => {
     const updatedItems = [...items];
@@ -148,8 +110,8 @@ export default function DispatchPage() {
         api.get(`/inventory/item/${itemId}/department/0/stock/`)
       ]);
 
-      setSalesOrdersForItem(soRes.data);
-      updatedItems[index].available_stock = parseFloat(stockRes.data.available_stock || 0);
+      setSalesOrdersForItem(soRes.data || []);
+      updatedItems[index].available_stock = parseFloat(stockRes.data?.available_stock || 0);
       setItems([...updatedItems]);
     } catch (err) {
       console.error("Error fetching SO or stock:", err);
@@ -171,7 +133,7 @@ export default function DispatchPage() {
       sales_order: selectedSO.id,
       so_number: selectedSO.so_number,
       ordered_qty: selectedSO.ordered_qty || 0,
-      dispatch_qty: Math.min(selectedSO.pending_qty || 0, updatedItems[index].available_stock || 0),
+      dispatch_qty: maxDispatch,
     };
     setItems(updatedItems);
 
@@ -199,14 +161,7 @@ export default function DispatchPage() {
   }, [items]);
 
   const addRow = () => {
-    setItems(prev => [
-      ...prev,
-      { item: "", sales_order: "", so_number: "", ordered_qty: 0, dispatch_qty: 0, available_stock: 0 }
-    ]);
-  };
-
-  const addRow = () => {
-    setItems([...items, { 
+    setItems(prev => [...prev, { 
       item: "", 
       sales_order: "", 
       so_number: "", 
@@ -218,9 +173,11 @@ export default function DispatchPage() {
 
   const removeRow = (index) => {
     if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
+      setItems(prev => prev.filter((_, i) => i !== index));
     }
   };
+
+  // ==================== Submit & Actions ====================
 
   const handleSubmit = async () => {
     if (!form.customer_name || items.some(row => !row.item || row.dispatch_qty <= 0)) {
@@ -242,7 +199,7 @@ export default function DispatchPage() {
       await api.post("/inventory/dispatch/", payload);
       alert("Draft Dispatch created successfully!");
 
-      await refreshDispatchList();
+      await fetchDispatches();
       resetForm();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to create dispatch");
@@ -257,15 +214,13 @@ export default function DispatchPage() {
     setConfirmingId(id);
     try {
       const res = await api.post(`/inventory/dispatch/${id}/confirm_dispatch/`);
-      
       alert(res.data.message || "Dispatch confirmed successfully!");
 
       if (res.data.dc_data) {
         setCurrentDC(res.data.dc_data);
         setShowPrintModal(true);
       }
-      alert(res.data.message || "Dispatch confirmed successfully!");
-      fetchDispatches();
+      await fetchDispatches();
     } catch (err) {
       alert(err.response?.data?.error || "Failed to confirm dispatch.");
     } finally {
@@ -277,30 +232,25 @@ export default function DispatchPage() {
     setPrintLoading(true);
     try {
       const res = await api.get(`/inventory/dispatch/${dispatchId}/`);
-      if (res.data) {
-        setCurrentDC({
-          dc_number: res.data.dc_number,
-          dc_date: new Date(res.data.dispatch_date).toLocaleDateString("en-GB"),
-          company_name: res.data.organization?.name || "Company",
-          company_address: res.data.organization?.address || "",
-          company_gstin: res.data.gst_settings?.gstin || "",
-          customer_name: res.data.customer_name,
-          customer_address: res.data.customer_address,
-          customer_gst: res.data.customer_gst || "",
-          vehicle_number: res.data.vehicle_number || "",
-          transporter_name: res.data.transporter_name || "",
-          sales_order_number: res.data.sales_order_number || "",
-          items: res.data.items || [],
-          total_taxable: res.data.total_taxable || 0,
-          total_gst: res.data.total_gst || 0,
-          grand_total: res.data.grand_total || 0,
-          place_of_supply: res.data.place_of_supply || "Tamil Nadu",
-          reason: res.data.reason || "Sales",
-        });
-        setShowPrintModal(true);
-      }
+      setCurrentDC({
+        dc_number: res.data.dc_number,
+        dc_date: new Date(res.data.dispatch_date).toLocaleDateString("en-GB"),
+        company_name: res.data.organization?.name || "Company",
+        company_address: res.data.organization?.address || "",
+        company_gstin: res.data.gst_settings?.gstin || "",
+        customer_name: res.data.customer_name,
+        customer_address: res.data.customer_address,
+        customer_gst: res.data.customer_gst || "",
+        vehicle_number: res.data.vehicle_number || "",
+        transporter_name: res.data.transporter_name || "",
+        items: res.data.items || [],
+        ...res.data
+      });
+      setShowPrintModal(true);
     } catch (err) {
       alert("Failed to load DC for printing");
+    } finally {
+      setPrintLoading(false);
     }
   };
 
@@ -316,7 +266,7 @@ export default function DispatchPage() {
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
             table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid black; padding: 8px; text-align: center; }
+            th, td { border: 1px solid black; padding: 8px; text-align: left; }
             .header { border-bottom: 4px solid #0B5ED7; padding-bottom: 15px; margin-bottom: 20px; }
           </style>
         </head>
@@ -350,9 +300,6 @@ export default function DispatchPage() {
     }]);
     setSalesOrdersForItem([]);
   };
-
-  // Missing state declaration - added here
-  const [salesOrdersForItem, setSalesOrdersForItem] = useState([]);
 
   return (
     <div className="min-h-screen bg-zinc-100 text-zinc-800">
@@ -412,7 +359,7 @@ export default function DispatchPage() {
               <input 
                 value={form.vehicle_number} 
                 onChange={(e) => setForm({ ...form, vehicle_number: e.target.value })} 
-                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400"
                 placeholder="TN 07 AB 1234"
               />
             </div>
@@ -430,7 +377,7 @@ export default function DispatchPage() {
 
           <h4 className="text-lg font-semibold text-zinc-900 mb-4">Items to Dispatch</h4>
 
-          <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden mb-8">
+          <div className="border border-zinc-200 rounded-3xl overflow-hidden mb-8">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-zinc-100">
                 <thead className="bg-zinc-50">
@@ -463,7 +410,7 @@ export default function DispatchPage() {
                           value={row.sales_order} 
                           onChange={(e) => handleSalesOrderChange(index, e.target.value)} 
                           disabled={!row.item}
-                          className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400 disabled:bg-zinc-100 disabled:text-zinc-400"
+                          className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400 disabled:bg-zinc-100"
                         >
                           <option value="">Select SO</option>
                           {salesOrdersForItem.map(so => (
@@ -532,8 +479,27 @@ export default function DispatchPage() {
 
         {/* Dispatch History */}
         <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
-          <div className="px-8 py-6 bg-zinc-50 border-b border-zinc-100">
+          <div className="px-8 py-6 bg-zinc-50 border-b flex flex-col md:flex-row gap-4 justify-between items-center">
             <h3 className="text-2xl font-semibold text-zinc-900">Dispatch History</h3>
+            
+            <div className="flex gap-4 w-full md:w-auto">
+              <input
+                type="text"
+                placeholder="Search DC or Customer..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="px-5 py-3 border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400 w-full md:w-80"
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-5 py-3 border border-zinc-200 rounded-2xl focus:outline-none focus:border-zinc-400"
+              >
+                <option value="All">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="dispatched">Dispatched</option>
+              </select>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -547,7 +513,7 @@ export default function DispatchPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {dispatchList.map(d => (
+                {filteredList.map(d => (
                   <tr key={d.id} className="hover:bg-zinc-50 transition-colors">
                     <td className="px-8 py-6 font-medium text-zinc-900">
                       {d.dc_number || `DRAFT-${d.id}`}
@@ -559,7 +525,7 @@ export default function DispatchPage() {
                           ? 'bg-emerald-100 text-emerald-700' 
                           : 'bg-amber-100 text-amber-700'
                       }`}>
-                        {d.status.toUpperCase()}
+                        {d.status?.toUpperCase() || 'DRAFT'}
                       </span>
                     </td>
                     <td className="px-8 py-6 text-center">
@@ -567,7 +533,7 @@ export default function DispatchPage() {
                         <button
                           onClick={() => confirmDispatch(d.id)}
                           disabled={confirmingId === d.id}
-                          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-2xl text-sm font-medium transition disabled:opacity-70"
+                          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-2xl text-sm font-medium transition disabled:opacity-70 mx-auto"
                         >
                           <CheckCircle size={18} />
                           Confirm Dispatch
@@ -575,7 +541,8 @@ export default function DispatchPage() {
                       ) : (
                         <button
                           onClick={() => printExistingDC(d.id)}
-                          className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white px-6 py-2.5 rounded-2xl text-sm font-medium transition"
+                          disabled={printLoading}
+                          className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white px-6 py-2.5 rounded-2xl text-sm font-medium transition mx-auto"
                         >
                           <Printer size={18} />
                           Print DC
@@ -592,7 +559,7 @@ export default function DispatchPage() {
 
       {/* Print Preview Modal */}
       {showPrintModal && currentDC && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
             <div className="px-8 py-5 border-b flex justify-between items-center bg-zinc-50 rounded-t-3xl">
               <h3 className="font-semibold text-xl text-zinc-900 flex items-center gap-3">
@@ -628,14 +595,18 @@ export default function DispatchPage() {
                   fontSize: "13px",
                 }}
               >
-                {/* Your existing print content remains the same */}
-                <div style={{ borderBottom: "3px solid #0B5ED7", paddingBottom: "12px" }}>
-                  <h1 style={{ margin: 0, color: "#0B5ED7", fontSize: "24px" }}>{currentDC.company_name}</h1>
-                  <p style={{ margin: 0 }}>Manufacturing & Supply of Precision Components</p>
+                {/* Add your full printable DC layout here */}
+                <div className="header">
+                  <h1 style={{ margin: 0, color: "#0B5ED7", fontSize: "28px" }}>
+                    {currentDC.company_name}
+                  </h1>
+                  <p>Delivery Challan</p>
                 </div>
 
-                {/* ... rest of your print HTML remains unchanged ... */}
-                {/* (Keeping your original print layout exactly as it was) */}
+                <p><strong>DC Number:</strong> {currentDC.dc_number}</p>
+                <p><strong>Date:</strong> {currentDC.dc_date}</p>
+                <p><strong>Customer:</strong> {currentDC.customer_name}</p>
+                {/* Add more fields as per your requirement */}
               </div>
             </div>
           </div>

@@ -3,17 +3,15 @@ import React, { useState } from 'react';
 import TaskUpdateForm from './TaskUpdateForm';
 import TaskHistory from './TaskHistory';
 import { Target, Calendar, CheckCircle2, User, ChevronDown, ChevronUp, Clock, Edit3 } from 'lucide-react';
-import { format } from 'date-fns'; // Make sure you have date-fns installed: npm i date-fns
+import { format } from 'date-fns';
 
 const TaskCard = ({ task, onUpdate }) => {
   const progress = task.progress_percentage || 0;
   const isCompleted = task.is_completed;
   const [showDetails, setShowDetails] = useState(false);
 
-  // Get the latest update (most recent first because of ordering in model)
   const latestUpdate = task.updates && task.updates.length > 0 ? task.updates[0] : null;
 
-  // Format timestamp nicely: "Jan 3, 2026 at 2:45 PM"
   const formatDateTime = (dateString) => {
     if (!dateString) return '—';
     try {
@@ -24,117 +22,122 @@ const TaskCard = ({ task, onUpdate }) => {
   };
 
   return (
-    <div className="bg-gray-900/50 backdrop-blur-lg border border-cyan-900/60 rounded-2xl shadow-lg hover:shadow-cyan-500/30 hover:border-cyan-500/60 transition-all duration-300 overflow-hidden">
-      {/* Thin Glow Bar */}
-      <div className="h-1 bg-gradient-to-r from-cyan-600 via-cyan-400 to-blue-600"></div>
+    <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+      {/* Progress Bar at Top */}
+      <div className="h-1.5 bg-zinc-100 relative">
+        <div
+          className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-700"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
 
-      <div className="p-4">
+      <div className="p-6">
         {/* Header */}
-        <div className="flex items-start gap-3">
-          <Target className="w-7 h-7 text-cyan-400 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 bg-zinc-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Target className="w-5 h-5 text-zinc-600" />
+          </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-cyan-300 truncate">{task.title}</h3>
+            <h3 className="font-semibold text-zinc-900 text-lg leading-tight">{task.title}</h3>
             {task.description && (
-              <p className="text-xs text-gray-500 line-clamp-1 mt-1">{task.description}</p>
+              <p className="text-sm text-zinc-600 line-clamp-2 mt-2">{task.description}</p>
             )}
           </div>
         </div>
 
-        {/* Stats Row - Now 4 columns including Assigned To */}
-        <div className="grid grid-cols-4 gap-2 mt-4">
-          <div className="text-center">
-            <User className="w-4 h-4 text-cyan-500 mx-auto mb-1" />
-            <p className="text-xs text-gray-400">BY</p>
-            <p className="text-xs text-cyan-200 font-medium truncate">
-              {task.assigned_by_name || 'Command'}
+        {/* Info Grid */}
+        <div className="grid grid-cols-2 gap-4 mt-6">
+          <div>
+            <p className="text-xs text-zinc-500">ASSIGNED BY</p>
+            <p className="text-sm font-medium text-zinc-800 mt-1">
+              {task.assigned_by_name || 'System'}
             </p>
           </div>
-
-          <div className="text-center">
-            <User className="w-4 h-4 text-cyan-500 mx-auto mb-1" />
-            <p className="text-xs text-gray-400">TO</p>
-            <p className="text-xs text-cyan-200 font-medium truncate">
+          <div>
+            <p className="text-xs text-zinc-500">ASSIGNED TO</p>
+            <p className="text-sm font-medium text-zinc-800 mt-1">
               {task.assigned_to_name || 'Unassigned'}
             </p>
           </div>
-
-          <div className="text-center">
-            <Calendar className="w-4 h-4 text-cyan-500 mx-auto mb-1" />
-            <p className="text-xs text-gray-400">DUE</p>
-            <p className="text-xs text-cyan-200 font-medium">
-              {task.deadline || '∞'}
+          <div>
+            <p className="text-xs text-zinc-500">DEADLINE</p>
+            <p className="text-sm font-medium text-zinc-800 mt-1">
+              {task.deadline ? new Date(task.deadline).toLocaleDateString('en-IN', {
+                day: 'numeric', month: 'short', year: 'numeric'
+              }) : 'No deadline'}
             </p>
           </div>
-
-          <div className="text-center">
-            <CheckCircle2
-              className={`w-4 h-4 mx-auto mb-1 ${isCompleted ? 'text-green-400' : 'text-yellow-400'}`}
-            />
-            <p className="text-xs text-gray-400">STATUS</p>
-            <p className={`text-xs font-bold ${isCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
-              {isCompleted ? 'DONE' : 'ACTIVE'}
+          <div>
+            <p className="text-xs text-zinc-500">STATUS</p>
+            <p className={`text-sm font-semibold mt-1 flex items-center gap-1.5 ${isCompleted ? 'text-emerald-600' : 'text-amber-600'}`}>
+              <CheckCircle2 className="w-4 h-4" />
+              {isCompleted ? 'Completed' : 'In Progress'}
             </p>
           </div>
         </div>
 
         {/* Progress Bar */}
-        <div className="mt-4">
-          <div className="flex justify-between items-center mb-1.5">
-            <span className="text-xs font-medium text-cyan-400">{progress}%</span>
-            <span className="text-sm font-bold text-cyan-300">PROGRESS</span>
+        <div className="mt-6">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="font-medium text-zinc-700">Progress</span>
+            <span className="font-semibold text-zinc-900">{progress}%</span>
           </div>
-          <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden border border-cyan-900/50">
+          <div className="h-2.5 bg-zinc-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-cyan-500 to-green-500 transition-all duration-700"
+              className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        {/* Latest Update Preview (when collapsed) */}
+        {/* Latest Update Preview */}
         {latestUpdate && !showDetails && (
-          <div className="mt-4 pt-4 border-t border-cyan-900/30">
-            <div className="flex items-start gap-2 text-xs">
-              <Edit3 className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-cyan-200 font-medium truncate">
-                  {latestUpdate.updated_by_name || 'Someone'} updated:
+          <div className="mt-6 pt-5 border-t border-zinc-100">
+            <div className="flex items-start gap-3 text-sm">
+              <Edit3 className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium text-zinc-800">
+                  {latestUpdate.updated_by_name || 'Someone'} updated
                 </p>
-                <p className="text-gray-400 line-clamp-2 mt-1">
-                  {latestUpdate.change_description || 'No description'}
+                <p className="text-zinc-600 mt-1 line-clamp-2">
+                  {latestUpdate.change_description || 'No description provided'}
                 </p>
-                <div className="flex items-center gap-1 mt-1 text-gray-500">
-                  <Clock className="w-3 h-3" />
-                  <span>{formatDateTime(latestUpdate.timestamp)}</span>
-                </div>
+                <p className="text-xs text-zinc-500 mt-2">
+                  {formatDateTime(latestUpdate.timestamp)}
+                </p>
               </div>
             </div>
           </div>
         )}
 
         {/* Toggle Button */}
-        <div className="mt-4 flex justify-center">
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center gap-2 px-4 py-1.5 text-xs font-mono text-cyan-400 hover:text-cyan-300 bg-gray-800/50 hover:bg-gray-700/60 rounded-lg border border-cyan-900/60 transition"
-          >
-            {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            {showDetails ? 'Hide Details' : 'Update & Full History'}
-          </button>
-        </div>
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className="mt-6 w-full flex items-center justify-center gap-2 py-3 border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-sm font-medium text-zinc-700 transition"
+        >
+          {showDetails ? (
+            <>
+              <ChevronUp className="w-4 h-4" /> Hide Details
+            </>
+          ) : (
+            <>
+              <ChevronDown className="w-4 h-4" /> Show Update & History
+            </>
+          )}
+        </button>
 
-        {/* Expanded Section */}
+        {/* Expanded Content */}
         {showDetails && (
-          <div className="mt-6 pt-6 border-t border-cyan-800/40 space-y-8 animate-fadeIn">
+          <div className="mt-6 pt-6 border-t border-zinc-100 space-y-8">
             <TaskUpdateForm task={task} onUpdate={onUpdate} />
             <TaskHistory updates={task.updates || []} />
           </div>
         )}
 
-        {/* Footer when collapsed */}
+        {/* Footer */}
         {!showDetails && (
-          <div className="mt-3 pt-3 border-t border-cyan-900/20 text-center">
-            <p className="text-xs text-gray-600 font-mono">Task #{task.id}</p>
+          <div className="mt-4 text-center">
+            <p className="text-xs text-zinc-500">Task #{task.id}</p>
           </div>
         )}
       </div>

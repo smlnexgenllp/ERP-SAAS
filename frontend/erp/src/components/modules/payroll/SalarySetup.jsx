@@ -1,14 +1,13 @@
-// SalarySetup.jsx - Cyberpunk Theme
+// SalarySetup.jsx
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle,
   AlertTriangle,
-  Bug,
   Save,
   RefreshCw,
 } from 'lucide-react';
 import api from '../../../services/api';
-import SalaryForm from './SalaryForm'; // Your UI form component (you'll need to restyle it too)
+import SalaryForm from './SalaryForm';
 
 const SalarySetup = ({ employees = [], onSalaryUpdated, loading = false }) => {
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -51,7 +50,6 @@ const SalarySetup = ({ employees = [], onSalaryUpdated, loading = false }) => {
     pf_voluntary_amount: 0,
   });
 
-  // Helpers (same as original)
   const getTodayDate = () => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -137,7 +135,7 @@ const SalarySetup = ({ employees = [], onSalaryUpdated, loading = false }) => {
     loadExistingSalary();
   }, [selectedEmployee]);
 
-  // Calculations (same logic)
+  // Calculations
   useEffect(() => {
     const basic = parseFloat(salaryData.basic_salary) || 0;
     const allowances = {
@@ -192,7 +190,6 @@ const SalarySetup = ({ employees = [], onSalaryUpdated, loading = false }) => {
     });
   }, [salaryData]);
 
-  // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedEmployee) return setError('Please select an employee');
@@ -253,48 +250,42 @@ const SalarySetup = ({ employees = [], onSalaryUpdated, loading = false }) => {
   };
 
   return (
-    <div className="bg-gray-900/20 border border-cyan-900 rounded-xl p-6 shadow-lg shadow-cyan-950/30">
+    <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-3 h-3 rounded-full bg-pink-400 shadow shadow-pink-500/50"></div>
-            <h2 className="text-pink-400 text-2xl font-bold">SALARY CONFIGURATION TERMINAL</h2>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl flex items-center justify-center">
+              <Save className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-zinc-900">Salary Setup</h2>
+              <p className="text-zinc-500 mt-1">
+                Configure salary structure, ESI, PF, allowances & deductions
+              </p>
+            </div>
           </div>
-          <p className="text-gray-400">
-            Configure salary structure, ESI, PF, allowances & deductions
-          </p>
         </div>
-
-        <button
-          onClick={() => alert('API test feature disabled in production. Use real employee data.')}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-pink-700 rounded-lg text-pink-300 hover:bg-pink-900/30 transition"
-        >
-          <Bug className="w-5 h-5" />
-          Test API (disabled)
-        </button>
       </div>
 
-      {/* Success & Error Messages */}
+      {/* Success Message */}
       {success && (
-        <div className="mb-6 bg-green-900/30 border border-green-700 rounded-xl p-4 flex items-center gap-3">
-          <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-green-300 font-semibold">Success</p>
-            <p className="text-gray-300">Salary configuration saved successfully!</p>
+        <div className="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-4 rounded-2xl flex items-center gap-3">
+          <CheckCircle className="w-6 h-6" />
+          <div>
+            <p className="font-semibold">Success</p>
+            <p>Salary configuration saved successfully!</p>
           </div>
         </div>
       )}
 
+      {/* Error Message */}
       {error && (
-        <div className="mb-6 bg-red-900/30 border border-red-700 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-1" />
-          <div className="flex-1">
-            <p className="text-red-300 font-semibold">Error</p>
-            <p className="text-gray-300">{error}</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Check console (F12) for details
-            </p>
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl flex items-start gap-3">
+          <AlertTriangle className="w-6 h-6 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold">Error</p>
+            <p>{error}</p>
           </div>
         </div>
       )}

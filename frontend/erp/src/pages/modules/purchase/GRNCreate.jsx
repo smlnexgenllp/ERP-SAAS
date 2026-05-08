@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import api from "../../../services/api";
 import { FiClipboard, FiArrowLeft, FiCheckCircle, FiLoader } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import api from "../../../services/api";
 
 export default function GRNCreate() {
   const navigate = useNavigate();
@@ -24,7 +24,6 @@ export default function GRNCreate() {
       setError(null);
 
       const res = await api.get("/inventory/gate-entries/ready-for-grn/");
-      console.log("Loaded gate entries ready for GRN:", res.data?.length || 0);
       setGateEntries(res.data || []);
     } catch (err) {
       console.error("Failed to load gate entries:", err);
@@ -55,7 +54,6 @@ export default function GRNCreate() {
 
       setSelectedGateEntry(ge);
 
-      // Get latest approved QC
       const qcRes = await api.get(
         `/inventory/quality-inspections/?gate_entry=${ge.id}&is_approved=true&ordering=-inspection_date`
       );
@@ -68,18 +66,6 @@ export default function GRNCreate() {
 
       setQcId(latestQC.id);
 
-      // Log QC items structure for debugging
-      console.log("Latest QC items structure:", 
-        latestQC.items.map(item => ({
-          item_id: item.item_id,
-          item_name: item.item_name,
-          item_code: item.item_code,
-          accepted_qty: item.accepted_qty,
-          rejected_qty: item.rejected_qty
-        }))
-      );
-
-      // Get PO for unit prices
       const poId = ge.po?.id || ge.purchase_order?.id || ge.po;
       if (!poId) {
         setError("No linked Purchase Order found");
@@ -97,15 +83,10 @@ export default function GRNCreate() {
         }
       });
 
-      // Map QC items → use item_id !!!
       const mappedItems = latestQC.items
         .map((qcItem) => {
           const itemId = Number(qcItem.item_id);
-
-          if (!itemId || isNaN(itemId) || itemId < 1) {
-            console.warn("Skipping QC item - missing/invalid item_id:", qcItem);
-            return null;
-          }
+          if (!itemId || isNaN(itemId) || itemId < 1) return null;
 
           return {
             item: itemId,
@@ -116,11 +97,6 @@ export default function GRNCreate() {
           };
         })
         .filter(Boolean);
-
-      if (mappedItems.length === 0) {
-        setError("No valid accepted items found in the latest approved QC");
-        return;
-      }
 
       setItems(mappedItems);
     } catch (err) {
@@ -137,58 +113,56 @@ export default function GRNCreate() {
   );
 
   const saveGRN = async () => {
-  if (!selectedGateEntry?.id) {
-    alert("No Gate Entry selected");
-    return;
-  }
-
-  if (items.length === 0) {
-    alert("No items available to create GRN");
-    return;
-  }
-
-  const invalid = items.filter(i => {
-    const qty = Number(i.received_qty);
-    return isNaN(qty) || qty <= 0 || qty > Number(i.accepted_qty);
-  });
-
-  if (invalid.length > 0) {
-    alert("Invalid received quantity detected");
-    return;
-  }
-
-  try {
-    const qcCheck = await api.get(
-      `/inventory/quality-inspections/?gate_entry=${selectedGateEntry.id}&is_approved=true`
-    );
-
-    const qc = qcCheck.data?.results?.[0] || qcCheck.data?.[0];
-
-    if (!qc || !qc.is_approved) {
-      alert("QC not approved");
+    if (!selectedGateEntry?.id) {
+      alert("No Gate Entry selected");
       return;
     }
 
-    const payload = {
-      gate_entry: Number(selectedGateEntry.id),
-      items: items.map(i => ({
-        item: Number(i.item),
-        received_qty: Number(i.received_qty),
-      })),
-    };
+    if (items.length === 0) {
+      alert("No items available to create GRN");
+      return;
+    }
 
-    console.log("FINAL GRN PAYLOAD:", payload);
+    const invalid = items.filter(i => {
+      const qty = Number(i.received_qty);
+      return isNaN(qty) || qty <= 0 || qty > Number(i.accepted_qty);
+    });
 
-    const response = await api.post("/inventory/grns/", payload);
+    if (invalid.length > 0) {
+      alert("Invalid received quantity detected");
+      return;
+    }
 
-    alert(`GRN Created Successfully: ${response.data?.grn_number}`);
-    navigate("/inventory/grns");
+    try {
+      const qcCheck = await api.get(
+        `/inventory/quality-inspections/?gate_entry=${selectedGateEntry.id}&is_approved=true`
+      );
 
-  } catch (err) {
-    console.error("GRN ERROR:", err.response?.data || err);
-    alert(err.response?.data?.detail || "GRN creation failed");
-  }
-};
+      const qc = qcCheck.data?.results?.[0] || qcCheck.data?.[0];
+
+      if (!qc || !qc.is_approved) {
+        alert("QC not approved");
+        return;
+      }
+
+      const payload = {
+        gate_entry: Number(selectedGateEntry.id),
+        items: items.map(i => ({
+          item: Number(i.item),
+          received_qty: Number(i.received_qty),
+        })),
+      };
+
+      const response = await api.post("/inventory/grns/", payload);
+
+      alert(`GRN Created Successfully: ${response.data?.grn_number}`);
+      navigate("/inventory/grns");
+
+    } catch (err) {
+      console.error("GRN ERROR:", err.response?.data || err);
+      alert(err.response?.data?.detail || "GRN creation failed");
+    }
+  };
 
   const getPONumber = (ge) => {
     if (!ge) return "—";
@@ -203,39 +177,54 @@ export default function GRNCreate() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
-          >
-            <FiArrowLeft size={20} /> Back
-          </button>
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-6">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <FiArrowLeft size={20} />
+              <span className="font-medium">Back</span>
+            </button>
 
-          <h1 className="text-3xl font-bold flex items-center gap-3 text-cyan-300">
-            <FiClipboard size={28} /> Create GRN from Approved QC
-          </h1>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center shadow">
+                <FiClipboard className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900">Create GRN</h1>
+                <p className="text-zinc-500">Goods Receipt Note from Approved QC</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="bg-gray-900 rounded-xl p-6 mb-8 border border-gray-800">
-          <label className="block mb-3 text-lg font-medium text-cyan-300">
+        {/* Gate Entry Selector */}
+        <div className="bg-white border border-zinc-200 rounded-3xl p-8 mb-8 shadow-sm">
+          <label className="block text-lg font-semibold text-zinc-900 mb-4">
             Select Gate Entry with Approved QC
           </label>
 
           {loading && (
-            <div className="flex items-center gap-3 text-cyan-400 py-4">
-              <FiLoader className="animate-spin" size={24} /> Loading...
+            <div className="flex items-center gap-3 text-zinc-500 py-6">
+              <FiLoader className="animate-spin" size={24} /> Loading Gate Entries...
             </div>
           )}
 
-          {error && <p className="text-red-400 mb-4 font-medium">{error}</p>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-5 rounded-2xl mb-6">
+              {error}
+            </div>
+          )}
 
-          {!loading && !error && (
+          {!loading && (
             <select
               onChange={handleGateEntryChange}
-              disabled={loading}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 focus:outline-none focus:border-cyan-500 transition"
+              className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-4 focus:outline-none focus:border-zinc-400 text-zinc-800"
             >
               <option value="">-- Select Gate Entry --</option>
               {gateEntries.map((ge) => (
@@ -247,25 +236,32 @@ export default function GRNCreate() {
           )}
         </div>
 
+        {/* Items Table */}
         {items.length > 0 && (
-          <div>
-            <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800 mb-8">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-800">
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+            <div className="px-8 py-6 border-b border-zinc-100">
+              <h2 className="text-2xl font-semibold text-zinc-900">GRN Items</h2>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-zinc-50">
                   <tr>
-                    <th className="p-4 text-left font-semibold">Item</th>
-                    <th className="p-4 text-center font-semibold">Accepted (QC)</th>
-                    <th className="p-4 text-center font-semibold">Received</th>
-                    <th className="p-4 text-right font-semibold">Rate</th>
-                    <th className="p-4 text-right font-semibold">Total</th>
+                    <th className="px-8 py-5 text-left font-semibold text-zinc-600">Item</th>
+                    <th className="px-8 py-5 text-center font-semibold text-zinc-600">Accepted (QC)</th>
+                    <th className="px-8 py-5 text-center font-semibold text-zinc-600">Received</th>
+                    <th className="px-8 py-5 text-right font-semibold text-zinc-600">Rate</th>
+                    <th className="px-8 py-5 text-right font-semibold text-zinc-600">Total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-800">
+                <tbody className="divide-y divide-zinc-100">
                   {items.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-800/50 transition-colors">
-                      <td className="p-4 font-medium">{item.name}</td>
-                      <td className="p-4 text-center">{item.accepted_qty}</td>
-                      <td className="p-4 text-center">
+                    <tr key={idx} className="hover:bg-zinc-50">
+                      <td className="px-8 py-6">
+                        <div className="font-medium">{item.name}</div>
+                      </td>
+                      <td className="px-8 py-6 text-center font-medium">{item.accepted_qty}</td>
+                      <td className="px-8 py-6 text-center">
                         <input
                           type="number"
                           min="0"
@@ -274,55 +270,54 @@ export default function GRNCreate() {
                           value={item.received_qty}
                           onChange={(e) => {
                             let val = e.target.value;
-                            if (val === "") {
-                              val = "";
-                            } else {
-                              val = Math.max(0, Math.min(Number(val), item.accepted_qty));
-                            }
+                            if (val === "") val = "";
+                            else val = Math.max(0, Math.min(Number(val), item.accepted_qty));
                             setItems(prev =>
                               prev.map((it, i) =>
                                 i === idx ? { ...it, received_qty: val } : it
                               )
                             );
                           }}
-                          className="w-24 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-center focus:outline-none focus:border-cyan-500"
+                          className="w-28 mx-auto border border-zinc-200 rounded-2xl px-4 py-2.5 text-center focus:border-zinc-400"
                         />
                       </td>
-                      <td className="p-4 text-right">₹ {formatCurrency(item.unit_price)}</td>
-                      <td className="p-4 text-right text-cyan-300 font-medium">
+                      <td className="px-8 py-6 text-right">₹ {formatCurrency(item.unit_price)}</td>
+                      <td className="px-8 py-6 text-right font-semibold text-zinc-900">
                         ₹ {formatCurrency(Number(item.received_qty) * Number(item.unit_price))}
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-gray-800 font-bold">
+                <tfoot className="bg-zinc-50">
                   <tr>
-                    <td colSpan="4" className="p-4 text-right text-gray-300">Grand Total</td>
-                    <td className="p-4 text-right text-cyan-400">₹ {formatCurrency(grandTotal)}</td>
+                    <td colSpan="4" className="px-8 py-6 text-right text-lg font-semibold">Grand Total</td>
+                    <td className="px-8 py-6 text-right text-2xl font-bold text-zinc-900">
+                      ₹ {formatCurrency(grandTotal)}
+                    </td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            <div className="flex justify-end">
+            <div className="p-8 border-t border-zinc-100 flex justify-end">
               <button
                 onClick={saveGRN}
                 disabled={loading}
-                className={`px-8 py-3 rounded-lg font-medium flex items-center gap-2 transition-all ${
+                className={`px-10 py-4 rounded-2xl font-medium flex items-center gap-3 transition-all ${
                   loading
-                    ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                    : "bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/30"
+                    ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                    : "bg-zinc-900 hover:bg-zinc-800 text-white"
                 }`}
               >
-                <FiCheckCircle size={18} />
-                {loading ? "Creating..." : "Create GRN"}
+                <FiCheckCircle size={20} />
+                {loading ? "Creating GRN..." : "Create GRN"}
               </button>
             </div>
           </div>
         )}
 
         {items.length === 0 && !loading && selectedGateEntry && (
-          <div className="text-center py-16 text-gray-400 italic bg-gray-900 rounded-xl border border-gray-800">
+          <div className="bg-white border border-zinc-200 rounded-3xl p-20 text-center text-zinc-500">
             No valid accepted items found in the latest approved quality inspection
           </div>
         )}

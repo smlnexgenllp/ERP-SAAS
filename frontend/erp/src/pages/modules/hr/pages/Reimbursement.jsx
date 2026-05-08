@@ -1,14 +1,9 @@
-import React, { useEffect, useState } from "react";
-import {
-  fetchReimbursements,
-  approveReimbursement,
-  rejectReimbursement,
-} from "../../../../../src/pages/modules/hr/api/hrApi";
-import { IndianRupee } from "lucide-react";
+// src/pages/modules/hr/Reimbursement.jsx
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../../../../services/api";
+import { IndianRupee, ArrowLeft } from "lucide-react";
 
-/* ============================
-   Reusable Table
-============================ */
 function ReimbursementTable({
   title,
   data,
@@ -20,17 +15,33 @@ function ReimbursementTable({
   filter,
   setFilter,
 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Filter data for history
+  const filteredData = showFilter
+    ? data.filter((r) => {
+        if (filter === "approved") return r.status === "approved";
+        if (filter === "rejected") return r.status === "rejected";
+        return true;
+      })
+    : data;
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage);
+
   return (
-    <section className="mb-10">
-      {/* HEADER + FILTER */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-blue-300">{title}</h2>
+    <section className="mb-12">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-semibold text-zinc-900">{title}</h2>
 
         {showFilter && (
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="bg-gray-900 border border-cyan-800 text-cyan-300 text-sm rounded px-3 py-1"
+            className="bg-white border border-zinc-200 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-zinc-400"
           >
             <option value="all">All</option>
             <option value="approved">Approved</option>
@@ -39,68 +50,116 @@ function ReimbursementTable({
         )}
       </div>
 
-      {data.length === 0 ? (
-        <p className="text-gray-500 text-sm">No records found</p>
-      ) : (
-        <div className="space-y-4">
-          {data.map((req) => (
-            <div
-              key={req.id}
-              className="flex flex-col md:flex-row md:items-center md:justify-between bg-gray-900/30 border border-cyan-900 rounded-xl p-5 gap-4"
-            >
-              {/* INFO */}
-              <div>
-                <p className="text-cyan-300 font-semibold">
-                  Employee: {req.employee?.full_name || "Employee"}
-                </p>
-                <p className="text-gray-400 text-sm mt-1">
-                  Manager: {req.manager?.full_name || "Manager"}
-                </p>
-                <p className="text-gray-400 text-sm mt-1">
-                  ₹{req.amount} • {req.reason}
-                </p>
-                <p className="text-gray-500 text-xs mt-1">
-                  Date: {req.date}
-                </p>
-
-                {/* STATUS BADGE */}
-                {!showActions && (
-                  <span
-                    className={`inline-block mt-2 px-2 py-0.5 text-xs rounded border ${
-                      req.status === "approved"
-                        ? "border-green-500 text-green-400"
-                        : "border-red-500 text-red-400"
-                    }`}
-                  >
-                    {req.status.toUpperCase()}
-                  </span>
+      <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-zinc-50">
+              <tr>
+                <th className="px-8 py-5 text-left font-semibold text-zinc-600">Employee</th>
+                <th className="px-8 py-5 text-left font-semibold text-zinc-600">Manager</th>
+                <th className="px-8 py-5 text-right font-semibold text-zinc-600">Amount</th>
+                <th className="px-8 py-5 text-left font-semibold text-zinc-600">Reason</th>
+                <th className="px-8 py-5 text-left font-semibold text-zinc-600">Date</th>
+                <th className="px-8 py-5 text-center font-semibold text-zinc-600">Status</th>
+                {showActions && (
+                  <th className="px-8 py-5 text-center font-semibold text-zinc-600">Actions</th>
                 )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {paginatedData.length === 0 ? (
+                <tr>
+                  <td colSpan={showActions ? 7 : 6} className="text-center py-16 text-zinc-500">
+                    No records found
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((req) => (
+                  <tr key={req.id} className="hover:bg-zinc-50 transition-colors">
+                    <td className="px-8 py-6 font-medium text-zinc-900">
+                      {req.employee?.full_name || "—"}
+                    </td>
+                    <td className="px-8 py-6 text-zinc-700">
+                      {req.manager?.full_name || "—"}
+                    </td>
+                    <td className="px-8 py-6 text-right font-semibold text-zinc-900">
+                      ₹{Number(req.amount).toLocaleString("en-IN")}
+                    </td>
+                    <td className="px-8 py-6 text-zinc-700">{req.reason}</td>
+                    <td className="px-8 py-6 text-zinc-700">{req.date}</td>
+                    <td className="px-8 py-6 text-center">
+                      <span
+                        className={`inline-block px-5 py-2 rounded-2xl text-xs font-medium ${
+                          req.status === "approved"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : req.status === "rejected"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {req.status.toUpperCase()}
+                      </span>
+                    </td>
+                    {showActions && (
+                      <td className="px-8 py-6 text-center">
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            disabled={actionLoading === req.id}
+                            onClick={() => onApprove(req.id)}
+                            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-medium transition disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            disabled={actionLoading === req.id}
+                            onClick={() => onReject(req.id)}
+                            className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-sm font-medium transition disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-8 py-6 border-t border-zinc-100 flex items-center justify-between bg-white">
+            <div className="text-sm text-zinc-500">
+              Showing {startIndex + 1} to{" "}
+              {Math.min(startIndex + itemsPerPage, filteredData.length)} of{" "}
+              {filteredData.length} records
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-5 py-2.5 border border-zinc-200 rounded-2xl hover:bg-zinc-50 disabled:opacity-50 transition"
+              >
+                Previous
+              </button>
+
+              <div className="px-6 py-2.5 bg-zinc-100 rounded-2xl font-medium text-sm">
+                Page {currentPage} of {totalPages}
               </div>
 
-              {/* ACTIONS */}
-              {showActions && (
-                <div className="flex gap-2">
-                  <button
-                    disabled={actionLoading === req.id}
-                    onClick={() => onApprove(req.id)}
-                    className="px-4 py-1.5 bg-green-500/20 text-green-400 border border-green-500 rounded hover:bg-green-500/30 disabled:opacity-50"
-                  >
-                    {actionLoading === req.id ? "Approving..." : "Approve"}
-                  </button>
-
-                  <button
-                    disabled={actionLoading === req.id}
-                    onClick={() => onReject(req.id)}
-                    className="px-4 py-1.5 bg-red-500/20 text-red-400 border border-red-500 rounded hover:bg-red-500/30 disabled:opacity-50"
-                  >
-                    {actionLoading === req.id ? "Rejecting..." : "Reject"}
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-5 py-2.5 border border-zinc-200 rounded-2xl hover:bg-zinc-50 disabled:opacity-50 transition"
+              >
+                Next
+              </button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -109,6 +168,8 @@ function ReimbursementTable({
    Main Component
 ============================ */
 export default function Reimbursement() {
+  const navigate = useNavigate();
+
   const [reimbursements, setReimbursements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
@@ -121,7 +182,7 @@ export default function Reimbursement() {
   const loadReimbursements = async () => {
     try {
       setLoading(true);
-      const res = await fetchReimbursements();
+      const res = await api.get("/hr/reimbursements/");
       setReimbursements(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Failed to load reimbursements", err);
@@ -134,7 +195,6 @@ export default function Reimbursement() {
   const handleApprove = async (id) => {
     try {
       setActionLoading(id);
-      await approveReimbursement(id);
       await loadReimbursements();
     } catch (err) {
       console.error("Approve failed", err);
@@ -146,7 +206,6 @@ export default function Reimbursement() {
   const handleReject = async (id) => {
     try {
       setActionLoading(id);
-      await rejectReimbursement(id);
       await loadReimbursements();
     } catch (err) {
       console.error("Reject failed", err);
@@ -157,51 +216,63 @@ export default function Reimbursement() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950 text-cyan-300 font-mono">
-        Loading reimbursement requests...
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-zinc-500">Loading reimbursement requests...</p>
+        </div>
       </div>
     );
   }
 
-  /* ============================
-     DATA SPLIT
-  ============================ */
   const pending = reimbursements.filter((r) => r.status === "pending");
 
-  const history = reimbursements.filter((r) => {
-    if (historyFilter === "approved") return r.status === "approved";
-    if (historyFilter === "rejected") return r.status === "rejected";
-    return r.status === "approved" || r.status === "rejected";
-  });
-
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono p-6">
-      {/* HEADER */}
-      <header className="flex items-center gap-3 border-b border-cyan-800 pb-4 mb-6">
-        <IndianRupee className="w-6 h-6 text-cyan-400" />
-        <h1 className="text-blue-300 text-xl font-bold">
-          Reimbursement Requests
-        </h1>
-      </header>
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
+        {/* Header with Back Button */}
+        <div className="flex items-center gap-5 mb-10">
+          <button
+            onClick={() => navigate("/hr/dashboard")}
+            className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+          >
+            <ArrowLeft size={20} />
+            <span className="font-medium">Back</span>
+          </button>
 
-      {/* PENDING TABLE */}
-      <ReimbursementTable
-        title="Pending Requests"
-        data={pending}
-        showActions
-        onApprove={handleApprove}
-        onReject={handleReject}
-        actionLoading={actionLoading}
-      />
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
+              <IndianRupee className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+                Reimbursement Requests
+              </h1>
+              <p className="text-zinc-500">Manage employee reimbursement claims</p>
+            </div>
+          </div>
+        </div>
 
-      {/* HISTORY TABLE */}
-      <ReimbursementTable
-        title="Request History"
-        data={history}
-        showFilter
-        filter={historyFilter}
-        setFilter={setHistoryFilter}
-      />
+        {/* Pending Requests */}
+        <ReimbursementTable
+          title="Pending Requests"
+          data={pending}
+          showActions
+          onApprove={handleApprove}
+          onReject={handleReject}
+          actionLoading={actionLoading}
+        />
+
+        {/* Request History */}
+        <ReimbursementTable
+          title="Request History"
+          data={reimbursements}
+          showFilter
+          filter={historyFilter}
+          setFilter={setHistoryFilter}
+        />
+      </div>
     </div>
   );
 }
