@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import api from "../../../services/api";
+import { Loader2 } from "lucide-react";
 
 const PayrollGenerate = ({ month, onSuccess }) => {
   const [loading, setLoading] = useState(false);
@@ -31,11 +32,16 @@ const PayrollGenerate = ({ month, onSuccess }) => {
     <button
       onClick={generatePayroll}
       disabled={loading || !month}
-      className="bg-gradient-to-r from-pink-500 to-purple-600 text-black px-8 py-3 rounded-lg font-bold
-                 hover:from-pink-400 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed
-                 transition shadow-lg"
+      className="flex items-center gap-3 px-8 py-3.5 bg-zinc-900 hover:bg-black text-white rounded-2xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md active:scale-[0.985]"
     >
-      {loading ? "GENERATING PAYROLL..." : "GENERATE PAYROLL"}
+      {loading ? (
+        <>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          GENERATING PAYROLL...
+        </>
+      ) : (
+        "GENERATE PAYROLL"
+      )}
     </button>
   );
 };

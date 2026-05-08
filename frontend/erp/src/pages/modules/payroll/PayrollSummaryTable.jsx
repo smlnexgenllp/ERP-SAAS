@@ -1,7 +1,7 @@
 // components/modules/payroll/PayrollSummaryTable.jsx
 import React, { useEffect, useState } from "react";
 import api from "../../../services/api";
-import { Download } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
 const PayrollSummaryTable = ({ month }) => {
   const [invoices, setInvoices] = useState([]);
@@ -11,6 +11,7 @@ const PayrollSummaryTable = ({ month }) => {
   useEffect(() => {
     if (!month) {
       setInvoices([]);
+      setTotalNet(0);
       return;
     }
 
@@ -22,13 +23,14 @@ const PayrollSummaryTable = ({ month }) => {
         setInvoices(data);
 
         const total = data.reduce(
-          (sum, inv) => sum + parseFloat(inv.net_salary),
+          (sum, inv) => sum + parseFloat(inv.net_salary || 0),
           0
         );
         setTotalNet(total);
       } catch (err) {
         console.error("Failed to fetch invoices:", err);
         setInvoices([]);
+        setTotalNet(0);
       } finally {
         setLoading(false);
       }
@@ -38,12 +40,23 @@ const PayrollSummaryTable = ({ month }) => {
   }, [month]);
 
   if (!month) return null;
-  if (loading)
-    return <p className="text-cyan-400">Loading payroll summary...</p>;
-  if (invoices.length === 0)
+
+  if (loading) {
     return (
-      <p className="text-gray-500">No payroll generated for {month} yet.</p>
+      <div className="py-12 text-center">
+        <Loader2 className="w-8 h-8 animate-spin mx-auto text-zinc-600" />
+        <p className="text-zinc-500 mt-4">Loading payroll summary...</p>
+      </div>
     );
+  }
+
+  if (invoices.length === 0) {
+    return (
+      <div className="py-12 text-center">
+        <p className="text-zinc-500">No payroll generated for {month} yet.</p>
+      </div>
+    );
+  }
 
   const monthName = new Date(`${month}-01`).toLocaleString("default", {
     month: "long",
@@ -52,80 +65,78 @@ const PayrollSummaryTable = ({ month }) => {
 
   return (
     <div className="mt-8">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-2xl font-bold text-green-400">
+      <div className="flex flex-wrap justify-between items-end gap-6 mb-6">
+        <h3 className="text-2xl font-semibold text-zinc-900">
           Payroll Summary - {monthName}
         </h3>
-        <div className="text-right">
-          <p className="text-gray-400">Total Employees</p>
-          <p className="text-2xl font-bold text-pink-400">{invoices.length}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-gray-400">Total Net Payable</p>
-          <p className="text-3xl font-bold text-green-400">
-            ₹{totalNet.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-          </p>
+
+        <div className="flex gap-10">
+          <div>
+            <p className="text-zinc-500 text-sm">Total Employees</p>
+            <p className="text-3xl font-bold text-zinc-900">{invoices.length}</p>
+          </div>
+          <div>
+            <p className="text-zinc-500 text-sm">Total Net Payable</p>
+            <p className="text-3xl font-bold text-emerald-600">
+              ₹{totalNet.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border border-cyan-800">
-          <thead className="bg-gray-800 text-cyan-300">
+      <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-zinc-50">
             <tr>
-              <th className="p-3 text-left">Employee</th>
-              <th className="p-3 text-left">Code</th>
-              <th className="p-3">Gross</th>
-              <th className="p-3 text-red-400">Deductions</th>
-              <th className="p-3 text-green-400 font-bold">Net Pay</th>
-              <th className="p-3">Status</th>
+              <th className="px-6 py-5 text-left font-semibold text-zinc-600">Employee</th>
+              <th className="px-6 py-5 text-left font-semibold text-zinc-600">Code</th>
+              <th className="px-6 py-5 text-right font-semibold text-zinc-600">Gross Salary</th>
+              <th className="px-6 py-5 text-right font-semibold text-red-600">Deductions</th>
+              <th className="px-6 py-5 text-right font-semibold text-emerald-600">Net Pay</th>
+              <th className="px-6 py-5 text-center font-semibold text-zinc-600">Status</th>
+              <th className="px-6 py-5 text-center font-semibold text-zinc-600">Action</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-zinc-100">
             {invoices.map((inv) => (
-              <tr
-                key={inv.id}
-                className="border-t border-cyan-900 hover:bg-gray-800/50"
-              >
-                <td className="p-3">{inv.employee_name}</td>
-                <td className="p-3 text-gray-500">{inv.employee_code}</td>
-                <td className="p-3">
-                  ₹{parseFloat(inv.gross_salary).toFixed(2)}
+              <tr key={inv.id} className="hover:bg-zinc-50 transition-colors">
+                <td className="px-6 py-5 font-medium text-zinc-900">
+                  {inv.employee_name}
                 </td>
-                <td className="p-3 text-red-400">
-                  -₹{parseFloat(inv.total_deductions).toFixed(2)}
+                <td className="px-6 py-5 text-zinc-500">{inv.employee_code}</td>
+                <td className="px-6 py-5 text-right text-zinc-700">
+                  ₹{parseFloat(inv.gross_salary || 0).toFixed(2)}
                 </td>
-                <td className="p-3 text-green-400 font-bold">
-                  ₹
-                  {parseFloat(inv.net_salary).toLocaleString("en-IN", {
+                <td className="px-6 py-5 text-right text-red-600">
+                  -₹{parseFloat(inv.total_deductions || 0).toFixed(2)}
+                </td>
+                <td className="px-6 py-5 text-right font-semibold text-emerald-600">
+                  ₹{parseFloat(inv.net_salary || 0).toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
                   })}
                 </td>
-
-                <td className="p-3 text-center">
+                <td className="px-6 py-5 text-center">
                   <span
-                    className={`px-3 py-2 rounded-full text-xs font-bold
-    ${
-      inv.status === "GENERATED"
-        ? "bg-yellow-900/50 text-yellow-300"
-        : inv.status === "PAID"
-        ? "bg-green-900/50 text-green-300"
-        : "bg-gray-700 text-gray-300"
-    }`}
+                    className={`inline-block px-4 py-1.5 rounded-full text-xs font-semibold
+                      ${inv.status === "PAID"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : inv.status === "GENERATED"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-zinc-100 text-zinc-600"
+                      }`}
                   >
                     {inv.status}
                   </span>
-
+                </td>
+                <td className="px-6 py-5 text-center">
                   <a
                     href={`/api/hr/payroll/payslip/${inv.id}/pdf/`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-4 inline-block px-5 py-2 bg-gradient-to-r from-cyan-500 to-pink-500 
-               text-black font-bold rounded-lg hover:opacity-90 transition text-sm"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-2xl text-sm font-medium transition"
                   >
-                    <span className="flex justify-center gap-2">
-                      {" "}
-                      <Download /> PAYSLIP
-                    </span>
+                    <Download size={18} />
+                    Payslip
                   </a>
                 </td>
               </tr>
