@@ -1,4 +1,4 @@
-// payrollDashboard.jsx - Cyberpunk theme
+// payrollDashboard.jsx
 import React from 'react';
 import {
   DollarSign,
@@ -24,41 +24,41 @@ const PayrollDashboard = ({ employees = [], payrollHistory = [], loading = false
       : 0,
   };
 
-  const StatCard = ({ title, value, icon: Icon, color = 'cyan', subtitle }) => (
-    <div className="bg-gray-900/30 border border-cyan-900 rounded-xl shadow-lg shadow-cyan-950/30 p-6 flex flex-col hover:shadow-cyan-800/50 transition">
-      <div className="flex items-center gap-4 mb-4">
-        <div className="bg-gray-800/50 p-3 rounded-lg">
-          <Icon className={`w-7 h-7 text-${color}-400`} />
+  const StatCard = ({ title, value, icon: Icon, color = 'zinc', subtitle }) => (
+    <div className="bg-white border border-zinc-200 rounded-3xl p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-start gap-4">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-zinc-100`}>
+          <Icon className={`w-6 h-6 text-${color}-600`} />
         </div>
-        <div>
-          <p className="text-gray-400 text-sm uppercase tracking-wide">{title}</p>
-          <p className="text-3xl font-bold text-cyan-300">
+        <div className="flex-1">
+          <p className="text-zinc-500 text-sm font-medium">{title}</p>
+          <p className="text-4xl font-bold text-zinc-900 mt-2">
             {loading ? '...' : value}
           </p>
+          {subtitle && (
+            <p className="text-zinc-500 text-sm mt-1">{subtitle}</p>
+          )}
         </div>
       </div>
-      {subtitle && (
-        <p className="text-gray-500 text-sm mt-auto">{subtitle}</p>
-      )}
     </div>
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Employees"
           value={stats.totalEmployees}
           icon={Users}
-          color="cyan"
+          color="zinc"
         />
 
         <StatCard
           title="Salary Configured"
           value={stats.employeesWithSalary}
           icon={DollarSign}
-          color="green"
+          color="emerald"
           subtitle={`${stats.employeesWithSalary} of ${stats.totalEmployees}`}
         />
 
@@ -66,29 +66,32 @@ const PayrollDashboard = ({ employees = [], payrollHistory = [], loading = false
           title="Total Invoices"
           value={stats.totalInvoices}
           icon={Receipt}
-          color="pink"
+          color="zinc"
         />
 
         <StatCard
           title="Total Payroll"
-          value={`$${stats.totalPayrollAmount.toLocaleString()}`}
+          value={`₹${stats.totalPayrollAmount.toLocaleString('en-IN')}`}
           icon={TrendingUp}
-          color="cyan"
+          color="emerald"
         />
       </div>
 
       {/* Two-column content */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
         {/* Recent Salary Updates */}
-        <div className="bg-gray-900/30 border border-cyan-900 rounded-xl shadow-lg shadow-cyan-950/30 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-3 h-3 rounded-full bg-pink-400 shadow shadow-pink-500/50"></div>
-            <h3 className="text-pink-400 text-xl font-bold">Recent Salary Updates</h3>
-          </div>
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8">
+          <h3 className="text-xl font-semibold text-zinc-900 mb-6 flex items-center gap-3">
+            <div className="w-8 h-8 bg-emerald-100 rounded-2xl flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-emerald-600" />
+            </div>
+            Recent Salary Updates
+          </h3>
 
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex justify-center py-16">
+              <div className="w-8 h-8 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -98,35 +101,35 @@ const PayrollDashboard = ({ employees = [], payrollHistory = [], loading = false
                 .map((employee) => (
                   <div
                     key={employee.id || employee._id}
-                    className="flex items-start gap-4 bg-gray-800/30 p-4 rounded-lg border border-cyan-900/50 hover:border-cyan-700 transition"
+                    className="flex items-center gap-4 bg-zinc-50 p-5 rounded-2xl border border-zinc-100 hover:border-zinc-200 transition"
                   >
-                    <div className="bg-gray-800 p-3 rounded-full">
-                      <Users className="w-6 h-6 text-cyan-400" />
+                    <div className="bg-white p-3 rounded-2xl shadow-sm">
+                      <Users className="w-6 h-6 text-zinc-600" />
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-cyan-300 font-semibold">
-                          {employee.name || 'Unknown Employee'}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <p className="font-semibold text-zinc-900 truncate">
+                          {employee.full_name || employee.name || 'Unknown Employee'}
                         </p>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-zinc-500 whitespace-nowrap ml-3">
                           {employee.salary?.updatedAt
-                            ? new Date(employee.salary.updatedAt).toLocaleDateString()
+                            ? new Date(employee.salary.updatedAt).toLocaleDateString('en-IN')
                             : 'N/A'}
                         </span>
                       </div>
-                      <p className="text-gray-400 text-sm mt-1">
-                        Salary: ${employee.salary?.baseSalary?.toLocaleString() || '0'}
+                      <p className="text-zinc-600 text-sm mt-0.5">
+                        ₹{employee.salary?.baseSalary?.toLocaleString('en-IN') || '0'}
                       </p>
-                      <span className="inline-block mt-2 px-3 py-1 bg-gray-800 border border-cyan-800 rounded text-xs text-cyan-300">
-                        {employee.designation || 'N/A'}
-                      </span>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        {employee.designation || 'No designation'}
+                      </p>
                     </div>
                   </div>
                 ))}
 
               {(!employees || employees.filter(emp => emp && emp.salary).length === 0) && (
-                <div className="text-center py-8 text-gray-500">
-                  <Clock className="w-10 h-10 mx-auto mb-3 text-gray-600" />
+                <div className="text-center py-16 text-zinc-500">
+                  <Clock className="w-12 h-12 mx-auto mb-4 text-zinc-300" />
                   <p>No recent salary updates</p>
                 </div>
               )}
@@ -135,15 +138,17 @@ const PayrollDashboard = ({ employees = [], payrollHistory = [], loading = false
         </div>
 
         {/* Employees Pending Salary Setup */}
-        <div className="bg-gray-900/30 border border-cyan-900 rounded-xl shadow-lg shadow-cyan-950/30 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-3 h-3 rounded-full bg-pink-400 shadow shadow-pink-500/50"></div>
-            <h3 className="text-pink-400 text-xl font-bold">Pending Salary Setup</h3>
-          </div>
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8">
+          <h3 className="text-xl font-semibold text-zinc-900 mb-6 flex items-center gap-3">
+            <div className="w-8 h-8 bg-amber-100 rounded-2xl flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+            </div>
+            Pending Salary Setup
+          </h3>
 
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-8 h-8 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex justify-center py-16">
+              <div className="w-8 h-8 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -153,34 +158,34 @@ const PayrollDashboard = ({ employees = [], payrollHistory = [], loading = false
                 .map((employee) => (
                   <div
                     key={employee.id || employee._id}
-                    className="flex items-start gap-4 bg-gray-800/30 p-4 rounded-lg border border-amber-900/50 hover:border-amber-700 transition"
+                    className="flex items-center gap-4 bg-amber-50 p-5 rounded-2xl border border-amber-100 hover:border-amber-200 transition"
                   >
-                    <div className="bg-gray-800 p-3 rounded-full">
-                      <UserX className="w-6 h-6 text-amber-400" />
+                    <div className="bg-white p-3 rounded-2xl shadow-sm">
+                      <UserX className="w-6 h-6 text-amber-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-cyan-300 font-semibold">
-                          {employee.name || 'Unknown Employee'}
+                      <div className="flex justify-between">
+                        <p className="font-semibold text-zinc-900">
+                          {employee.full_name || employee.name || 'Unknown Employee'}
                         </p>
-                        <span className="text-xs text-gray-500">
-                          {employee.employeeId || 'No ID'}
+                        <span className="text-xs text-zinc-500">
+                          {employee.employee_code || employee.employeeId || 'No ID'}
                         </span>
                       </div>
-                      <p className="text-gray-400 text-sm mt-1">
-                        {employee.designation || 'N/A'}
+                      <p className="text-zinc-600 text-sm mt-0.5">
+                        {employee.designation || 'No designation'}
                       </p>
-                      <span className="inline-block mt-2 px-3 py-1 bg-amber-900/40 border border-amber-700 rounded text-xs text-amber-300">
-                        Action Required
+                      <span className="inline-block mt-3 px-4 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                        Salary Setup Pending
                       </span>
                     </div>
                   </div>
                 ))}
 
               {(!employees || employees.filter(emp => emp && !emp.salary).length === 0) && (
-                <div className="text-center py-8 text-gray-500">
-                  <CheckCircle className="w-10 h-10 mx-auto mb-3 text-green-500" />
-                  <p>All employees have salary configured</p>
+                <div className="text-center py-16 text-zinc-500">
+                  <CheckCircle className="w-12 h-12 mx-auto mb-4 text-emerald-500" />
+                  <p>All employees have salary configured ✓</p>
                 </div>
               )}
             </div>
@@ -189,13 +194,6 @@ const PayrollDashboard = ({ employees = [], payrollHistory = [], loading = false
       </div>
     </div>
   );
-};
-
-// Default props for safety
-PayrollDashboard.defaultProps = {
-  employees: [],
-  payrollHistory: [],
-  loading: false,
 };
 
 export default PayrollDashboard;
