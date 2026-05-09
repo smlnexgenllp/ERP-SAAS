@@ -6,8 +6,6 @@ import {
   Plus,
   Edit2,
   Trash2,
-  Check,
-  X,
 } from "lucide-react";
 
 export default function DepartmentDesignationManagement() {
@@ -117,13 +115,10 @@ export default function DepartmentDesignationManagement() {
 
   // Delete handlers
   const deleteDepartment = async (id) => {
-    if (
-      !window.confirm("Delete this department? Employees will lose assignment.")
-    )
-      return;
+    if (!window.confirm("Delete this department? Employees will lose assignment.")) return;
     try {
       await api.delete(`/hr/departments/${id}/`);
-      showAlert("Department deleted");
+      showAlert("Department deleted successfully");
       fetchData();
     } catch (err) {
       showAlert("Cannot delete: Used by employees", "error");
@@ -134,7 +129,7 @@ export default function DepartmentDesignationManagement() {
     if (!window.confirm("Delete this designation?")) return;
     try {
       await api.delete(`/hr/designations/${id}/`);
-      showAlert("Designation deleted");
+      showAlert("Designation deleted successfully");
       fetchData();
     } catch (err) {
       showAlert("Cannot delete: Used by employees", "error");
@@ -156,212 +151,213 @@ export default function DepartmentDesignationManagement() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-950">
-        <div className="text-2xl text-cyan-400">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen bg-zinc-50">
+        <div className="text-2xl text-zinc-600">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black text-cyan-200 py-8 px-8">
+    <div className="min-h-screen bg-zinc-50 py-10 px-6">
       {/* Alert */}
       {alert.show && (
         <div
-          className={`fixed top-20 left-1/2 -translate-x-1/2 px-8 py-4 rounded-xl shadow-2xl z-50 font-medium ${
+          className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl shadow-xl z-50 font-medium border ${
             alert.type === "error"
-              ? "bg-red-900/80 border border-red-600 text-red-200"
-              : "bg-green-900/80 border border-green-600 text-green-200"
+              ? "bg-red-50 border-red-200 text-red-700"
+              : "bg-emerald-50 border-emerald-200 text-emerald-700"
           }`}
         >
           {alert.message}
         </div>
       )}
 
-      <div className="text-center mb-12">
-        <h1 className="text-5xl font-extrabold bg-gradient-to-r from-cyan-400 to-pink-500 bg-clip-text text-transparent">
-          Department & Designation Management
-        </h1>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-7xl mx-auto">
-        {/* Departments Section */}
-        <div className="bg-gray-900/50 backdrop-blur border border-cyan-800/50 rounded-3xl p-8 shadow-2xl">
-          <div className="flex items-center gap-4 mb-8">
-            <Building2 className="w-10 h-10 text-cyan-400" />
-            <h2 className="text-3xl font-bold text-cyan-300">Departments</h2>
-          </div>
-
-          {/* Create/Edit Form */}
-          <form
-            onSubmit={createDepartment}
-            className="mb-8 bg-gray-800/50 rounded-2xl p-6 border border-cyan-700/50"
-          >
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="Department Name"
-                value={deptName}
-                onChange={(e) => setDeptName(e.target.value)}
-                className="bg-gray-900 border border-cyan-700 rounded-lg px-4 py-3 text-cyan-200 placeholder-gray-500 focus:border-cyan-400 outline-none"
-                required
-              />
-              <input
-                type="text"
-                placeholder="Code (e.g. PDC)"
-                value={deptCode}
-                onChange={(e) => setDeptCode(e.target.value.toUpperCase())}
-                className="bg-gray-900 border border-cyan-700 rounded-lg px-4 py-3 text-cyan-200 placeholder-gray-500 focus:border-cyan-400 outline-none"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 py-3 rounded-lg font-bold hover:from-cyan-500 hover:to-blue-500 transition-all flex items-center justify-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              {editingDept ? "Update Department" : "Create Department"}
-            </button>
-            {editingDept && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingDept(null);
-                  setDeptName("");
-                  setDeptCode("");
-                }}
-                className="w-full mt-2 bg-gray-700 py-2 rounded-lg hover:bg-gray-600 transition"
-              >
-                Cancel
-              </button>
-            )}
-          </form>
-
-          {/* List */}
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {departments.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">
-                No departments yet
-              </p>
-            ) : (
-              departments.map((dept) => (
-                <div
-                  key={dept.id}
-                  className="bg-gray-800/60 border border-cyan-800/40 rounded-xl p-4 flex items-center justify-between hover:border-cyan-500 transition"
-                >
-                  <div>
-                    <h4 className="font-semibold text-cyan-200">{dept.name}</h4>
-                    <p className="text-sm text-gray-400">Code: {dept.code}</p>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => startEditDept(dept)}
-                      className="p-2 bg-blue-900/50 rounded-lg hover:bg-blue-800 transition"
-                    >
-                      <Edit2 className="w-5 h-5 text-blue-300" />
-                    </button>
-                    <button
-                      onClick={() => deleteDepartment(dept.id)}
-                      className="p-2 bg-red-900/50 rounded-lg hover:bg-red-800 transition"
-                    >
-                      <Trash2 className="w-5 h-5 text-red-300" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-zinc-900">
+            Department & Designation Management
+          </h1>
+          <p className="text-zinc-600 mt-3 text-lg">
+            Manage your organizational structure
+          </p>
         </div>
 
-        {/* Designations Section */}
-        <div className="bg-gray-900/50 backdrop-blur border border-cyan-800/50 rounded-3xl p-8 shadow-2xl">
-          <div className="flex items-center gap-4 mb-8">
-            <Briefcase className="w-10 h-10 text-pink-400" />
-            <h2 className="text-3xl font-bold text-pink-300">Designations</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          {/* Departments Section */}
+          <div className="bg-white rounded-3xl shadow-sm border border-zinc-200 p-8">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-blue-100 rounded-2xl">
+                <Building2 className="w-8 h-8 text-blue-600" />
+              </div>
+              <h2 className="text-3xl font-semibold text-zinc-900">Departments</h2>
+            </div>
+
+            {/* Create/Edit Form */}
+            <form
+              onSubmit={createDepartment}
+              className="mb-8 bg-zinc-50 border border-zinc-200 rounded-2xl p-6"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                <input
+                  type="text"
+                  placeholder="Department Name"
+                  value={deptName}
+                  onChange={(e) => setDeptName(e.target.value)}
+                  className="bg-white border border-zinc-300 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Code (e.g. HR, FIN, PDC)"
+                  value={deptCode}
+                  onChange={(e) => setDeptCode(e.target.value.toUpperCase())}
+                  className="bg-white border border-zinc-300 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 transition"
+              >
+                <Plus className="w-5 h-5" />
+                {editingDept ? "Update Department" : "Create Department"}
+              </button>
+              {editingDept && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingDept(null);
+                    setDeptName("");
+                    setDeptCode("");
+                  }}
+                  className="w-full mt-3 py-3 text-zinc-600 hover:bg-zinc-100 rounded-2xl font-medium transition"
+                >
+                  Cancel
+                </button>
+              )}
+            </form>
+
+            {/* List */}
+            <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2">
+              {departments.length === 0 ? (
+                <p className="text-center text-zinc-500 py-12">No departments found</p>
+              ) : (
+                departments.map((dept) => (
+                  <div
+                    key={dept.id}
+                    className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-2xl p-5 flex items-center justify-between transition group"
+                  >
+                    <div>
+                      <h4 className="font-semibold text-zinc-900 text-lg">{dept.name}</h4>
+                      <p className="text-sm text-zinc-500">Code: {dept.code}</p>
+                    </div>
+                    <div className="flex gap-2 opacity-90 group-hover:opacity-100">
+                      <button
+                        onClick={() => startEditDept(dept)}
+                        className="p-3 hover:bg-blue-50 rounded-xl transition text-blue-600 hover:text-blue-700"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => deleteDepartment(dept.id)}
+                        className="p-3 hover:bg-red-50 rounded-xl transition text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
-          {/* Create/Edit Form */}
-          <form
-            onSubmit={createDesignation}
-            className="mb-8 bg-gray-800/50 rounded-2xl p-6 border border-pink-700/50"
-          >
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <input
-                type="text"
-                placeholder="Title (e.g. Manager)"
-                value={desigTitle}
-                onChange={(e) => setDesigTitle(e.target.value)}
-                className="bg-gray-900 border border-pink-700 rounded-lg px-4 py-3 text-pink-200 placeholder-gray-500 focus:border-pink-400 outline-none col-span-2"
-                required
-              />
-              <input
-                type="text"
-                placeholder="Grade (optional, e.g. L1)"
-                value={desigGrade}
-                onChange={(e) => setDesigGrade(e.target.value.toUpperCase())}
-                className="bg-gray-900 border border-pink-700 rounded-lg px-4 py-3 text-pink-200 placeholder-gray-500 focus:border-pink-400 outline-none"
-              />
+          {/* Designations Section */}
+          <div className="bg-white rounded-3xl shadow-sm border border-zinc-200 p-8">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="p-3 bg-violet-100 rounded-2xl">
+                <Briefcase className="w-8 h-8 text-violet-600" />
+              </div>
+              <h2 className="text-3xl font-semibold text-zinc-900">Designations</h2>
             </div>
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-pink-600 to-purple-600 py-3 rounded-lg font-bold hover:from-pink-500 hover:to-purple-500 transition-all flex items-center justify-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              {editingDesig ? "Update Designation" : "Create Designation"}
-            </button>
-            {editingDesig && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingDesig(null);
-                  setDesigTitle("");
-                  setDesigGrade("");
-                }}
-                className="w-full mt-2 bg-gray-700 py-2 rounded-lg hover:bg-gray-600 transition"
-              >
-                Cancel
-              </button>
-            )}
-          </form>
 
-          {/* List */}
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {designations.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">
-                No designations yet
-              </p>
-            ) : (
-              designations.map((desig) => (
-                <div
-                  key={desig.id}
-                  className="bg-gray-800/60 border border-pink-800/40 rounded-xl p-4 flex items-center justify-between hover:border-pink-500 transition"
+            {/* Create/Edit Form */}
+            <form
+              onSubmit={createDesignation}
+              className="mb-8 bg-zinc-50 border border-zinc-200 rounded-2xl p-6"
+            >
+              <div className="space-y-4 mb-5">
+                <input
+                  type="text"
+                  placeholder="Designation Title (e.g. Senior Manager)"
+                  value={desigTitle}
+                  onChange={(e) => setDesigTitle(e.target.value)}
+                  className="bg-white border border-zinc-300 rounded-xl px-4 py-3 w-full focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Grade (optional, e.g. L3, M2)"
+                  value={desigGrade}
+                  onChange={(e) => setDesigGrade(e.target.value.toUpperCase())}
+                  className="bg-white border border-zinc-300 rounded-xl px-4 py-3 w-full focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 transition"
+              >
+                <Plus className="w-5 h-5" />
+                {editingDesig ? "Update Designation" : "Create Designation"}
+              </button>
+              {editingDesig && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingDesig(null);
+                    setDesigTitle("");
+                    setDesigGrade("");
+                  }}
+                  className="w-full mt-3 py-3 text-zinc-600 hover:bg-zinc-100 rounded-2xl font-medium transition"
                 >
-                  <div>
-                    <h4 className="font-semibold text-pink-200">
-                      {desig.title}
-                    </h4>
-                    {desig.grade && (
-                      <p className="text-sm text-gray-400">
-                        Grade: {desig.grade}
-                      </p>
-                    )}
+                  Cancel
+                </button>
+              )}
+            </form>
+
+            {/* List */}
+            <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2">
+              {designations.length === 0 ? (
+                <p className="text-center text-zinc-500 py-12">No designations found</p>
+              ) : (
+                designations.map((desig) => (
+                  <div
+                    key={desig.id}
+                    className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-2xl p-5 flex items-center justify-between transition group"
+                  >
+                    <div>
+                      <h4 className="font-semibold text-zinc-900 text-lg">{desig.title}</h4>
+                      {desig.grade && (
+                        <p className="text-sm text-zinc-500">Grade: {desig.grade}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 opacity-90 group-hover:opacity-100">
+                      <button
+                        onClick={() => startEditDesig(desig)}
+                        className="p-3 hover:bg-violet-50 rounded-xl transition text-violet-600 hover:text-violet-700"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => deleteDesignation(desig.id)}
+                        className="p-3 hover:bg-red-50 rounded-xl transition text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => startEditDesig(desig)}
-                      className="p-2 bg-purple-900/50 rounded-lg hover:bg-purple-800 transition"
-                    >
-                      <Edit2 className="w-5 h-5 text-purple-300" />
-                    </button>
-                    <button
-                      onClick={() => deleteDesignation(desig.id)}
-                      className="p-2 bg-red-900/50 rounded-lg hover:bg-red-800 transition"
-                    >
-                      <Trash2 className="w-5 h-5 text-red-300" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
