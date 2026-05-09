@@ -1,4 +1,4 @@
-// src/components/modules/hr/PerformanceReport.jsx (PER-PROJECT PERFORMANCE)
+// src/components/modules/hr/PerformanceReport.jsx
 import React, { useEffect, useState } from 'react';
 import api from '../../../services/api';
 import { 
@@ -12,11 +12,10 @@ import {
 
 const PerformanceReport = () => {
   const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState('all'); // 'all' = overall
+  const [selectedProject, setSelectedProject] = useState('all');
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch projects and performance
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -26,7 +25,7 @@ const PerformanceReport = () => {
         const projList = Array.isArray(projRes.data) ? projRes.data : projRes.data?.results || [];
         setProjects(projList);
 
-        // Fetch overall report (your existing endpoint)
+        // Fetch overall report
         const reportRes = await api.get('/hr/performance-report/');
         setReport(reportRes.data);
       } catch (err) {
@@ -40,17 +39,13 @@ const PerformanceReport = () => {
     fetchData();
   }, []);
 
-  // Calculate project-specific stats (client-side for now)
   const getProjectStats = () => {
     if (selectedProject === 'all' || !report) return report;
-
-    // This is a placeholder — ideally, backend should provide per-project stats
-    // For now, show message
     return {
       weekly: { average_rating: '—', rated_days: 0 },
       monthly: { average_rating: '—', rated_days: 0 },
       tasks: { completed: 0, total: 0, completion_rate: 0 },
-      note: 'Per-project stats coming soon'
+      note: 'Per-project detailed stats coming soon'
     };
   };
 
@@ -58,107 +53,109 @@ const PerformanceReport = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="w-16 h-16 text-cyan-400 animate-spin mb-6" />
-        <p className="text-xl text-cyan-300 font-mono">LOADING METRICS...</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center">
+          <Loader2 className="w-10 h-10 animate-spin text-zinc-600" />
+          <p className="text-zinc-500 mt-4">Loading performance report...</p>
+        </div>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <div className="text-center py-20">
-        <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-        <p className="text-xl text-red-400 font-mono">REPORT UNAVAILABLE</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-10 rounded-3xl text-center max-w-md">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+          <p className="font-medium">Performance report is currently unavailable</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Header */}
-      <div className="text-center mb-10">
-        <div className="flex items-center justify-center gap-4 mb-5">
-          <TrendingUp className="w-12 h-12 text-cyan-400 animate-pulse" />
-          <h2 className="text-3xl font-bold text-cyan-300">
-            PERFORMANCE REPORT
-          </h2>
+      <div className="text-center">
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <TrendingUp className="w-10 h-10 text-emerald-600" />
+          <h2 className="text-4xl font-bold text-zinc-900">Performance Report</h2>
         </div>
+        <p className="text-zinc-500">Overall team performance and project insights</p>
+      </div>
 
-        {/* Project Selector */}
-        <div className="max-w-md mx-auto">
-          <label className="flex items-center gap-3 text-cyan-300 font-bold text-sm mb-3 justify-center">
-            <FolderOpen className="w-6 h-6" />
-            VIEW BY PROJECT
-          </label>
-          <select
-            value={selectedProject}
-            onChange={(e) => setSelectedProject(e.target.value)}
-            className="w-full px-5 py-3 bg-gray-800/60 border-2 border-cyan-900 rounded-xl text-cyan-200 font-mono focus:border-cyan-500 transition"
-          >
-            <option value="all">All Projects (Overall)</option>
-            {projects.map((proj) => (
-              <option key={proj.id} value={proj.id}>
-                {proj.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Project Selector */}
+      <div className="max-w-md mx-auto">
+        <label className="block text-sm font-medium text-zinc-600 mb-2 text-center">
+          View Report For
+        </label>
+        <select
+          value={selectedProject}
+          onChange={(e) => setSelectedProject(e.target.value)}
+          className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800"
+        >
+          <option value="all">All Projects (Overall Performance)</option>
+          {projects.map((proj) => (
+            <option key={proj.id} value={proj.id}>
+              {proj.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Weekly Rating */}
-        <div className="bg-gray-900/60 backdrop-blur border-2 border-cyan-900 rounded-2xl p-8 text-center hover:border-cyan-500 transition">
-          <CalendarDays className="w-14 h-14 text-cyan-400 mx-auto mb-4" />
-          <p className="text-lg text-gray-400 mb-3 font-mono">WEEKLY RATING</p>
-          <p className="text-5xl font-bold text-cyan-300 mb-2">
+        <div className="bg-white border border-zinc-200 rounded-3xl p-8 text-center hover:shadow-md transition">
+          <CalendarDays className="w-12 h-12 text-emerald-600 mx-auto mb-4" />
+          <p className="text-sm font-medium text-zinc-500 mb-1">WEEKLY AVERAGE</p>
+          <p className="text-5xl font-bold text-zinc-900 mb-1">
             {currentStats.weekly.average_rating !== '—' 
-              ? `${currentStats.weekly.average_rating.toFixed(1)}/5`
+              ? currentStats.weekly.average_rating.toFixed(1)
               : '—'}
           </p>
-          <p className="text-sm text-gray-400">
-            {currentStats.weekly.rated_days} days rated
+          <p className="text-sm text-zinc-500">
+            {currentStats.weekly.rated_days} days rated this week
           </p>
         </div>
 
         {/* Monthly Rating */}
-        <div className="bg-gray-900/60 backdrop-blur border-2 border-yellow-900/70 rounded-2xl p-8 text-center hover:border-yellow-500 transition">
-          <CalendarDays className="w-14 h-14 text-yellow-400 mx-auto mb-4" />
-          <p className="text-lg text-gray-400 mb-3 font-mono">MONTHLY RATING</p>
-          <p className="text-5xl font-bold text-yellow-300 mb-2">
+        <div className="bg-white border border-zinc-200 rounded-3xl p-8 text-center hover:shadow-md transition">
+          <CalendarDays className="w-12 h-12 text-amber-600 mx-auto mb-4" />
+          <p className="text-sm font-medium text-zinc-500 mb-1">MONTHLY AVERAGE</p>
+          <p className="text-5xl font-bold text-zinc-900 mb-1">
             {currentStats.monthly.average_rating !== '—' 
-              ? `${currentStats.monthly.average_rating.toFixed(1)}/5`
+              ? currentStats.monthly.average_rating.toFixed(1)
               : '—'}
           </p>
-          <p className="text-sm text-gray-400">
-            {currentStats.monthly.rated_days} days rated
+          <p className="text-sm text-zinc-500">
+            {currentStats.monthly.rated_days} days rated this month
           </p>
         </div>
 
         {/* Task Completion */}
-        <div className="bg-gray-900/60 backdrop-blur border-2 border-green-900/70 rounded-2xl p-8 text-center hover:border-green-500 transition">
-          <CheckCircle2 className="w-14 h-14 text-green-400 mx-auto mb-4" />
-          <p className="text-lg text-gray-400 mb-3 font-mono">TASK COMPLETION</p>
-          <p className="text-5xl font-bold text-green-300 mb-2">
+        <div className="bg-white border border-zinc-200 rounded-3xl p-8 text-center hover:shadow-md transition">
+          <CheckCircle2 className="w-12 h-12 text-teal-600 mx-auto mb-4" />
+          <p className="text-sm font-medium text-zinc-500 mb-1">TASK COMPLETION</p>
+          <p className="text-5xl font-bold text-teal-600 mb-1">
             {currentStats.tasks.completion_rate.toFixed(0)}%
           </p>
-          <p className="text-sm text-gray-400">
-            {currentStats.tasks.completed} / {currentStats.tasks.total} tasks
+          <p className="text-sm text-zinc-500">
+            {currentStats.tasks.completed} of {currentStats.tasks.total} tasks completed
           </p>
         </div>
       </div>
 
-      {/* Note for per-project */}
+      {/* Note for Per-Project View */}
       {selectedProject !== 'all' && (
-        <div className="text-center text-gray-500 text-sm font-mono mt-6 italic">
-          Individual project performance analytics coming soon
+        <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded-3xl p-8 text-center">
+          <p className="font-medium">Detailed per-project analytics are coming soon.</p>
         </div>
       )}
 
       {/* Footer */}
-      <div className="text-center text-gray-500 text-xs font-mono mt-8">
-        Data synced • {new Date().toLocaleDateString()}
+      <div className="text-center text-zinc-500 text-sm mt-8">
+        Report generated on {new Date().toLocaleDateString('en-IN')}
       </div>
     </div>
   );
