@@ -277,12 +277,12 @@ const SubOrganizationDashboard = () => {
                   Logout
                 </button>
 
-                <button
+                {/* <button
                   onClick={() => navigate("/crm-test")}
                   className="w-auto bg-zinc-900 hover:bg-black text-white py-3 px-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Test CRM
-                </button>
+                </button> */}
               </div>
             </div>
           </div>

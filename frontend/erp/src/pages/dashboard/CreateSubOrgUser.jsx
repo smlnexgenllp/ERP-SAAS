@@ -3,15 +3,21 @@ import { createSubOrgUser } from "../../../src/services/api";
 import { moduleService } from "../../../src/services/moduleService";
 import { X } from "lucide-react";
 
-export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuccess }) {
+export default function CreateSubOrgUserModal({
+  isOpen,
+  onClose,
+  subOrgId,
+  onSuccess,
+}) {
   const [loading, setLoading] = useState(false);
   const [modules, setModules] = useState([]);
+
   const [form, setForm] = useState({
     first_name: "",
     last_name: "",
     email: "",
     password: "",
-    role: "Employee", // Must match backend ROLE_CHOICES exactly
+    role: "Employee",
     modules: [],
   });
 
@@ -23,9 +29,8 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
     { value: "Manager", label: "Manager" },
     { value: "MD", label: "MD" },
     { value: "Team Lead", label: "Team Lead" },
-    { value:"Accounts Manager", label: "Accounts Manager"},
-    { value:"Sales Head", label: "Sales Head"},
-
+    { value: "Accounts Manager", label: "Accounts Manager" },
+    { value: "Sales Head", label: "Sales Head" },
   ];
 
   // Fetch modules
@@ -34,11 +39,15 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
       const res = await moduleService.getAvailableModules("sub");
       setModules(res || []);
     };
+
     if (isOpen) fetchModules();
   }, [isOpen]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
   };
 
   const handleModuleToggle = (code) => {
@@ -46,7 +55,11 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
       const selected = prev.modules.includes(code)
         ? prev.modules.filter((m) => m !== code)
         : [...prev.modules, code];
-      return { ...prev, modules: selected };
+
+      return {
+        ...prev,
+        modules: selected,
+      };
     });
   };
 
@@ -56,6 +69,7 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
       alert("First name, email, and password are required.");
       return;
     }
+
     if (form.modules.length === 0) {
       alert("Select at least one module for the user.");
       return;
@@ -63,23 +77,33 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
 
     setLoading(true);
 
-    // DEBUG: check payload
-    console.log("Submitting payload:", JSON.stringify(form));
+    console.log(
+      "Submitting payload:",
+      JSON.stringify(form)
+    );
 
     try {
       const res = await createSubOrgUser(subOrgId, form);
+
       if (res.success) {
         alert("User created successfully!");
+
         onSuccess?.();
+
         onClose();
       } else {
         alert(res.error || JSON.stringify(res.errors));
       }
     } catch (err) {
       console.error("Create Sub-Org User Error:", err);
+
       if (err.response?.data) {
-        console.error("Backend errors:", err.response.data);
+        console.error(
+          "Backend errors:",
+          err.response.data
+        );
       }
+
       alert("Something went wrong while creating user.");
     } finally {
       setLoading(false);
@@ -89,95 +113,185 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-      <div className="bg-black w-[500px] rounded-xl shadow-lg p-6 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="relative bg-white border border-zinc-200 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+
+        {/* CLOSE BUTTON */}
         <button
-          className="absolute right-3 top-3 text-gray-500 hover:text-black"
+          className="absolute right-5 top-5 w-10 h-10 rounded-2xl bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center transition"
           onClick={onClose}
         >
-          <X size={20} />
+          <X
+            size={18}
+            className="text-zinc-700"
+          />
         </button>
-        <h2 className="text-xl font-semibold mb-4">Create User for Sub-Organization</h2>
-        {/* First Name */}
-        <label className="block mb-2 font-medium">First Name</label>
-        <input
-          type="text"
-          name="first_name"
-          value={form.first_name}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        />
 
-        {/* Last Name */}
-        <label className="block mb-2 font-medium">Last Name</label>
-        <input
-          type="text"
-          name="last_name"
-          value={form.last_name}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        />
+        {/* HEADER */}
+        <div className="px-8 py-6 border-b border-zinc-200">
+          <h2 className="text-2xl font-bold text-zinc-900">
+            Create User
+          </h2>
 
-        {/* Email */}
-        <label className="block mb-2 font-medium">Email</label>
-        <input
-          type="email"
-          name="email"
-          value={form.email}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        />
-
-        {/* Password */}
-        <label className="block mb-2 font-medium">Password</label>
-        <input
-          type="password"
-          name="password"
-          value={form.password}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        />
-
-        {/* Role */}
-        <label className="block mb-2 font-medium">Role</label>
-        <select
-          name="role"
-          value={form.role}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        >
-          {roles.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Modules */}
-        <label className="block mb-2 font-medium">Assign Modules</label>
-        {modules.length === 0 && <p className="mb-4 text-gray-500">No modules available.</p>}
-        <div className="mb-4 max-h-40 overflow-y-auto border p-2 rounded">
-          {modules.map((m) => (
-            <label key={m.code} className="flex items-center mb-2">
-              <input
-                type="checkbox"
-                checked={form.modules.includes(m.code)}
-                onChange={() => handleModuleToggle(m.code)}
-                className="mr-2"
-              />
-              {m.name}
-            </label>
-          ))}
+          <p className="text-sm text-zinc-500 mt-1">
+            Create a new user for your sub-organization
+          </p>
         </div>
 
-        {/* Submit */}
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-        >
-          {loading ? "Creating..." : "Create User"}
-        </button>
+        {/* BODY */}
+        <div className="p-8 space-y-6">
+
+          {/* NAME ROW */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            
+            {/* FIRST NAME */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">
+                First Name
+              </label>
+
+              <input
+                type="text"
+                name="first_name"
+                value={form.first_name}
+                onChange={handleChange}
+                className="w-full border border-zinc-200 bg-white px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-800"
+                placeholder="Enter first name"
+              />
+            </div>
+
+            {/* LAST NAME */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">
+                Last Name
+              </label>
+
+              <input
+                type="text"
+                name="last_name"
+                value={form.last_name}
+                onChange={handleChange}
+                className="w-full border border-zinc-200 bg-white px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-800"
+                placeholder="Enter last name"
+              />
+            </div>
+          </div>
+
+          {/* EMAIL */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              Email Address
+            </label>
+
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              className="w-full border border-zinc-200 bg-white px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-800"
+              placeholder="Enter email address"
+            />
+          </div>
+
+          {/* PASSWORD */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              Password
+            </label>
+
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              className="w-full border border-zinc-200 bg-white px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-800"
+              placeholder="Enter password"
+            />
+          </div>
+
+          {/* ROLE */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              User Role
+            </label>
+
+            <select
+              name="role"
+              value={form.role}
+              onChange={handleChange}
+              className="w-full border border-zinc-200 bg-white px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-800"
+            >
+              {roles.map((r) => (
+                <option
+                  key={r.value}
+                  value={r.value}
+                >
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* MODULES */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-3">
+              Assign Modules
+            </label>
+
+            {modules.length === 0 ? (
+              <div className="text-sm text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-2xl p-4">
+                No modules available.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border border-zinc-200 rounded-3xl p-5 bg-zinc-50">
+                {modules.map((m) => (
+                  <label
+                    key={m.code}
+                    className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition ${
+                      form.modules.includes(m.code)
+                        ? "bg-zinc-900 border-zinc-900 text-white"
+                        : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-800"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.modules.includes(
+                        m.code
+                      )}
+                      onChange={() =>
+                        handleModuleToggle(m.code)
+                      }
+                      className="w-4 h-4 accent-black"
+                    />
+
+                    <span className="text-sm font-medium">
+                      {m.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div className="flex items-center justify-end gap-3 px-8 py-6 border-t border-zinc-200 bg-zinc-50">
+          
+          <button
+            onClick={onClose}
+            className="px-5 py-3 rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-100 text-zinc-700 font-medium transition"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="px-6 py-3 rounded-2xl bg-zinc-900 hover:bg-black disabled:opacity-50 text-white font-semibold transition"
+          >
+            {loading ? "Creating..." : "Create User"}
+          </button>
+        </div>
       </div>
     </div>
   );
