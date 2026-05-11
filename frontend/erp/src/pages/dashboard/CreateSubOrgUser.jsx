@@ -11,11 +11,10 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
     last_name: "",
     email: "",
     password: "",
-    role: "Employee", // Must match backend ROLE_CHOICES exactly
+    role: "Employee",
     modules: [],
   });
 
-  // Backend-expected roles
   const roles = [
     { value: "Admin", label: "Admin" },
     { value: "HR Manager", label: "HR Manager" },
@@ -23,12 +22,10 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
     { value: "Manager", label: "Manager" },
     { value: "MD", label: "MD" },
     { value: "Team Lead", label: "Team Lead" },
-    { value:"Accounts Manager", label: "Accounts Manager"},
-    { value:"Sales Head", label: "Sales Head"},
-
+    { value: "Accounts Manager", label: "Accounts Manager" },
+    { value: "Sales Head", label: "Sales Head" },
   ];
 
-  // Fetch modules
   useEffect(() => {
     const fetchModules = async () => {
       const res = await moduleService.getAvailableModules("sub");
@@ -51,7 +48,6 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
   };
 
   const handleSubmit = async () => {
-    // Validation
     if (!form.first_name || !form.email || !form.password) {
       alert("First name, email, and password are required.");
       return;
@@ -62,9 +58,6 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
     }
 
     setLoading(true);
-
-    // DEBUG: check payload
-    console.log("Submitting payload:", JSON.stringify(form));
 
     try {
       const res = await createSubOrgUser(subOrgId, form);
@@ -77,9 +70,6 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
       }
     } catch (err) {
       console.error("Create Sub-Org User Error:", err);
-      if (err.response?.data) {
-        console.error("Backend errors:", err.response.data);
-      }
       alert("Something went wrong while creating user.");
     } finally {
       setLoading(false);
@@ -89,94 +79,123 @@ export default function CreateSubOrgUserModal({ isOpen, onClose, subOrgId, onSuc
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-      <div className="bg-black w-[500px] rounded-xl shadow-lg p-6 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-xl p-8 relative max-h-[92vh] overflow-y-auto">
+        
+        {/* Close Button */}
         <button
-          className="absolute right-3 top-3 text-gray-500 hover:text-black"
+          className="absolute right-6 top-6 text-zinc-400 hover:text-zinc-600 transition"
           onClick={onClose}
         >
-          <X size={20} />
+          <X size={24} />
         </button>
-        <h2 className="text-xl font-semibold mb-4">Create User for Sub-Organization</h2>
+
+        <h2 className="text-2xl font-semibold text-zinc-900 mb-6">
+          Create New User
+        </h2>
+
         {/* First Name */}
-        <label className="block mb-2 font-medium">First Name</label>
-        <input
-          type="text"
-          name="first_name"
-          value={form.first_name}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        />
-
-        {/* Last Name */}
-        <label className="block mb-2 font-medium">Last Name</label>
-        <input
-          type="text"
-          name="last_name"
-          value={form.last_name}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        />
-
-        {/* Email */}
-        <label className="block mb-2 font-medium">Email</label>
-        <input
-          type="email"
-          name="email"
-          value={form.email}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        />
-
-        {/* Password */}
-        <label className="block mb-2 font-medium">Password</label>
-        <input
-          type="password"
-          name="password"
-          value={form.password}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        />
-
-        {/* Role */}
-        <label className="block mb-2 font-medium">Role</label>
-        <select
-          name="role"
-          value={form.role}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-        >
-          {roles.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Modules */}
-        <label className="block mb-2 font-medium">Assign Modules</label>
-        {modules.length === 0 && <p className="mb-4 text-gray-500">No modules available.</p>}
-        <div className="mb-4 max-h-40 overflow-y-auto border p-2 rounded">
-          {modules.map((m) => (
-            <label key={m.code} className="flex items-center mb-2">
-              <input
-                type="checkbox"
-                checked={form.modules.includes(m.code)}
-                onChange={() => handleModuleToggle(m.code)}
-                className="mr-2"
-              />
-              {m.name}
-            </label>
-          ))}
+        <div className="mb-5">
+          <label className="block text-zinc-700 font-medium mb-2">First Name *</label>
+          <input
+            type="text"
+            name="first_name"
+            value={form.first_name}
+            onChange={handleChange}
+            className="w-full px-4 py-3 border border-zinc-200 rounded-2xl focus:border-emerald-500 outline-none"
+            placeholder="Enter first name"
+          />
         </div>
 
-        {/* Submit */}
+        {/* Last Name */}
+        <div className="mb-5">
+          <label className="block text-zinc-700 font-medium mb-2">Last Name</label>
+          <input
+            type="text"
+            name="last_name"
+            value={form.last_name}
+            onChange={handleChange}
+            className="w-full px-4 py-3 border border-zinc-200 rounded-2xl focus:border-emerald-500 outline-none"
+            placeholder="Enter last name"
+          />
+        </div>
+
+        {/* Email */}
+        <div className="mb-5">
+          <label className="block text-zinc-700 font-medium mb-2">Email Address *</label>
+          <input
+            type="email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            className="w-full px-4 py-3 border border-zinc-200 rounded-2xl focus:border-emerald-500 outline-none"
+            placeholder="user@example.com"
+          />
+        </div>
+
+        {/* Password */}
+        <div className="mb-5">
+          <label className="block text-zinc-700 font-medium mb-2">Password *</label>
+          <input
+            type="password"
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            className="w-full px-4 py-3 border border-zinc-200 rounded-2xl focus:border-emerald-500 outline-none"
+            placeholder="Create a strong password"
+          />
+        </div>
+
+        {/* Role */}
+        <div className="mb-5">
+          <label className="block text-zinc-700 font-medium mb-2">Role</label>
+          <select
+            name="role"
+            value={form.role}
+            onChange={handleChange}
+            className="w-full px-4 py-3 border border-zinc-200 rounded-2xl focus:border-emerald-500 outline-none bg-white"
+          >
+            {roles.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Modules */}
+        <div className="mb-6">
+          <label className="block text-zinc-700 font-medium mb-3">Assign Modules *</label>
+          
+          {modules.length === 0 && (
+            <p className="text-zinc-500 text-sm">No modules available.</p>
+          )}
+
+          <div className="max-h-52 overflow-y-auto border border-zinc-200 rounded-2xl p-4 space-y-2">
+            {modules.map((m) => (
+              <label
+                key={m.code}
+                className="flex items-center gap-3 px-2 py-2 hover:bg-zinc-50 rounded-xl cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={form.modules.includes(m.code)}
+                  onChange={() => handleModuleToggle(m.code)}
+                  className="w-5 h-5 accent-emerald-600"
+                />
+                <span className="text-zinc-800">{m.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Submit Button */}
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white py-3.5 rounded-2xl font-semibold transition"
         >
-          {loading ? "Creating..." : "Create User"}
+          {loading ? "Creating User..." : "Create User"}
         </button>
       </div>
     </div>
