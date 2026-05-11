@@ -17,6 +17,7 @@ export default function LowStockAlerts() {
 
   const fetchData = async () => {
     setLoading(true);
+
     try {
       const [deptRes, itemRes, stockRes] = await Promise.all([
         api.get("/hr/departments/"),
@@ -33,6 +34,7 @@ export default function LowStockAlerts() {
 
       // ✅ Build stock map
       const map = {};
+
       stockData.forEach((row) => {
         if (!map[row.item]) map[row.item] = {};
         map[row.item][row.department] = Number(row.stock || 0);
@@ -66,46 +68,69 @@ export default function LowStockAlerts() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        Loading low stock alerts...
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin"></div>
+          <p className="text-zinc-600 mt-5 font-medium">
+            Loading low stock alerts...
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6">
-
+    <div className="min-h-screen bg-zinc-100 p-6">
       {/* Header */}
-      <div className="flex justify-between mb-6">
-        <h1 className="text-3xl font-bold text-red-400">
-          Low Stock Alerts
-        </h1>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+            Low Stock Alerts
+          </h1>
+
+          <p className="text-zinc-500 mt-2">
+            Items that require immediate attention
+          </p>
+        </div>
 
         <button
           onClick={() => navigate(-1)}
-          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg"
+          className="px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 hover:text-zinc-900 transition font-medium"
         >
           ← Back
         </button>
       </div>
 
       {/* Table */}
-      <div className="overflow-auto border border-slate-800 rounded-xl">
-
+      <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
         <table className="w-full text-sm text-left border-collapse">
-          <thead className="bg-slate-900">
+          <thead className="bg-zinc-50 border-b border-zinc-200">
             <tr>
-              <th className="p-3 border border-slate-800">Item</th>
-              <th className="p-3 border border-slate-800 text-center">Type</th>
-              <th className="p-3 border border-slate-800 text-center">Total Stock</th>
-              <th className="p-3 border border-slate-800 text-center">Action</th>
+              <th className="px-8 py-5 font-semibold text-zinc-600">
+                Item
+              </th>
+
+              <th className="px-8 py-5 text-center font-semibold text-zinc-600">
+                Type
+              </th>
+
+              <th className="px-8 py-5 text-center font-semibold text-zinc-600">
+                Total Stock
+              </th>
+
+              <th className="px-8 py-5 text-center font-semibold text-zinc-600">
+                Action
+              </th>
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className="divide-y divide-zinc-100">
             {lowStockItems.length === 0 && (
               <tr>
-                <td colSpan="4" className="text-center p-4 text-green-400">
+                <td
+                  colSpan="4"
+                  className="text-center py-16 text-emerald-600 font-medium"
+                >
                   No low stock items 🎉
                 </td>
               </tr>
@@ -115,46 +140,59 @@ export default function LowStockAlerts() {
               const total = getTotalStock(item.id);
 
               return (
-                <tr key={item.id} className="hover:bg-slate-900">
-
+                <tr
+                  key={item.id}
+                  className="hover:bg-zinc-50 transition-colors"
+                >
                   {/* Item */}
-                  <td className="p-3 border border-slate-800 text-cyan-200">
+                  <td className="px-8 py-5 text-zinc-900 font-medium">
                     {item.name}
                   </td>
 
                   {/* Type */}
-                  <td className="p-3 border text-center border-slate-800 text-yellow-300">
-                    {item.item_type}
+                  <td className="px-8 py-5 text-center">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        item.item_type === "purchase"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {item.item_type}
+                    </span>
                   </td>
 
                   {/* Total */}
-                  <td className="p-3 border text-center border-slate-800 text-red-400 font-bold">
-                    {total}
+                  <td className="px-8 py-5 text-center">
+                    <span className="text-red-600 font-bold text-lg">
+                      {total}
+                    </span>
                   </td>
 
                   {/* Actions */}
-                  <td className="p-3 border text-center border-slate-800">
-
+                  <td className="px-8 py-5 text-center">
                     {item.item_type === "purchase" && (
                       <button
-                        onClick={() => navigate(`/purchase-orders?item=${item.id}`)}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded"
+                        onClick={() =>
+                          navigate(`/purchase-orders?item=${item.id}`)
+                        }
+                        className="px-4 py-2 bg-zinc-900 hover:bg-black text-white rounded-2xl transition font-medium"
                       >
-                        Create POF
+                        Create PO
                       </button>
                     )}
 
                     {item.item_type === "production" && (
                       <button
-                        onClick={() => alert("Please Contact your Accounts Teams!")}
-                        className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded"
+                        onClick={() =>
+                          alert("Please Contact your Accounts Teams!")
+                        }
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl transition font-medium"
                       >
                         Create Production
                       </button>
                     )}
-
                   </td>
-
                 </tr>
               );
             })}

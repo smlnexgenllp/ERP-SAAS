@@ -1,3 +1,6 @@
+// ONLY THEME UPDATED
+// ALIGNMENT, SIZE, STRUCTURE NOT CHANGED
+
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -13,18 +16,24 @@ import {
 const SubOrganizationDashboard = () => {
   const { user, organization, logout } = useAuth();
   const navigate = useNavigate();
+
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [openCreateUser, setOpenCreateUser] = useState(false);
   const [openUploadVideo, setOpenUploadVideo] = useState(false);
+
   const [trainingVideos, setTrainingVideos] = useState([]);
+
   const [stats, setStats] = useState({
     activeModules: 0,
     totalUsers: 1,
   });
+
   const [command, setCommand] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
   const [showAlert, setShowAlert] = useState(false);
+
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -76,7 +85,11 @@ const SubOrganizationDashboard = () => {
   };
 
   const handleVideoDelete = async (videoId) => {
-    if (window.confirm("Are you sure you want to delete this training video?")) {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this training video?"
+      )
+    ) {
       try {
         await deleteTrainingVideo(videoId);
         handleVideoUploadSuccess();
@@ -88,6 +101,7 @@ const SubOrganizationDashboard = () => {
 
   const handleModuleClick = (module) => {
     if (!module.is_active) return;
+
     const routes = {
       hr_management: "/hr/dashboard",
       inventory: "/inventory/dashboard",
@@ -98,43 +112,64 @@ const SubOrganizationDashboard = () => {
       project_management: "/projects/dashboard",
       manufacture: "/manufacturing/dashboard",
     };
+
     navigate(routes[module.code] || "/");
   };
 
   const handleCommand = (e) => {
     if (e.key !== "Enter") return;
+
     const cmd = command.trim().toLowerCase();
+
     setCommand("");
+
     const showAlert = (msg) => {
       setAlertMessage(msg);
       setShowAlert(true);
+
       setTimeout(() => setShowAlert(false), 3000);
     };
+
     if (!cmd) return;
+
     if (["help", "?", "commands"].includes(cmd)) {
-      showAlert("Commands: help, modules, users, create user, video, training, logout, hr, inventory, sales, clear");
+      showAlert(
+        "Commands: help, modules, users, create user, video, training, logout, hr, inventory, sales, clear"
+      );
       return;
     }
+
     if (["modules", "list modules"].includes(cmd)) {
-      showAlert(`You have ${stats.activeModules} active module(s).`);
+      showAlert(
+        `You have ${stats.activeModules} active module(s).`
+      );
       return;
     }
+
     if (["users", "create user", "add user"].includes(cmd)) {
       setOpenCreateUser(true);
       return;
     }
-    if (["video", "training", "training video", "upload video"].includes(cmd)) {
+
+    if (
+      ["video", "training", "training video", "upload video"].includes(
+        cmd
+      )
+    ) {
       setOpenUploadVideo(true);
       return;
     }
+
     if (cmd === "logout") {
       logout();
       return;
     }
+
     if (cmd === "clear") {
       showAlert("Terminal cleared.");
       return;
     }
+
     const moduleShortcuts = {
       hr: "/hr/dashboard",
       hrmanagement: "/hr/dashboard",
@@ -153,7 +188,10 @@ const SubOrganizationDashboard = () => {
       navigate(moduleShortcuts[cmd]);
       return;
     }
-    showAlert(`Unknown command: "${cmd}". Type "help" for available commands.`);
+
+    showAlert(
+      `Unknown command: "${cmd}". Type "help" for available commands.`
+    );
   };
 
   const handleCommandBarClick = () => {
@@ -177,12 +215,14 @@ const SubOrganizationDashboard = () => {
         <div className="bg-white border-b border-zinc-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-6">
+              
               <div className="flex items-center">
                 <div className="bg-emerald-100 p-3 rounded-xl mr-4">
                   <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold">
                     {organization?.name?.charAt(0) || "S"}
                   </div>
                 </div>
+
                 <div>
                   <h1 className="text-3xl font-bold text-zinc-900">
                     {organization?.name}
@@ -233,13 +273,24 @@ const SubOrganizationDashboard = () => {
           </div>
         </div>
 
+        {/* MAIN */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-          {/* Stats */}
+          
+          {/* STATS */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { label: "Active Modules", value: stats.activeModules },
-              { label: "Total Users", value: stats.totalUsers },
-              { label: "Plan Tier", value: organization?.plan_tier?.toUpperCase() },
+              {
+                label: "Active Modules",
+                value: stats.activeModules,
+              },
+              {
+                label: "Total Users",
+                value: stats.totalUsers,
+              },
+              {
+                label: "Plan Tier",
+                value: organization?.plan_tier?.toUpperCase(),
+              },
             ].map((stat) => (
               <div
                 key={stat.label}
@@ -250,6 +301,7 @@ const SubOrganizationDashboard = () => {
                     {stat.label.charAt(0)}
                   </div>
                 </div>
+
                 <div>
                   <p className="text-zinc-500 text-sm">{stat.label}</p>
                   <p className="text-zinc-900 font-bold text-2xl">{stat.value}</p>
@@ -263,6 +315,7 @@ const SubOrganizationDashboard = () => {
             <div className="px-6 py-4 border-b border-zinc-100">
               <h2 className="text-2xl font-bold text-zinc-900">Your Modules</h2>
             </div>
+
             <div className="p-6">
               {modules.length > 0 ? (
                 <ModuleGrid modules={modules} onModuleClick={handleModuleClick} />
@@ -280,23 +333,47 @@ const SubOrganizationDashboard = () => {
             <h3 className="text-lg font-semibold text-zinc-900 mb-4">
               Sub-Organization Information
             </h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="space-y-2">
-                <p><strong>Organization:</strong> {organization?.name}</p>
-                <p><strong>Subdomain:</strong> {organization?.subdomain}</p>
-                <p><strong>Email:</strong> {organization?.email}</p>
+              <div className="space-y-2 text-zinc-700">
+                <p>
+                  <strong>Organization:</strong>{" "}
+                  {organization?.name}
+                </p>
+
+                <p>
+                  <strong>Subdomain:</strong>{" "}
+                  {organization?.subdomain}
+                </p>
+
+                <p>
+                  <strong>Email:</strong>{" "}
+                  {organization?.email}
+                </p>
               </div>
-              <div className="space-y-2">
-                <p><strong>Plan:</strong> {organization?.plan_tier}</p>
-                <p><strong>Phone:</strong> {organization?.phone || "—"}</p>
-                <p><strong>Admin:</strong> {user?.first_name} {user?.last_name}</p>
+
+              <div className="space-y-2 text-zinc-700">
+                <p>
+                  <strong>Plan:</strong>{" "}
+                  {organization?.plan_tier}
+                </p>
+
+                <p>
+                  <strong>Phone:</strong>{" "}
+                  {organization?.phone || "—"}
+                </p>
+
+                <p>
+                  <strong>Admin:</strong>{" "}
+                  {user?.first_name} {user?.last_name}
+                </p>
               </div>
             </div>
           </div>
         </main>
       </div>
 
-      {/* Terminal Command Bar */}
+      {/* COMMAND BAR */}
       <div
         className="fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-300 px-6 py-4 flex items-center cursor-text shadow-2xl"
         onClick={handleCommandBarClick}
@@ -314,14 +391,14 @@ const SubOrganizationDashboard = () => {
         />
       </div>
 
-      {/* Feedback Toast */}
+      {/* TOAST */}
       {showAlert && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-zinc-800 border border-zinc-700 text-white px-6 py-3 rounded-xl shadow-xl text-sm font-mono">
           {alertMessage}
         </div>
       )}
 
-      {/* Modals */}
+      {/* MODALS */}
       <CreateSubOrgUserModal
         isOpen={openCreateUser}
         onClose={() => setOpenCreateUser(false)}

@@ -1,10 +1,14 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  ShieldCheck,
+} from "lucide-react";
 
 const ModuleGrid = ({ modules, onModuleClick }) => {
   const navigate = useNavigate();
 
-  // Temporary: force all modules active
+  // Force all modules active
   const modulesWithForcedActive = modules.map((module) => ({
     ...module,
     is_active: true,
@@ -15,27 +19,35 @@ const ModuleGrid = ({ modules, onModuleClick }) => {
       case "hr_management":
         navigate("/hr/dashboard");
         break;
+
       case "inventory":
         navigate("/inventory/dashboard");
         break;
+
       case "finance":
         navigate("/accounting/dashboard");
         break;
+
       case "crm":
         navigate("/crm/dashboard");
         break;
+
       case "project_management":
         navigate("/projects/dashboard");
         break;
+
       case "sales":
         navigate("/sales/dashboard");
         break;
+
       case "transport":
         navigate("/transport/dashboard");
         break;
+
       case "manufacture":
         navigate("/manufacturing/dashboard");
         break;
+
       default:
         if (onModuleClick) onModuleClick(module);
     }
