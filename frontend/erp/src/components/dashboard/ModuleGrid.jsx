@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 
 const ModuleGrid = ({ modules, onModuleClick }) => {
-  const navigate = useNavigate(); // This is fine
+  const navigate = useNavigate();
 
   // Temporary: force all modules active
   const modulesWithForcedActive = modules.map((module) => ({
@@ -47,27 +47,29 @@ const ModuleGrid = ({ modules, onModuleClick }) => {
         <div
           key={module.module_id}
           onClick={() => handleModuleClick(module)}
-          className="bg-gray-900/40 border border-cyan-800 rounded-xl shadow p-6 cursor-pointer transition hover:shadow-gray-800/50"
+          className="bg-white border border-zinc-200 rounded-3xl p-7 cursor-pointer transition-all hover:shadow-lg hover:border-emerald-200 hover:-translate-y-1 group"
         >
-          <div className="flex items-center mb-4">
-            <div className="bg-gray-800/60 p-3 rounded-lg mr-4">
-              <div className="w-8 h-8 bg-cyan-500 rounded flex items-center justify-center text-white font-bold">
+          <div className="flex items-center mb-5">
+            <div className="bg-emerald-100 p-4 rounded-2xl mr-5 group-hover:bg-emerald-200 transition">
+              <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-sm">
                 {module.name.charAt(0).toUpperCase()}
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-cyan-300">
+              <h3 className="text-xl font-semibold text-zinc-900">
                 {module.name}
               </h3>
-              <p className="text-sm text-gray-400">{module.description}</p>
+              <p className="text-sm text-zinc-600 mt-1 line-clamp-2">
+                {module.description}
+              </p>
             </div>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className="px-2 py-1 text-xs rounded-full bg-gray-800/50 text-green-400">
+          <div className="flex justify-between items-center pt-4 border-t border-zinc-100">
+            <span className="px-4 py-1.5 text-xs font-medium rounded-2xl bg-emerald-100 text-emerald-700">
               Active
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-zinc-500">
               {module.available_in_plans?.join(", ")}
             </span>
           </div>
