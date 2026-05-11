@@ -214,7 +214,7 @@ export default function LeaveManagement() {
 
   return (
     <div className="min-h-screen bg-zinc-100 text-zinc-800">
-      <div className="max-w-7xl mx-auto px-6 py-10">
+      <div className="max-w-7xl mx-auto p-2">
         
         {/* Header with Back Button */}
         <div className="flex justify-between items-center mb-8">
