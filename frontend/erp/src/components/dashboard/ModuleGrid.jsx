@@ -59,45 +59,31 @@ const ModuleGrid = ({ modules, onModuleClick }) => {
         <div
           key={module.module_id}
           onClick={() => handleModuleClick(module)}
-          className="group bg-white border border-zinc-200 rounded-3xl shadow-sm p-6 cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-zinc-300"
+          className="bg-white border border-zinc-200 rounded-3xl p-7 cursor-pointer transition-all hover:shadow-lg hover:border-emerald-200 hover:-translate-y-1 group"
         >
-          {/* HEADER */}
-          <div className="flex items-start mb-5">
-            
-            <div className="bg-zinc-100 group-hover:bg-zinc-900 transition-all duration-300 p-3 rounded-2xl mr-4 border border-zinc-200">
-              <div className="w-8 h-8 bg-zinc-900 group-hover:bg-white rounded-xl flex items-center justify-center text-white group-hover:text-zinc-900 font-bold transition-all duration-300">
+          <div className="flex items-center mb-5">
+            <div className="bg-emerald-100 p-4 rounded-2xl mr-5 group-hover:bg-emerald-200 transition">
+              <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-sm">
                 {module.name.charAt(0).toUpperCase()}
               </div>
             </div>
-
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-zinc-900">
+            <div>
+              <h3 className="text-xl font-semibold text-zinc-900">
                 {module.name}
               </h3>
-
-              <p className="text-sm text-zinc-500 mt-1 line-clamp-2">
+              <p className="text-sm text-zinc-600 mt-1 line-clamp-2">
                 {module.description}
               </p>
             </div>
           </div>
 
-          {/* FOOTER */}
           <div className="flex justify-between items-center pt-4 border-t border-zinc-100">
-            
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
+            <span className="px-4 py-1.5 text-xs font-medium rounded-2xl bg-emerald-100 text-emerald-700">
               Active
             </span>
-
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-zinc-400 max-w-[120px] truncate">
-                {module.available_in_plans?.join(", ")}
-              </span>
-
-              <div className="w-9 h-9 rounded-xl bg-zinc-100 group-hover:bg-zinc-900 flex items-center justify-center transition-all duration-300">
-                <ArrowRight className="w-4 h-4 text-zinc-700 group-hover:text-white transition-all duration-300" />
-              </div>
-            </div>
+            <span className="text-xs text-zinc-500">
+              {module.available_in_plans?.join(", ")}
+            </span>
           </div>
         </div>
       ))}

@@ -165,7 +165,7 @@ const CreateTaskForm = () => {
 
             {/* Project Selection */}
             <div>
-              <label className="block text-zinc-700 font-medium mb-2 flex items-center gap-2">
+              <label className=" text-zinc-700 font-medium mb-2 flex items-center gap-2">
                 <FolderOpen className="w-5 h-5" />
                 Project (Optional)
               </label>
@@ -185,7 +185,7 @@ const CreateTaskForm = () => {
 
             {/* Multi-Select Employees */}
             <div ref={dropdownRef} className="relative">
-              <label className="block text-zinc-700 font-medium mb-2 flex items-center gap-2">
+              <label className=" text-zinc-700 font-medium mb-2 flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Assign To * ({selectedEmployees.length} selected)
               </label>

@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import api from "../../../../services/api"; // ← make sure you're importing your configured api
+import api from "../../../../services/api";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, LogIn, Loader2 } from "lucide-react";
 
 export default function EmployeeLogin() {
-  const [email, setEmail]         = useState("");
-  const [password, setPassword]   = useState("");
-  const [error, setError]         = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -15,29 +15,21 @@ export default function EmployeeLogin() {
     setIsLoading(true);
 
     try {
-      // 1. Perform login (creates session cookie)
       await api.post("/auth/employee-login/", {
         email,
         password,
       });
 
-      // 2. Immediately verify / fetch current user using SAME api instance
-      //    → this ensures the cookie is attached and available
       const userResponse = await api.get("/auth/current-user/");
-
-      // Optional: you can store or use the user data here
       console.log("Logged in user:", userResponse.data);
 
-      // 3. Only navigate after successful current-user check
-      navigate("/profile"); // ← or "/dashboard", "/home", etc.
-
+      navigate("/profile");
     } catch (err) {
-      // Handle login OR current-user failure
       const msg =
         err.response?.data?.detail ||
         err.response?.data?.non_field_errors?.[0] ||
         err.message ||
-        "Login failed. Please check your credentials or try again.";
+        "Login failed. Please check your credentials.";
       setError(msg);
     } finally {
       setIsLoading(false);
@@ -45,57 +37,66 @@ export default function EmployeeLogin() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0a0f1f] text-[#d8f3dc] flex items-center justify-center p-4 font-mono select-none">
-      <div className="w-full max-w-md bg-[#0d1326] border border-[#1dd1a1]/40 rounded-2xl shadow-[0_0_20px_#1dd1a133] p-8 relative overflow-hidden">
-        <div className="absolute inset-0 rounded-2xl border border-[#1dd1a1]/30 shadow-[0_0_35px_#1dd1a122] pointer-events-none"></div>
+    <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl shadow-xl p-8">
+        
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="bg-emerald-100 p-4 rounded-3xl">
+              <LogIn className="w-9 h-9 text-emerald-600" />
+            </div>
+          </div>
+          <h2 className="text-3xl font-bold text-zinc-900">Employee Login</h2>
+          <p className="text-zinc-600 mt-1">Access your employee portal</p>
+        </div>
 
-        <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 tracking-wider text-[#1dd1a1] flex items-center justify-center gap-3 drop-shadow-[0_0_8px_#1dd1a1]">
-          <LogIn className="w-7 h-7" /> Employee Login
-        </h2>
-
+        {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-900/40 border border-red-600/50 rounded-lg text-red-200 text-center">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-sm">
             {error}
           </div>
         )}
 
-        <div className="space-y-6">
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1dd1a1]/60" />
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading}
-              className="w-full pl-10 pr-4 py-3 rounded-lg bg-[#0a0f1f]/80 border border-[#1dd1a1]/40 focus:border-[#1dd1a1] focus:ring-1 focus:ring-[#1dd1a1] placeholder-[#1dd1a1]/40 text-[#d8f3dc] transition-all"
-              autoComplete="email"
-            />
+        <div className="space-y-5">
+          {/* Email Field */}
+          <div>
+            <label className="block text-zinc-700 font-medium mb-2">Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                className="w-full pl-11 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+              />
+            </div>
           </div>
 
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1dd1a1]/60" />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-              className="w-full pl-10 pr-4 py-3 rounded-lg bg-[#0a0f1f]/80 border border-[#1dd1a1]/40 focus:border-[#1dd1a1] focus:ring-1 focus:ring-[#1dd1a1] placeholder-[#1dd1a1]/40 text-[#d8f3dc] transition-all"
-              autoComplete="current-password"
-            />
+          {/* Password Field */}
+          <div>
+            <label className="block text-zinc-700 font-medium mb-2">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+              <input
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                className="w-full pl-11 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+              />
+            </div>
           </div>
         </div>
 
+        {/* Sign In Button */}
         <button
           onClick={handleLogin}
           disabled={isLoading}
-          className={`w-full mt-8 py-3 font-bold rounded-lg transition-all flex items-center justify-center gap-2
-            ${
-              isLoading
-                ? "bg-[#1dd1a1]/10 border-[#1dd1a1]/30 text-[#1dd1a1]/70 cursor-wait"
-                : "bg-[#1dd1a1]/20 border-[#1dd1a1]/50 text-[#1dd1a1] hover:bg-[#1dd1a1]/30 hover:shadow-[0_0_15px_#1dd1a1]"
-            }`}
+          className="w-full mt-8 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 transition"
         >
           {isLoading ? (
             <>
@@ -103,9 +104,25 @@ export default function EmployeeLogin() {
               Signing in...
             </>
           ) : (
-            "Sign In"
+            <>
+              <LogIn className="w-5 h-5" />
+              Sign In
+            </>
           )}
         </button>
+
+        {/* Admin Login Link */}
+        <div className="mt-8 text-center text-sm">
+          <p className="text-zinc-600">
+            Admin Login?{" "}
+            <button
+              onClick={() => navigate("/login")}
+              className="text-emerald-600 hover:text-emerald-700 font-medium hover:underline transition"
+            >
+              Click here
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
