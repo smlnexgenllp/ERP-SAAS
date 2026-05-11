@@ -8,6 +8,8 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Package,
+  CheckCircle,
   AlertCircle
 } from "lucide-react";
 

@@ -116,10 +116,10 @@ export default function HRDashboard() {
   return (
     <div className="min-h-screen bg-zinc-100 text-zinc-800">
       <div className="flex-1 overflow-y-auto pb-20">
-        <div className="max-w-7xl mx-auto px-6 py-10">
+        <div className="max-w-7xl mx-auto p-2">
           
           {/* Header */}
-          <div className="bg-white border border-zinc-200 rounded-3xl p-8 mb-8 shadow-sm">
+          <div className="bg-white border border-zinc-200 rounded-3xl p-2 mb-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-5">
                 <div className="w-16 h-16 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
@@ -139,7 +139,7 @@ export default function HRDashboard() {
           </div>
 
           {/* Stats Grid - Structure Same */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-5">
             {[
               { label: "Total Employees", value: stats.totalEmployees, icon: Users },
               { label: "Active Recruitments", value: stats.activeRecruitments, icon: UserPlus },
@@ -148,9 +148,9 @@ export default function HRDashboard() {
             ].map((item, idx) => (
               <div
                 key={idx}
-                className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all"
+                className="bg-white border border-zinc-200 rounded-3xl p-3 shadow-sm hover:shadow transition-all"
               >
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-3">
                   <div className="bg-zinc-100 p-4 rounded-2xl">
                     <item.icon className="w-7 h-7 text-zinc-700" />
                   </div>
@@ -161,11 +161,11 @@ export default function HRDashboard() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid  gap-6">
             {/* Quick Actions - Structure Same */}
             <div className="bg-white border border-zinc-200 p-8 rounded-3xl shadow-sm">
               <h3 className="text-2xl font-semibold text-zinc-900 mb-6">Quick Actions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 {quickActions.map((a, i) => (
                   <button
                     key={i}
@@ -188,7 +188,7 @@ export default function HRDashboard() {
             </div>
 
             {/* Recent Activity - Structure Same */}
-            <div className="bg-white border border-zinc-200 p-8 rounded-3xl shadow-sm">
+            {/* <div className="bg-white border border-zinc-200 p-8 rounded-3xl shadow-sm">
               <h3 className="text-2xl font-semibold text-zinc-900 mb-6">Recent Activity</h3>
               <div className="space-y-5">
                 {recentActivities.map((act) => (
@@ -203,7 +203,7 @@ export default function HRDashboard() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
