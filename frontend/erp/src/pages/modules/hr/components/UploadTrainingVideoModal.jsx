@@ -15,7 +15,8 @@ export default function UploadTrainingVideoModal({
   const [videoFile, setVideoFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const [isUploadSectionVisible, setIsUploadSectionVisible] = useState(false);
+  const [isUploadSectionVisible, setIsUploadSectionVisible] =
+    useState(false);
 
   const [showCompletion, setShowCompletion] = useState(false);
   const [completedUsers, setCompletedUsers] = useState([]);
@@ -55,6 +56,7 @@ export default function UploadTrainingVideoModal({
     if (!title || !videoFile) return;
 
     const formData = new FormData();
+
     formData.append("title", title);
     formData.append("description", description);
     formData.append("category", category);
@@ -62,9 +64,16 @@ export default function UploadTrainingVideoModal({
 
     try {
       setLoading(true);
-      await api.post("organizations/training-videos/upload/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+
+      await api.post(
+        "organizations/training-videos/upload/",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
       setTitle("");
       setDescription("");
@@ -72,7 +81,9 @@ export default function UploadTrainingVideoModal({
       setVideoFile(null);
 
       onVideoUploadSuccess?.();
+
       setIsUploadSectionVisible(false);
+
       alert("Successfully Uploaded!");
     } catch (err) {
       console.error("Video Upload failed", err);
@@ -88,19 +99,22 @@ export default function UploadTrainingVideoModal({
   const renderVideoItem = (video) => (
     <li
       key={video.id}
-      className="py-4 px-4 flex justify-between items-center border-b border-zinc-100 hover:bg-zinc-50 transition"
+      className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 hover:bg-zinc-50 transition"
     >
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-zinc-900 truncate">
           {video.title}
         </p>
-        <p className="text-xs text-zinc-500">
-          {video.category} • {video.description.substring(0, 60)}...
+
+        <p className="text-xs text-zinc-500 mt-1">
+          {video.category} •{" "}
+          {video.description?.substring(0, 50)}...
         </p>
       </div>
+
       <button
         onClick={() => onDeleteVideo(video.id)}
-        className="bg-red-600 hover:bg-red-700 text-white text-xs px-4 py-1.5 rounded-xl font-medium transition"
+        className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-xl font-medium transition"
       >
         Delete
       </button>
@@ -112,162 +126,274 @@ export default function UploadTrainingVideoModal({
   ========================== */
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-      <div className="bg-white border border-zinc-200 rounded-3xl p-8 w-full max-w-3xl max-h-[88vh] overflow-y-auto shadow-xl">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border border-zinc-200 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl">
 
         {/* HEADER */}
-        <div className="flex justify-between items-center mb-6 border-b border-zinc-100 pb-4">
-          <h2 className="text-2xl font-bold text-zinc-900">
-            Training Video Manager
-          </h2>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 px-6 py-5 border-b border-zinc-200">
+          
+          <div>
+            <h2 className="text-2xl font-bold text-zinc-900">
+              Training Video Manager
+            </h2>
 
-          <div className="flex gap-3">
+            <p className="text-sm text-zinc-500 mt-1">
+              Upload and manage employee training videos
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => setIsUploadSectionVisible(!isUploadSectionVisible)}
-              className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition"
+              onClick={() =>
+                setIsUploadSectionVisible(
+                  !isUploadSectionVisible
+                )
+              }
+              className="bg-zinc-900 hover:bg-black text-white px-4 py-2.5 rounded-2xl font-medium transition"
             >
-              {isUploadSectionVisible ? "Hide Upload" : "Upload Video"}
+              {isUploadSectionVisible
+                ? "Hide Upload"
+                : "Upload Video"}
             </button>
 
             <button
               onClick={handleFetchCompletions}
-              className="px-5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-medium transition"
+              className="bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-800 px-4 py-2.5 rounded-2xl font-medium transition"
             >
               Completion Status
             </button>
 
             <button
               onClick={fetchTrainingProgress}
-              className="px-5 py-2.5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-medium transition"
+              className="bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-800 px-4 py-2.5 rounded-2xl font-medium transition"
             >
               View Progress
             </button>
           </div>
         </div>
 
-        {/* UPLOAD FORM */}
-        {isUploadSectionVisible && (
-          <div className="mb-8 p-6 border border-zinc-200 rounded-2xl bg-zinc-50 space-y-4">
-            <input
-              className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:border-emerald-500 outline-none"
-              placeholder="Video title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
+        <div className="p-6 space-y-6">
 
-            <textarea
-              className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:border-emerald-500 outline-none"
-              placeholder="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
+          {/* UPLOAD FORM */}
+          {isUploadSectionVisible && (
+            <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 space-y-5">
+              
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
+                  Video Title
+                </label>
 
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:border-emerald-500 outline-none"
-            >
-              <option value="general">General</option>
-              <option value="hr">HR</option>
-              <option value="onboarding">Onboarding</option>
-              <option value="technical">Technical</option>
-            </select>
+                <input
+                  className="w-full px-4 py-3 rounded-2xl border border-zinc-200 bg-white text-zinc-800 outline-none focus:ring-2 focus:ring-zinc-300"
+                  placeholder="Enter video title"
+                  value={title}
+                  onChange={(e) =>
+                    setTitle(e.target.value)
+                  }
+                />
+              </div>
 
-            <input
-              type="file"
-              accept="video/*"
-              onChange={(e) => setVideoFile(e.target.files[0])}
-              className="w-full text-zinc-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200"
-            />
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
+                  Description
+                </label>
 
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={handleUpload}
-                disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-6 py-2.5 rounded-2xl font-semibold transition"
-              >
-                {loading ? "Uploading..." : "Upload Video"}
-              </button>
-            </div>
-          </div>
-        )}
+                <textarea
+                  className="w-full px-4 py-3 rounded-2xl border border-zinc-200 bg-white text-zinc-800 outline-none focus:ring-2 focus:ring-zinc-300 min-h-[120px]"
+                  placeholder="Enter description"
+                  value={description}
+                  onChange={(e) =>
+                    setDescription(e.target.value)
+                  }
+                />
+              </div>
 
-        {/* VIDEO LIST */}
-        <h3 className="text-xl font-semibold text-zinc-900 mb-4">
-          Uploaded Videos ({videos?.length || 0})
-        </h3>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
+                  Category
+                </label>
 
-        {videos?.length ? (
-          <ul className="divide-y divide-zinc-100 bg-white border border-zinc-200 rounded-2xl overflow-hidden">
-            {videos.map(renderVideoItem)}
-          </ul>
-        ) : (
-          <p className="text-zinc-500 text-center py-12 bg-white border border-zinc-200 rounded-2xl">
-            No videos uploaded yet
-          </p>
-        )}
-
-        {/* COMPLETION LIST */}
-        {showCompletion && (
-          <div className="mt-8">
-            <h3 className="text-xl font-semibold text-zinc-900 mb-4">
-              Completed Employees ({completedUsers.length})
-            </h3>
-            <ul className="divide-y divide-zinc-100 bg-white border border-zinc-200 rounded-2xl p-4">
-              {completedUsers.map((c, idx) => (
-                <li key={idx} className="flex justify-between py-3 text-zinc-700">
-                  <span className="font-medium">{c.employee_name}</span>
-                  <span className="text-zinc-500">{c.employee_email}</span>
-                  <span className="text-emerald-600 text-sm">
-                    {new Date(c.completed_at).toLocaleString()}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* PROGRESS LIST */}
-        {showProgress && (
-          <div className="mt-8">
-            <h3 className="text-xl font-semibold text-zinc-900 mb-4">
-              Training Progress
-            </h3>
-
-            <div className="space-y-4">
-              {progressUsers.map((u) => (
-                <div
-                  key={u.employee_id}
-                  className="bg-white border border-zinc-200 p-5 rounded-2xl"
+                <select
+                  value={category}
+                  onChange={(e) =>
+                    setCategory(e.target.value)
+                  }
+                  className="w-full px-4 py-3 rounded-2xl border border-zinc-200 bg-white text-zinc-800 outline-none focus:ring-2 focus:ring-zinc-300"
                 >
-                  <div className="flex justify-between text-zinc-700 mb-3">
-                    <span className="font-medium">{u.employee_name}</span>
-                    <span className="text-zinc-500">{u.employee_email}</span>
-                    <span className="font-semibold text-emerald-600">{u.percentage}%</span>
-                  </div>
+                  <option value="general">General</option>
+                  <option value="hr">HR</option>
+                  <option value="onboarding">
+                    Onboarding
+                  </option>
+                  <option value="technical">
+                    Technical
+                  </option>
+                </select>
+              </div>
 
-                  <div className="w-full bg-zinc-100 rounded-full h-2.5">
-                    <div
-                      className="bg-emerald-600 h-2.5 rounded-full transition-all"
-                      style={{ width: `${u.percentage}%` }}
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
+                  Upload Video
+                </label>
 
-                  <p className="text-xs text-zinc-500 mt-2">
-                    {u.completed} / {u.total} videos completed
-                  </p>
-                </div>
-              ))}
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) =>
+                    setVideoFile(e.target.files[0])
+                  }
+                  className="w-full px-4 py-3 rounded-2xl border border-zinc-200 bg-white text-zinc-700"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleUpload}
+                  disabled={loading}
+                  className="bg-zinc-900 hover:bg-black disabled:opacity-50 text-white px-6 py-3 rounded-2xl font-semibold transition"
+                >
+                  {loading ? "Uploading..." : "Submit"}
+                </button>
+              </div>
             </div>
+          )}
+
+          {/* VIDEO LIST */}
+          <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden">
+            
+            <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50">
+              <h3 className="text-xl font-bold text-zinc-900">
+                Uploaded Videos ({videos?.length || 0})
+              </h3>
+            </div>
+
+            {videos?.length ? (
+              <ul>
+                {videos.map(renderVideoItem)}
+              </ul>
+            ) : (
+              <div className="text-center py-10 text-zinc-500">
+                No videos uploaded
+              </div>
+            )}
           </div>
-        )}
+
+          {/* COMPLETION LIST */}
+          {showCompletion && (
+            <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden">
+              
+              <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50">
+                <h3 className="text-xl font-bold text-zinc-900">
+                  Completed Employees (
+                  {completedUsers.length})
+                </h3>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-zinc-100">
+                    <tr>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-zinc-700">
+                        Employee
+                      </th>
+
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-zinc-700">
+                        Email
+                      </th>
+
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-zinc-700">
+                        Completed At
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {completedUsers.map((c, idx) => (
+                      <tr
+                        key={idx}
+                        className="border-t border-zinc-200 hover:bg-zinc-50 transition"
+                      >
+                        <td className="px-6 py-4 text-sm text-zinc-900">
+                          {c.employee_name}
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-zinc-600">
+                          {c.employee_email}
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-zinc-500">
+                          {new Date(
+                            c.completed_at
+                          ).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* PROGRESS LIST */}
+          {showProgress && (
+            <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden">
+              
+              <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50">
+                <h3 className="text-xl font-bold text-zinc-900">
+                  Training Progress
+                </h3>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {progressUsers.map((u) => (
+                  <div
+                    key={u.employee_id}
+                    className="border border-zinc-200 rounded-2xl p-5 bg-zinc-50"
+                  >
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
+                      
+                      <div>
+                        <p className="font-semibold text-zinc-900">
+                          {u.employee_name}
+                        </p>
+
+                        <p className="text-sm text-zinc-500">
+                          {u.employee_email}
+                        </p>
+                      </div>
+
+                      <div className="text-left lg:text-right">
+                        <p className="text-lg font-bold text-zinc-900">
+                          {u.percentage}%
+                        </p>
+
+                        <p className="text-xs text-zinc-500">
+                          {u.completed} / {u.total} videos
+                          completed
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="w-full h-3 bg-zinc-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-3 bg-zinc-900 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${u.percentage}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* FOOTER */}
-        <div className="flex justify-end mt-8 pt-6 border-t border-zinc-100">
+        <div className="flex justify-end px-6 py-5 border-t border-zinc-200 bg-zinc-50">
           <button
             onClick={onClose}
-            className="bg-zinc-200 hover:bg-zinc-300 text-zinc-700 px-6 py-2.5 rounded-2xl font-medium transition"
+            className="bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-800 px-5 py-2.5 rounded-2xl font-medium transition"
           >
             Close Manager
           </button>
