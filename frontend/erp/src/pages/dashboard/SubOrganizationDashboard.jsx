@@ -45,10 +45,17 @@ const SubOrganizationDashboard = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const modulesData = await moduleService.getAvailableModules(user?.role);
+
+        const modulesData = await moduleService.getAvailableModules(
+          user?.role
+        );
+
         setModules(modulesData || []);
 
-        const activeCount = (modulesData || []).filter((m) => m.is_active).length;
+        const activeCount = (modulesData || []).filter(
+          (m) => m.is_active
+        ).length;
+
         setStats((prev) => ({
           ...prev,
           activeModules: activeCount,
@@ -200,25 +207,30 @@ const SubOrganizationDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-zinc-600">Loading dashboard...</p>
+          <div className="w-16 h-16 border-4 border-zinc-300 border-t-zinc-900 rounded-full animate-spin mx-auto mb-4"></div>
+
+          <p className="text-zinc-500 font-medium">
+            Loading dashboard...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-700 flex flex-col relative">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800 flex flex-col relative">
       <div className="flex-1 overflow-y-auto pb-20">
-        <div className="bg-white border-b border-zinc-200 shadow-sm">
+        
+        {/* HEADER */}
+        <div className="bg-white border-b border-zinc-200 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-6">
               
               <div className="flex items-center">
-                <div className="bg-emerald-100 p-3 rounded-xl mr-4">
-                  <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold">
+                <div className="bg-zinc-100 p-3 rounded-2xl mr-4 border border-zinc-200">
+                  <div className="w-8 h-8 bg-zinc-900 rounded-xl flex items-center justify-center text-white font-bold">
                     {organization?.name?.charAt(0) || "S"}
                   </div>
                 </div>
@@ -227,8 +239,10 @@ const SubOrganizationDashboard = () => {
                   <h1 className="text-3xl font-bold text-zinc-900">
                     {organization?.name}
                   </h1>
-                  <p className="text-zinc-600 mt-1">
-                    Welcome back, {user?.first_name} • Sub-Organization Dashboard
+
+                  <p className="text-zinc-500 mt-1">
+                    Welcome back, {user?.first_name} •
+                    Sub-Organization Dashboard
                   </p>
                 </div>
               </div>
@@ -236,38 +250,39 @@ const SubOrganizationDashboard = () => {
               <div className="flex items-center space-x-4">
                 <div className="text-right">
                   <p className="text-sm text-zinc-500">Plan</p>
-                  <p className="font-semibold text-emerald-700 capitalize">
+
+                  <p className="font-semibold text-zinc-900 capitalize">
                     {organization?.plan_tier}
                   </p>
                 </div>
 
                 <button
                   onClick={() => setOpenUploadVideo(true)}
-                  className="bg-white border border-zinc-300 hover:border-emerald-400 text-zinc-700 hover:text-emerald-700 px-4 py-2 rounded-xl font-medium transition"
+                  className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-800 px-4 py-2 rounded-2xl font-medium transition"
                 >
                   Training Video
                 </button>
 
                 <button
                   onClick={() => setOpenCreateUser(true)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-medium transition"
+                  className="bg-zinc-900 hover:bg-black text-white px-4 py-2 rounded-2xl font-medium transition"
                 >
                   + Create User
                 </button>
 
                 <button
                   onClick={logout}
-                  className="bg-zinc-800 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-medium transition"
+                  className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-800 px-4 py-2 rounded-2xl font-medium transition"
                 >
                   Logout
                 </button>
 
-                <button 
-                  onClick={() => navigate("/crm-test")} 
-                  className="w-auto bg-violet-600 hover:bg-violet-700 text-white py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition"
+                {/* <button
+                  onClick={() => navigate("/crm-test")}
+                  className="w-auto bg-zinc-900 hover:bg-black text-white py-3 px-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Test CRM
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
@@ -294,42 +309,58 @@ const SubOrganizationDashboard = () => {
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="bg-white border border-zinc-200 rounded-2xl p-6 flex items-center gap-4 hover:shadow-md transition"
+                className="bg-white border border-zinc-200 rounded-3xl p-6 flex items-center gap-4 shadow-sm"
               >
-                <div className="bg-emerald-100 p-3 rounded-xl">
-                  <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold">
+                <div className="bg-zinc-100 p-3 rounded-2xl">
+                  <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center text-white font-bold">
                     {stat.label.charAt(0)}
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-zinc-500 text-sm">{stat.label}</p>
-                  <p className="text-zinc-900 font-bold text-2xl">{stat.value}</p>
+                  <p className="text-zinc-500 text-sm">
+                    {stat.label}
+                  </p>
+
+                  <p className="text-zinc-900 font-bold text-2xl">
+                    {stat.value}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Modules */}
-          <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm">
-            <div className="px-6 py-4 border-b border-zinc-100">
-              <h2 className="text-2xl font-bold text-zinc-900">Your Modules</h2>
+          {/* MODULES */}
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+            <div className="px-6 py-5 border-b border-zinc-200">
+              <h2 className="text-2xl font-bold text-zinc-900">
+                Your Modules
+              </h2>
             </div>
 
             <div className="p-6">
               {modules.length > 0 ? (
-                <ModuleGrid modules={modules} onModuleClick={handleModuleClick} />
+                <ModuleGrid
+                  modules={modules}
+                  onModuleClick={handleModuleClick}
+                  darkTheme={false}
+                />
               ) : (
-                <div className="text-center py-12 text-zinc-600">
-                  <p className="text-xl text-zinc-800">No Modules Assigned</p>
-                  <p className="mt-2">Contact your administrator.</p>
+                <div className="text-center py-12 text-zinc-500">
+                  <p className="text-zinc-900 text-lg font-semibold">
+                    No Modules Assigned
+                  </p>
+
+                  <p className="mt-2">
+                    Contact your administrator.
+                  </p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Organization Info */}
-          <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm">
+          {/* ORGANIZATION INFO */}
+          <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-zinc-900 mb-4">
               Sub-Organization Information
             </h3>
@@ -375,10 +406,13 @@ const SubOrganizationDashboard = () => {
 
       {/* COMMAND BAR */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-300 px-6 py-4 flex items-center cursor-text shadow-2xl"
+        className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-zinc-200 px-6 py-4 flex items-center cursor-text shadow-2xl"
         onClick={handleCommandBarClick}
       >
-        <span className="text-emerald-600 font-bold mr-3">&gt;</span>
+        <span className="text-zinc-900 font-bold mr-3">
+          &gt;
+        </span>
+
         <input
           ref={inputRef}
           type="text"
@@ -386,14 +420,14 @@ const SubOrganizationDashboard = () => {
           onChange={(e) => setCommand(e.target.value)}
           onKeyDown={handleCommand}
           placeholder="Type command: help, hr, video, users..."
-          className="flex-1 bg-transparent text-zinc-700 outline-none font-mono text-base placeholder-zinc-400"
+          className="flex-1 bg-transparent text-zinc-700 outline-none font-mono text-base"
           spellCheck={false}
         />
       </div>
 
       {/* TOAST */}
       {showAlert && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-zinc-800 border border-zinc-700 text-white px-6 py-3 rounded-xl shadow-xl text-sm font-mono">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-white border border-zinc-200 text-zinc-800 px-6 py-3 rounded-2xl shadow-xl text-sm font-medium">
           {alertMessage}
         </div>
       )}
