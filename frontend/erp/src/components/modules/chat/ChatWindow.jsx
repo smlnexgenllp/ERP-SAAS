@@ -115,7 +115,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
       const cachedMessages = messagesCache.get(group.id);
       setMessages(cachedMessages);
       setFilteredMessages(cachedMessages);
-      
+
       // If we already have cached messages, don't show loading
       if (!showLoading) {
         // Still fetch in background for updates
@@ -126,15 +126,15 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
 
     // Show loading only if explicitly requested and no cache
     if (showLoading) setLoading(true);
-    
+
     try {
       setError(null);
       const res = await api.get(`/hr/chat/groups/${group.id}/messages/`);
       const newMessages = res.data || [];
-      
+
       // Update cache
       messagesCache.set(group.id, newMessages);
-      
+
       setMessages(newMessages);
       setFilteredMessages(newMessages);
     } catch (err) {
@@ -152,10 +152,10 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
     try {
       const res = await api.get(`/hr/chat/groups/${group.id}/messages/`);
       const newMessages = res.data || [];
-      
+
       // Update cache
       messagesCache.set(group.id, newMessages);
-      
+
       setMessages(newMessages);
       setFilteredMessages(prev => {
         if (!searchQuery) return newMessages;
@@ -354,7 +354,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
     setSearchQuery('');
     setError(null);
     setTyping(false);
-    
+
     // Check cache first for instant display
     if (messagesCache.has(group.id)) {
       setMessages(messagesCache.get(group.id));
@@ -363,11 +363,11 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
       // Only show loading if no cache
       setLoading(true);
     }
-    
+
     if (pinnedCache.has(group.id)) {
       setPinnedMessages(pinnedCache.get(group.id));
     }
-    
+
     if (membersCache.has(group.id)) {
       setGroupMembers(membersCache.get(group.id));
     }
@@ -923,8 +923,8 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
                     <div key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-800/30 rounded-lg group">
                       <div className="relative">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMemberCreator
-                            ? 'bg-gradient-to-br from-amber-600 to-orange-600'
-                            : 'bg-gradient-to-br from-cyan-600 to-blue-600'
+                          ? 'bg-gradient-to-br from-amber-600 to-orange-600'
+                          : 'bg-gradient-to-br from-cyan-600 to-blue-600'
                           }`}>
                           {member.photo ? (
                             <img src={member.photo} alt={member.full_name} className="w-full h-full rounded-full object-cover" />
@@ -1149,42 +1149,43 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gradient-to-b from-gray-900 to-gray-950 relative">
-      <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-20">
+   <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-zinc-200 bg-white sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-gray-800 rounded-lg lg:hidden transition">
-            <ArrowLeft className="w-5 h-5 text-gray-400" />
+          <button onClick={onBack} className="p-2 hover:bg-zinc-100 rounded-xl lg:hidden transition">
+            <ArrowLeft className="w-5 h-5 text-zinc-500" />
           </button>
 
-          <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-900/30 to-blue-900/30">
-            {React.createElement(getGroupIcon(), { className: "w-5 h-5 text-cyan-400" })}
+          <div className="p-2 rounded-xl bg-blue-100">
+            {React.createElement(getGroupIcon(), { className: "w-5 h-5 text-blue-600" })}
           </div>
 
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-bold text-lg text-gray-100">{group.name}</h2>
+              <h2 className="font-bold text-lg text-zinc-900">{group.name}</h2>
               {group.group_type === 'project' && (
-                <span className="px-2 py-0.5 text-xs bg-emerald-900/30 text-emerald-400 rounded-full">Project</span>
+                <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">Project</span>
               )}
               {isCreator && (
-                <span className="px-2 py-0.5 text-xs bg-amber-900/30 text-amber-400 rounded-full">Creator</span>
+                <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">Creator</span>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 text-sm text-gray-400">
+            <div className="flex items-center gap-3 text-sm text-zinc-500">
+              <div className="flex items-center gap-1">
                 <Users className="w-3 h-3" />
                 <span>{group.member_count || groupMembers.length || 0} members</span>
               </div>
-              <div className="flex items-center gap-1 text-sm text-emerald-400">
+              <div className="flex items-center gap-1 text-emerald-600">
                 <div className="flex -space-x-1">
                   {(onlineUsers || []).slice(0, 3).map((userId, idx) => (
-                    <div key={idx} className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-gray-900" title="Online" />
+                    <div key={idx} className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white" />
                   ))}
                 </div>
                 <span>{(onlineUsers || []).length} online</span>
               </div>
               {typing && (
-                <div className="flex items-center gap-1 text-sm text-cyan-400 animate-pulse">
+                <div className="flex items-center gap-1 text-blue-600 animate-pulse">
                   <Clock className="w-3 h-3" />
                   <span>typing...</span>
                 </div>
@@ -1195,34 +1196,40 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
 
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input
               type="text"
               placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-48 pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+              className="w-48 pl-10 pr-4 py-2 bg-white border border-zinc-200 rounded-2xl text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <X className="w-4 h-4 text-gray-400" />
+                <X className="w-4 h-4 text-zinc-400" />
               </button>
             )}
           </div>
 
-          <button onClick={() => setShowMembers(!showMembers)} className={`p-2 rounded-lg transition ${showMembers ? 'bg-gray-800' : 'hover:bg-gray-800'}`} title="Group info">
-            <Info className="w-5 h-5 text-gray-400" />
+          <button
+            onClick={() => setShowMembers(!showMembers)}
+            className={`p-2 rounded-xl transition ${showMembers ? 'bg-blue-100 text-blue-600' : 'hover:bg-zinc-100'}`}
+            title="Group info"
+          >
+            <Info className="w-5 h-5 text-zinc-500" />
           </button>
-          <button onClick={() => setShowPinned(true)} className="p-2 hover:bg-gray-800 rounded-lg transition relative" title="Pinned messages">
-            <Pin className="w-5 h-5 text-gray-400" />
+
+          <button
+            onClick={() => setShowPinned(true)}
+            className="p-2 hover:bg-zinc-100 rounded-xl transition relative"
+            title="Pinned messages"
+          >
+            <Pin className="w-5 h-5 text-zinc-500" />
             {pinnedMessages.length > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center">
                 {pinnedMessages.length}
               </span>
             )}
-          </button>
-          <button className="p-2 hover:bg-gray-800 rounded-lg transition">
-            <Bell className="w-5 h-5 text-gray-400" />
           </button>
         </div>
       </div>
@@ -1252,7 +1259,10 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
         />
       )}
 
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 relative">
+      <div 
+        ref={messagesContainerRef} 
+        className="flex-1 overflow-y-auto p-4 bg-zinc-50 custom-scrollbar"
+      >
         {/* Loading indicator - only shown when no cached data */}
         {loading && messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
@@ -1326,21 +1336,38 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t border-gray-800 bg-gray-900/50 backdrop-blur-sm">
+      <div className="p-4 border-t border-zinc-200 bg-white">
         {renderFilePreview()}
 
         <div className="flex gap-3">
-          <input ref={fileInputRef} type="file" onChange={handleFileSelect} className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx" />
-          <button onClick={() => fileInputRef.current?.click()} className="p-3 hover:bg-gray-800 rounded-xl transition" title="Attach file">
-            <Paperclip className="w-5 h-5 text-gray-400" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileSelect}
+            className="hidden"
+            accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
+          />
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-3 hover:bg-zinc-100 rounded-2xl transition text-zinc-500 hover:text-zinc-700"
+            title="Attach file"
+          >
+            <Paperclip className="w-5 h-5" />
           </button>
 
-          <button className="p-3 hover:bg-gray-800 rounded-xl transition" title="Add emoji">
-            <Smile className="w-5 h-5 text-gray-400" />
+          <button
+            className="p-3 hover:bg-zinc-100 rounded-2xl transition text-zinc-500 hover:text-zinc-700"
+            title="Add emoji"
+          >
+            <Smile className="w-5 h-5" />
           </button>
 
-          <button className="p-3 hover:bg-gray-800 rounded-xl transition" title="Mention someone">
-            <AtSign className="w-5 h-5 text-gray-400" />
+          <button
+            className="p-3 hover:bg-zinc-100 rounded-2xl transition text-zinc-500 hover:text-zinc-700"
+            title="Mention someone"
+          >
+            <AtSign className="w-5 h-5" />
           </button>
 
           <div className="flex-1 relative">
@@ -1354,19 +1381,23 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
                 }
               }}
               placeholder={`Message ${group.name}...`}
-              className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-gray-200 placeholder-gray-500"
+              className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-zinc-800 placeholder-zinc-400"
               rows="1"
               disabled={sending}
             />
-            <div className="absolute right-3 bottom-3 text-xs text-gray-500">Shift+Enter for new line</div>
+            <div className="absolute right-4 bottom-3 text-xs text-zinc-400">Shift+Enter for new line</div>
           </div>
 
           <button
             onClick={sendMessage}
             disabled={sending || (!input.trim() && !file)}
-            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 disabled:from-gray-700 disabled:to-gray-800 text-white font-medium px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-cyan-500/20 disabled:shadow-none disabled:cursor-not-allowed flex items-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-300 text-white font-medium px-6 py-3 rounded-2xl transition-all duration-300 flex items-center gap-2 shadow-sm"
           >
-            {sending ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            {sending ? (
+              <RefreshCw className="w-5 h-5 animate-spin" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
             Send
           </button>
         </div>

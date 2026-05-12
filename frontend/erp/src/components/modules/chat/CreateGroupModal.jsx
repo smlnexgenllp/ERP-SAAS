@@ -298,282 +298,282 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
   };
 
   const renderStep1 = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-200 mb-4">
-          Select Group Type
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button
-            onClick={() => setGroupType('custom')}
-            className={`p-4 rounded-xl border-2 transition-all relative ${groupType === 'custom'
-              ? 'border-purple-500 bg-purple-900/20'
-              : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
-              }`}
-          >
-            <Users className={`w-6 h-6 mb-3 ${groupType === 'custom' ? 'text-purple-400' : 'text-gray-400'
-              }`} />
-            <h4 className="font-medium text-gray-200">Custom Group</h4>
-            <p className="text-sm text-gray-400 mt-1">
-              Create a team with selected members
-            </p>
-            {groupType === 'custom' && (
-              <Check className="w-5 h-5 text-purple-400 absolute top-3 right-3" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setGroupType('project')}
-            className={`p-4 rounded-xl border-2 transition-all relative ${groupType === 'project'
-              ? 'border-emerald-500 bg-emerald-900/20'
-              : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
-              }`}
-          >
-            <Briefcase className={`w-6 h-6 mb-3 ${groupType === 'project' ? 'text-emerald-400' : 'text-gray-400'
-              }`} />
-            <h4 className="font-medium text-gray-200">Project Chat</h4>
-            <p className="text-sm text-gray-400 mt-1">
-              Auto-include project team members
-            </p>
-            {groupType === 'project' && (
-              <Check className="w-5 h-5 text-emerald-400 absolute top-3 right-3" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setGroupType('organization')}
-            className={`p-4 rounded-xl border-2 transition-all relative ${groupType === 'organization'
-              ? 'border-blue-500 bg-blue-900/20'
-              : 'border-gray-700 hover:border-gray-600 hover:bg-gray-800/50'
-              }`}
-            disabled
-            title="Organization chat is automatically created"
-          >
-            <Building className={`w-6 h-6 mb-3 ${groupType === 'organization' ? 'text-blue-400' : 'text-gray-400 opacity-50'
-              }`} />
-            <h4 className="font-medium text-gray-200 opacity-70">Organization</h4>
-            <p className="text-sm text-gray-500 mt-1">
-              Automatically created
-            </p>
-          </button>
-        </div>
-      </div>
-
-      <div className="flex justify-between pt-6 border-t border-gray-800">
+  <div className="space-y-6">
+    <div>
+      <h3 className="text-lg font-semibold text-zinc-900 mb-4">
+        Select Group Type
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        {/* Custom Group */}
         <button
-          onClick={onClose}
-          className="px-6 py-2 text-gray-400 hover:text-gray-300 transition"
+          onClick={() => setGroupType('custom')}
+          className={`p-6 rounded-3xl border-2 transition-all relative h-full flex flex-col ${
+            groupType === 'custom'
+              ? 'border-blue-600 bg-blue-50'
+              : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+          }`}
         >
-          Cancel
+          <Users className={`w-7 h-7 mb-4 ${groupType === 'custom' ? 'text-blue-600' : 'text-zinc-400'}`} />
+          <h4 className="font-semibold text-zinc-900 mb-2">Custom Group</h4>
+          <p className="text-sm text-zinc-600 flex-1">
+            Create a team with selected members
+          </p>
+          {groupType === 'custom' && (
+            <Check className="w-5 h-5 text-blue-600 absolute top-4 right-4" />
+          )}
         </button>
+
+        {/* Project Chat */}
         <button
-          onClick={() => setStep(2)}
-          className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition"
+          onClick={() => setGroupType('project')}
+          className={`p-6 rounded-3xl border-2 transition-all relative h-full flex flex-col ${
+            groupType === 'project'
+              ? 'border-blue-600 bg-blue-50'
+              : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+          }`}
         >
-          Next Step
+          <Briefcase className={`w-7 h-7 mb-4 ${groupType === 'project' ? 'text-blue-600' : 'text-zinc-400'}`} />
+          <h4 className="font-semibold text-zinc-900 mb-2">Project Chat</h4>
+          <p className="text-sm text-zinc-600 flex-1">
+            Auto-include project team members
+          </p>
+          {groupType === 'project' && (
+            <Check className="w-5 h-5 text-blue-600 absolute top-4 right-4" />
+          )}
+        </button>
+
+        {/* Organization */}
+        <button
+          onClick={() => setGroupType('organization')}
+          className={`p-6 rounded-3xl border-2 transition-all relative h-full flex flex-col opacity-75 cursor-not-allowed ${
+            groupType === 'organization'
+              ? 'border-blue-600 bg-blue-50'
+              : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+          }`}
+          disabled
+          title="Organization chat is automatically created"
+        >
+          <Building className={`w-7 h-7 mb-4 ${groupType === 'organization' ? 'text-blue-600' : 'text-zinc-400'}`} />
+          <h4 className="font-semibold text-zinc-900 mb-2">Organization</h4>
+          <p className="text-sm text-zinc-500 flex-1">
+            Automatically created
+          </p>
         </button>
       </div>
     </div>
-  );
+
+    <div className="flex justify-between pt-6 border-t border-zinc-100">
+      <button
+        onClick={onClose}
+        className="px-6 py-2.5 text-zinc-600 hover:text-zinc-800 font-medium transition"
+      >
+        Cancel
+      </button>
+      <button
+        onClick={() => setStep(2)}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-2xl font-medium transition flex items-center gap-2"
+      >
+        Next Step
+      </button>
+    </div>
+  </div>
+);
 
   const renderStep2 = () => {
-    if (groupType === 'custom') {
-      return (
-        <div className="space-y-6">
-          {/* Group Name Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Group Name *
+  if (groupType === 'custom') {
+    return (
+      <div className="space-y-6">
+        {/* Group Name Input */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-2">
+            Group Name *
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g., Marketing Team, Development Group"
+            className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+          />
+        </div>
+
+        {/* Description Input */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-2">
+            Description (Optional)
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What's this group about?"
+            rows="3"
+            className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition"
+          />
+        </div>
+
+        {/* Member Selection */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium text-zinc-700">
+              Select Members *
             </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Marketing Team, Development Group"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-            />
+            <span className="text-xs text-zinc-500">
+              {members.length} selected
+            </span>
           </div>
 
-          {/* Description Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Description (Optional)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What's this group about?"
-              rows="3"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
-            />
+          {/* Search and Filter */}
+          <div className="space-y-3 mb-4">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search users..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-zinc-200 rounded-2xl text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* User Type Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400 z-10" />
+              <select
+                value={userTypeFilter}
+                onChange={(e) => setUserTypeFilter(e.target.value)}
+                className="w-full pl-10 pr-8 py-2.5 bg-white border border-zinc-200 rounded-2xl text-zinc-800 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Users</option>
+                <option value="employee">Employees Only</option>
+                <option value="org_user">Organization Users</option>
+                <option value="sub_admin">Sub-Organization Admins</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            </div>
           </div>
 
-          {/* Member Selection */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-medium text-gray-300">
-                Select Members *
-              </label>
-              <span className="text-xs text-gray-500">
-                {members.length} selected
-              </span>
+          {loadingUsers ? (
+            <div className="text-center py-8">
+              <Loader2 className="w-6 h-6 text-blue-600 animate-spin mx-auto mb-3" />
+              <p className="text-zinc-500">Loading users...</p>
             </div>
-
-            {/* Search and Filter */}
-            <div className="space-y-3 mb-4">
-              {/* Search Input */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search users..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* User Type Filter */}
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 z-10" />
-                <select
-                  value={userTypeFilter}
-                  onChange={(e) => setUserTypeFilter(e.target.value)}
-                  className="w-full pl-10 pr-8 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                >
-                  <option value="all">All Users</option>
-                  <option value="employee">Employees Only</option>
-                  <option value="org_user">Organization Users</option>
-                  <option value="sub_admin">Sub-Organization Admins</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-              </div>
-            </div>
-
-            {loadingUsers ? (
-              <div className="text-center py-8">
-                <Loader2 className="w-6 h-6 text-cyan-500 animate-spin mx-auto mb-3" />
-                <p className="text-gray-400">Loading users...</p>
-              </div>
-            ) : (
-              <>
-                {/* Users List */}
-                <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                  {filteredUsers.map(user => (
-                    <button
-                      key={`${user.user_type}-${user.id}`}
-                      onClick={() => handleUserSelect(user)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-lg transition ${user.selected
-                        ? 'bg-purple-900/30 border border-purple-700/50'
-                        : 'hover:bg-gray-800/50'
-                        } ${user.id === currentUser?.id ? 'opacity-75 cursor-default' : ''}`}
-                      disabled={user.id === currentUser?.id}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${user.selected ? 'bg-purple-600' : 
-                        user.user_type === 'sub_admin' ? 'bg-amber-600' :
-                        user.user_type === 'org_user' ? 'bg-blue-600' : 'bg-gray-700'
-                      }`}>
-                        <span className="text-white text-sm font-bold">
-                          {user.first_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
+          ) : (
+            <>
+              {/* Users List */}
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {filteredUsers.map(user => (
+                  <button
+                    key={`${user.user_type}-${user.id}`}
+                    onClick={() => handleUserSelect(user)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-2xl transition border ${
+                      user.selected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-transparent hover:bg-zinc-50'
+                    } ${user.id === currentUser?.id ? 'opacity-75 cursor-default' : ''}`}
+                    disabled={user.id === currentUser?.id}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      user.selected ? 'bg-blue-600' : 
+                      user.user_type === 'sub_admin' ? 'bg-amber-100 text-amber-600' :
+                      user.user_type === 'org_user' ? 'bg-blue-100 text-blue-600' : 'bg-zinc-100 text-zinc-600'
+                    }`}>
+                      <span className="text-sm font-bold">
+                        {user.first_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <div className="flex-1 text-left">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-zinc-900">
+                          {user.full_name || `${user.first_name} ${user.last_name}`}
+                          {user.id === currentUser?.id && ' (You)'}
+                        </p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          user.user_type === 'sub_admin' ? 'bg-amber-100 text-amber-700' :
+                          user.user_type === 'org_user' ? 'bg-blue-100 text-blue-700' :
+                          'bg-zinc-100 text-zinc-600'
+                        }`}>
+                          {user.user_type_label}
                         </span>
                       </div>
-                      <div className="flex-1 text-left">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-gray-200">
-                            {user.full_name || `${user.first_name} ${user.last_name}`}
-                            {user.id === currentUser?.id && ' (You)'}
-                          </p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            user.user_type === 'sub_admin' ? 'bg-amber-900/50 text-amber-300' :
-                            user.user_type === 'org_user' ? 'bg-blue-900/50 text-blue-300' :
-                            'bg-gray-700 text-gray-300'
-                          }`}>
-                            {user.user_type_label}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-400">{user.email}</p>
-                        {(user.department || user.designation) && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {user.department && user.department}
-                            {user.department && user.designation && ' • '}
-                            {user.designation && user.designation}
-                          </p>
-                        )}
-                        {(user.organization || user.sub_organization) && (
-                          <p className="text-xs text-gray-500">
-                            {user.sub_organization || user.organization}
-                          </p>
-                        )}
-                      </div>
-                      {user.selected && user.id !== currentUser?.id && (
-                        <Check className="w-5 h-5 text-purple-400" />
+                      <p className="text-xs text-zinc-500">{user.email}</p>
+                      {(user.department || user.designation) && (
+                        <p className="text-xs text-zinc-500 mt-1">
+                          {user.department && user.department}
+                          {user.department && user.designation && ' • '}
+                          {user.designation && user.designation}
+                        </p>
                       )}
-                    </button>
-                  ))}
-                  {filteredUsers.length === 0 && (
-                    <div className="text-center py-8 text-gray-400">
-                      No users found matching your criteria
                     </div>
-                  )}
-                </div>
-
-                {/* Selected Members Summary */}
-                {members.length > 0 && (
-                  <div className="mt-6 p-4 bg-gray-800/30 rounded-lg">
-                    <h4 className="text-sm font-medium text-gray-300 mb-3">
-                      Selected Members ({members.length})
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {members.map(member => (
-                        <div
-                          key={member.id}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
-                            member.user_type === 'sub_admin' ? 'bg-amber-900/30 border border-amber-700/50' :
-                            member.user_type === 'org_user' ? 'bg-blue-900/30 border border-blue-700/50' :
-                            'bg-gray-700/50'
-                          }`}
-                        >
-                          <span className="text-sm text-gray-200">
-                            {member.full_name || member.email}
-                            {member.id === currentUser?.id && ' (You)'}
-                          </span>
-                          {member.id !== currentUser?.id && (
-                            <button
-                              onClick={() => handleUserSelect(member)}
-                              className="hover:text-red-400 transition"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    {user.selected && user.id !== currentUser?.id && (
+                      <Check className="w-5 h-5 text-blue-600" />
+                    )}
+                  </button>
+                ))}
+                {filteredUsers.length === 0 && (
+                  <div className="text-center py-8 text-zinc-500">
+                    No users found matching your criteria
                   </div>
                 )}
-              </>
-            )}
-          </div>
+              </div>
 
-          <div className="flex justify-between pt-6 border-t border-gray-800">
-            <button
-              onClick={() => setStep(1)}
-              className="px-6 py-2 text-gray-400 hover:text-gray-300 transition"
-            >
-              Back
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={loading || !name.trim() || members.length < 2}
-              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 disabled:from-gray-700 disabled:to-gray-800 text-white px-6 py-2 rounded-lg font-medium transition disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              Create Group
-            </button>
-          </div>
+              {/* Selected Members Summary */}
+              {members.length > 0 && (
+                <div className="mt-6 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
+                  <h4 className="text-sm font-medium text-zinc-700 mb-3">
+                    Selected Members ({members.length})
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {members.map(member => (
+                      <div
+                        key={member.id}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border ${
+                          member.user_type === 'sub_admin' ? 'bg-amber-50 border-amber-200' :
+                          member.user_type === 'org_user' ? 'bg-blue-50 border-blue-200' :
+                          'bg-zinc-100 border-zinc-200'
+                        }`}
+                      >
+                        <span className="text-sm text-zinc-800">
+                          {member.full_name || member.email}
+                          {member.id === currentUser?.id && ' (You)'}
+                        </span>
+                        {member.id !== currentUser?.id && (
+                          <button
+                            onClick={() => handleUserSelect(member)}
+                            className="hover:text-red-500 transition"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
-      );
-    }
 
+        <div className="flex justify-between pt-6 border-t border-zinc-100">
+          <button
+            onClick={() => setStep(1)}
+            className="px-6 py-2.5 text-zinc-600 hover:text-zinc-800 font-medium transition"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !name.trim() || members.length < 2}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-300 text-white px-6 py-2.5 rounded-2xl font-medium transition disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            Create Group
+          </button>
+        </div>
+      </div>
+    );
+  }
     if (groupType === 'project') {
       return (
         <div className="space-y-6">
@@ -654,63 +654,55 @@ function CreateGroupModal({ onClose, onSuccess, currentUser }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-800 shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-hidden border border-zinc-200 shadow-2xl">
+        
         {/* Header */}
-        <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+        <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-100">Create New Chat Group</h2>
-            <p className="text-gray-400 mt-1">
+            <h2 className="text-2xl font-bold text-zinc-900">Create New Chat Group</h2>
+            <p className="text-zinc-600 mt-1">
               {step === 1 ? 'Choose the type of group' : 'Configure your group settings'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-800 rounded-lg transition"
+            className="p-2 hover:bg-zinc-100 rounded-2xl transition"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-zinc-500" />
           </button>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress Bar */}
         <div className="px-6 pt-4">
           <div className="flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-cyan-600' : 'bg-gray-800'
-              }`}>
-              <span className="text-white font-bold">1</span>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-zinc-200 text-zinc-400'}`}>
+              1
             </div>
-            <div className={`flex-1 h-1 mx-2 ${step >= 2 ? 'bg-cyan-600' : 'bg-gray-800'
-              }`} />
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-cyan-600' : 'bg-gray-800'
-              }`}>
-              <span className="text-white font-bold">2</span>
+            <div className={`flex-1 h-1 mx-3 ${step >= 2 ? 'bg-blue-600' : 'bg-zinc-200'}`} />
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-zinc-200 text-zinc-400'}`}>
+              2
             </div>
           </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <div className="flex justify-between text-xs text-zinc-500 mt-1">
             <span>Select Type</span>
             <span>Configure</span>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(92vh-180px)]">
           {error && (
-            <div className="mb-6 p-4 bg-red-900/20 border border-red-700/50 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-red-300">Error</p>
-                <p className="text-red-400/80 text-sm mt-1">{error}</p>
-              </div>
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <p>{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="mb-6 p-4 bg-emerald-900/20 border border-emerald-700/50 rounded-lg flex items-start gap-3">
-              <Check className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-emerald-300">Success!</p>
-                <p className="text-emerald-400/80 text-sm mt-1">{success}</p>
-              </div>
+            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl flex items-start gap-3">
+              <Check className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <p>{success}</p>
             </div>
           )}
 
