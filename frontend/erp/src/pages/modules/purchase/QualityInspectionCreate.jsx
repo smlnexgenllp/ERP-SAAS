@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import { FiCheckCircle, FiArrowLeft, FiRefreshCw } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
 
-export default function QualityInspectionCreate() {
+const QualityInspectionCreate = () => {
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
@@ -79,7 +79,6 @@ export default function QualityInspectionCreate() {
       remarks: "",
     });
     
-    // Validate initial state
     validateQC(totalDelivered, totalDelivered, 0);
   };
 
@@ -132,7 +131,6 @@ export default function QualityInspectionCreate() {
       return;
     }
 
-    // Validate item_id exists
     for (let i = 0; i < itemsList.length; i++) {
       if (!itemsList[i].item_id) {
         alert(`Item ID missing for row ${i + 1}. Backend serializer must send item_id.`);
@@ -148,7 +146,6 @@ export default function QualityInspectionCreate() {
     const accepted = Number(form.accepted_qty) || 0;
     const rejected = Number(form.rejected_qty) || 0;
 
-    // Strict validation
     if (Math.abs(accepted + rejected - totalDelivered) > 0.01) {
       alert(
         `❌ Validation Failed!\n\nAccepted (${accepted}) + Rejected (${rejected}) must equal Delivered (${totalDelivered})\n\n` +
@@ -157,7 +154,6 @@ export default function QualityInspectionCreate() {
       return;
     }
 
-    // Proportional distribution
     let qcItems = itemsList.map((item) => {
       const delivered = Number(item.delivered_qty || 0);
       const ratio = totalDelivered > 0 ? delivered / totalDelivered : 0;
@@ -169,7 +165,6 @@ export default function QualityInspectionCreate() {
       };
     });
 
-    // Fix rounding diff
     const calcTotal = qcItems.reduce(
       (s, i) => s + i.accepted_qty + i.rejected_qty,
       0
@@ -184,8 +179,6 @@ export default function QualityInspectionCreate() {
       remarks: (form.remarks || "").trim(),
       items: qcItems,
     };
-
-    console.log("QC PAYLOAD:", payload);
 
     try {
       await api.post("/inventory/quality-inspections/", payload);
@@ -212,7 +205,6 @@ export default function QualityInspectionCreate() {
     )
     : 0;
 
-  // Safe display helpers
   const getItemName = (item) => {
     if (item.item_name) return item.item_name;
     if (item.item?.name) return item.item.name;
@@ -227,24 +219,24 @@ export default function QualityInspectionCreate() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-50 px-4 py-6 md:px-8 md:py-10">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800 p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
+            className="flex items-center gap-2 text-zinc-600 hover:text-zinc-900 font-medium"
           >
             <FiArrowLeft size={20} /> Back
           </button>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-cyan-300 flex items-center gap-3">
-            <FiCheckCircle className="text-cyan-400" /> Quality Inspection (QC)
+          <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 flex items-center gap-3">
+            <FiCheckCircle className="text-blue-600" /> Quality Inspection (QC)
           </h1>
 
           <button
             onClick={loadInitialData}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-2 bg-white border border-zinc-200 hover:bg-zinc-50 px-5 py-2.5 rounded-2xl transition"
             title="Refresh pending gate entries"
           >
             <FiRefreshCw size={16} /> Refresh
@@ -253,20 +245,20 @@ export default function QualityInspectionCreate() {
 
         {/* User Info */}
         {user && (
-          <div className="bg-gray-900/90 border border-cyan-900/50 rounded-xl p-6 mb-10 shadow-xl">
-            <h3 className="text-lg font-semibold text-cyan-300 mb-4">
+          <div className="bg-white border border-zinc-200 rounded-3xl p-6 mb-10 shadow-sm">
+            <h3 className="text-lg font-semibold text-zinc-900 mb-4">
               Organization & User Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm text-cyan-400/80 mb-1">Organization</label>
-                <p className="text-lg font-semibold text-cyan-100">
+                <label className="block text-sm text-zinc-500 mb-1">Organization</label>
+                <p className="text-lg font-semibold text-zinc-900">
                   {user.organization?.name || "—"}
                 </p>
               </div>
               <div>
-                <label className="block text-sm text-cyan-400/80 mb-1">Current User</label>
-                <p className="text-lg font-semibold text-cyan-100">
+                <label className="block text-sm text-zinc-500 mb-1">Current User</label>
+                <p className="text-lg font-semibold text-zinc-900">
                   {user.full_name || user.email || "—"}
                 </p>
               </div>
@@ -276,30 +268,30 @@ export default function QualityInspectionCreate() {
 
         {/* Error Display */}
         {error && (
-          <div className="bg-red-900/50 border border-red-700 text-red-200 p-4 rounded-xl mb-6">
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl mb-6">
             {error}
           </div>
         )}
 
         {/* Main Form Card */}
-        <div className="bg-gray-900/90 border border-cyan-900/50 rounded-xl shadow-xl overflow-hidden">
-          <div className="bg-gradient-to-r from-gray-900 to-gray-800 px-6 py-5 border-b border-cyan-900/50">
-            <h2 className="text-2xl font-semibold text-cyan-300 flex items-center gap-3">
-              <FiCheckCircle /> Perform Quality Check
+        <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+          <div className="bg-zinc-50 px-6 py-5 border-b border-zinc-200">
+            <h2 className="text-2xl font-semibold text-zinc-900 flex items-center gap-3">
+              <FiCheckCircle className="text-blue-600" /> Perform Quality Check
             </h2>
           </div>
 
           <div className="p-6 md:p-8">
             {/* Selection */}
             <div className="mb-10">
-              <label className="block text-sm text-cyan-400/90 mb-2 font-medium">
-                Select Gate Entry Pending QC <span className="text-red-400">*</span>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">
+                Select Gate Entry Pending QC <span className="text-red-500">*</span>
               </label>
               <select
                 value={form.gate_entry}
                 onChange={(e) => handleGateEntrySelect(e.target.value)}
                 disabled={loading}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-cyan-50 focus:outline-none focus:border-cyan-600"
+                className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
               >
                 <option value="">— Select Pending Gate Entry —</option>
                 {gateEntries.map((ge) => (
@@ -314,24 +306,22 @@ export default function QualityInspectionCreate() {
             {selectedGateEntry && (
               <>
                 {/* Quick Info */}
-                <div className="bg-gray-800/50 border border-cyan-900/40 rounded-xl p-6 mb-10">
-                  <h3 className="text-lg font-semibold text-cyan-300 mb-4">
+                <div className="bg-zinc-50 border border-zinc-100 rounded-2xl p-6 mb-10">
+                  <h3 className="text-lg font-semibold text-zinc-900 mb-4">
                     Gate Entry Information
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                      <span className="text-sm text-cyan-400 block mb-1">
-                        Gate Entry #
-                      </span>
-                      <p className="font-medium">{selectedGateEntry.gate_entry_number}</p>
+                      <span className="text-sm text-zinc-500 block mb-1">Gate Entry #</span>
+                      <p className="font-medium text-zinc-900">{selectedGateEntry.gate_entry_number}</p>
                     </div>
                     <div>
-                      <span className="text-sm text-cyan-400 block mb-1">PO #</span>
-                      <p className="font-medium">{getPONumber(selectedGateEntry)}</p>
+                      <span className="text-sm text-zinc-500 block mb-1">PO #</span>
+                      <p className="font-medium text-zinc-900">{getPONumber(selectedGateEntry)}</p>
                     </div>
                     <div>
-                      <span className="text-sm text-cyan-400 block mb-1">Vehicle</span>
-                      <p className="font-medium">
+                      <span className="text-sm text-zinc-500 block mb-1">Vehicle</span>
+                      <p className="font-medium text-zinc-900">
                         {selectedGateEntry.vehicle_number || "—"}
                       </p>
                     </div>
@@ -340,47 +330,41 @@ export default function QualityInspectionCreate() {
 
                 {/* Items Table */}
                 <div className="mb-10">
-                  <h3 className="text-xl font-semibold text-cyan-300 mb-4">
+                  <h3 className="text-xl font-semibold text-zinc-900 mb-4">
                     Delivered Items
                   </h3>
-                  <div className="overflow-x-auto rounded-xl border border-cyan-900/40">
+                  <div className="overflow-x-auto rounded-2xl border border-zinc-200">
                     <table className="w-full min-w-[800px]">
-                      <thead className="bg-gray-800/70">
-                        <tr className="text-cyan-300/90 text-sm uppercase tracking-wider">
+                      <thead className="bg-zinc-50">
+                        <tr className="text-zinc-600 text-sm">
                           <th className="px-6 py-4 text-left">Item</th>
                           <th className="px-6 py-4 text-center">Delivered Qty</th>
                           <th className="px-6 py-4 text-center">Accepted Qty</th>
                           <th className="px-6 py-4 text-center">Rejected Qty</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-cyan-900/30">
+                      <tbody className="divide-y divide-zinc-100">
                         {(selectedGateEntry.items || []).map((item, idx) => (
-                          <tr key={idx} className="hover:bg-gray-800/40">
+                          <tr key={idx} className="hover:bg-zinc-50">
                             <td className="px-6 py-4">{getItemName(item)}</td>
                             <td className="px-6 py-4 text-center font-medium">
                               {Number(item.delivered_qty || 0).toLocaleString()}
                             </td>
-                            <td className="px-6 py-4 text-center text-green-400">
-                              —
-                            </td>
-                            <td className="px-6 py-4 text-center text-red-400">
-                              —
-                            </td>
+                            <td className="px-6 py-4 text-center text-emerald-600">—</td>
+                            <td className="px-6 py-4 text-center text-red-600">—</td>
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-gray-800/60 font-semibold">
+                      <tfoot className="bg-zinc-50 font-semibold">
                         <tr>
-                          <td className="px-6 py-4 text-right text-cyan-200">
-                            Total Delivered:
-                          </td>
-                          <td className="px-6 py-4 text-center text-cyan-300">
+                          <td className="px-6 py-4 text-right text-zinc-700">Total Delivered:</td>
+                          <td className="px-6 py-4 text-center text-zinc-900">
                             {totalDelivered.toLocaleString()}
                           </td>
-                          <td className="px-6 py-4 text-center text-green-400">
+                          <td className="px-6 py-4 text-center text-emerald-600">
                             {Number(form.accepted_qty || 0).toLocaleString()}
                           </td>
-                          <td className="px-6 py-4 text-center text-red-400">
+                          <td className="px-6 py-4 text-center text-red-600">
                             {Number(form.rejected_qty || 0).toLocaleString()}
                           </td>
                         </tr>
@@ -390,15 +374,15 @@ export default function QualityInspectionCreate() {
                 </div>
 
                 {/* QC Form */}
-                <div className="bg-gray-800/50 border border-cyan-900/40 rounded-xl p-6">
-                  <h3 className="text-xl font-semibold text-cyan-300 mb-6">
+                <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-zinc-900 mb-6">
                     QC Decision
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
-                      <label className="block text-sm text-cyan-400/90 mb-2 font-medium">
-                        Accepted Quantity <span className="text-red-400">*</span>
+                      <label className="block text-sm font-medium text-zinc-700 mb-2">
+                        Accepted Quantity <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="number"
@@ -406,13 +390,13 @@ export default function QualityInspectionCreate() {
                         max={totalDelivered}
                         value={form.accepted_qty}
                         onChange={(e) => handleChange("accepted_qty", e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-cyan-50 focus:outline-none focus:border-cyan-600"
+                        className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm text-cyan-400/90 mb-2 font-medium">
-                        Rejected Quantity <span className="text-red-400">*</span>
+                      <label className="block text-sm font-medium text-zinc-700 mb-2">
+                        Rejected Quantity <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="number"
@@ -420,26 +404,27 @@ export default function QualityInspectionCreate() {
                         max={totalDelivered}
                         value={form.rejected_qty}
                         onChange={(e) => handleChange("rejected_qty", e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-cyan-50 focus:outline-none focus:border-cyan-600"
+                        className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
 
                   {/* QC Validation Status */}
-                  <div className={`mb-6 p-4 rounded-lg ${qcValidation.isValid ? 'bg-green-900/30 border border-green-700' : 'bg-red-900/30 border border-red-700'}`}>
+                  <div className={`mb-6 p-4 rounded-2xl ${
+                    qcValidation.isValid 
+                      ? 'bg-emerald-50 border border-emerald-200' 
+                      : 'bg-red-50 border border-red-200'
+                  }`}>
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">QC Rule Check:</span>
-                      <span className={`font-mono text-lg ${qcValidation.isValid ? 'text-green-400' : 'text-red-400'}`}>
+                      <span className={`font-mono text-lg ${qcValidation.isValid ? 'text-emerald-600' : 'text-red-600'}`}>
                         {qcValidation.message}
                       </span>
-                    </div>
-                    <div className="text-sm mt-2 text-gray-400">
-                      Rule: <strong className="text-cyan-300">Accepted + Rejected = Delivered Qty</strong>
                     </div>
                   </div>
 
                   <div className="mb-8">
-                    <label className="block text-sm text-cyan-400/90 mb-2 font-medium">
+                    <label className="block text-sm font-medium text-zinc-700 mb-2">
                       Remarks / Observations (optional)
                     </label>
                     <textarea
@@ -447,7 +432,7 @@ export default function QualityInspectionCreate() {
                       onChange={(e) => handleChange("remarks", e.target.value)}
                       rows={4}
                       placeholder="Enter defects, observations, reasons for rejection..."
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-cyan-50 focus:outline-none focus:border-cyan-600 resize-y"
+                      className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 resize-y"
                     />
                   </div>
 
@@ -455,10 +440,10 @@ export default function QualityInspectionCreate() {
                     <button
                       onClick={submitQC}
                       disabled={loading || !form.gate_entry || !qcValidation.isValid}
-                      className={`px-10 py-3.5 rounded-xl transition-all flex items-center gap-2 shadow-lg ${
+                      className={`px-10 py-3.5 rounded-2xl transition-all flex items-center gap-2 shadow-sm ${
                         !qcValidation.isValid
-                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                          : 'bg-green-600 hover:bg-green-500 shadow-green-900/30'
+                          ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
                       }`}
                     >
                       <FiCheckCircle size={20} /> Submit QC
@@ -469,7 +454,7 @@ export default function QualityInspectionCreate() {
             )}
 
             {!selectedGateEntry && !loading && (
-              <div className="text-center py-16 text-gray-500 italic">
+              <div className="text-center py-16 text-zinc-500 italic">
                 Select a pending gate entry above to perform Quality Inspection
               </div>
             )}
@@ -477,34 +462,34 @@ export default function QualityInspectionCreate() {
         </div>
 
         {/* Pending List */}
-        <div className="mt-10 bg-gray-900/90 border border-cyan-900/50 rounded-xl shadow-xl overflow-hidden">
-          <div className="bg-gradient-to-r from-gray-900 to-gray-800 px-6 py-4 border-b border-cyan-900/50">
-            <h2 className="text-xl font-semibold text-cyan-300">
+        <div className="mt-10 bg-white border border-zinc-200 rounded-3xl shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-zinc-200">
+            <h2 className="text-xl font-semibold text-zinc-900">
               Gate Entries Pending Quality Inspection
             </h2>
           </div>
 
           <div className="p-6">
             {loading ? (
-              <div className="text-center py-12 text-gray-500">Loading...</div>
+              <div className="text-center py-12 text-zinc-500">Loading...</div>
             ) : gateEntries.length === 0 ? (
-              <div className="text-center py-12 text-gray-500 italic">
+              <div className="text-center py-12 text-zinc-500 italic">
                 No gate entries waiting for QC
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[900px]">
-                  <thead className="bg-gray-800/70">
-                    <tr className="text-cyan-300/90 text-sm uppercase tracking-wider">
+                  <thead className="bg-zinc-50">
+                    <tr className="text-zinc-600 text-sm">
                       <th className="px-6 py-4 text-left">Gate Entry #</th>
                       <th className="px-6 py-4 text-left">PO #</th>
                       <th className="px-6 py-4 text-left">Vehicle</th>
                       <th className="px-6 py-4 text-center">Delivered Qty</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-cyan-900/30">
+                  <tbody className="divide-y divide-zinc-100">
                     {gateEntries.map((ge) => (
-                      <tr key={ge.id} className="hover:bg-gray-800/40 transition-colors">
+                      <tr key={ge.id} className="hover:bg-zinc-50 transition-colors">
                         <td className="px-6 py-4 font-medium">{ge.gate_entry_number}</td>
                         <td className="px-6 py-4">{getPONumber(ge)}</td>
                         <td className="px-6 py-4">{ge.vehicle_number || "—"}</td>
@@ -525,4 +510,6 @@ export default function QualityInspectionCreate() {
       </div>
     </div>
   );
-}
+};
+
+export default QualityInspectionCreate;
