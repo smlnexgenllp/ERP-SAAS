@@ -12,19 +12,19 @@ const STATUS_LABELS = {
 };
 
 const STATUS_COLORS = {
-  submitted: "bg-gray-600 text-gray-200",
-  review: "bg-blue-600 text-white",
-  interview: "bg-purple-600 text-white",
-  selected: "bg-green-600 text-white",
-  rejected: "bg-red-600 text-white",
-  joined: "bg-cyan-500 text-gray-900 font-bold",
+  submitted: "bg-zinc-100 text-zinc-700 border border-zinc-200",
+  review: "bg-blue-100 text-blue-700 border border-blue-200",
+  interview: "bg-purple-100 text-purple-700 border border-purple-200",
+  selected: "bg-emerald-100 text-emerald-700 border border-emerald-200",
+  rejected: "bg-red-100 text-red-700 border border-red-200",
+  joined: "bg-cyan-100 text-cyan-700 border border-cyan-200",
 };
 
 const StatusBadge = ({ status }) => {
   const label = STATUS_LABELS[status] || status;
-  const color = STATUS_COLORS[status] || "bg-gray-600 text-gray-200";
+  const color = STATUS_COLORS[status] || "bg-zinc-100 text-zinc-700 border border-zinc-200";
   return (
-    <span className={`inline-block ${color} text-xs px-4 py-1.5 rounded-full shadow shadow-black/50`}>
+    <span className={`inline-block ${color} text-xs px-4 py-1.5 rounded-full`}>
       {label}
     </span>
   );
@@ -115,11 +115,10 @@ const JobReferral = () => {
         description: "",
         resume: null,
       });
-      // Clear file input
       const fileInput = document.querySelector('input[type="file"]');
       if (fileInput) fileInput.value = "";
 
-      await fetchReferrals(); // Refresh list
+      await fetchReferrals();
     } catch (err) {
       console.error("Submission error:", err.response?.data || err);
       alert("Failed to submit referral. Check console for details.");
@@ -127,205 +126,201 @@ const JobReferral = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono p-6">
-      {/* Header */}
-      <header className="border-b border-cyan-800 pb-4 mb-8 flex items-center gap-3">
-        <div className="w-3 h-3 rounded-full bg-cyan-400 shadow shadow-cyan-400/50 animate-pulse"></div>
-        <h1 className="text-blue-300 text-xl font-bold">
-          ALU-CORE: JOB REFERRALS
-        </h1>
-      </header>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Left: Referral Submission Form */}
-        <div className="xl:col-span-1">
-          <div className="bg-gray-900/30 border border-cyan-900 rounded-xl shadow p-6 backdrop-blur">
-            <h3 className="text-blue-300 text-lg font-bold mb-6 flex items-center gap-2">
-              <UserPlus className="w-6 h-6" />
-              Submit New Referral
-            </h3>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="text-gray-400 text-sm flex items-center gap-2 mb-2">
-                  <UserPlus className="w-4 h-4" /> Candidate Name
-                </label>
-                <input
-                  type="text"
-                  name="candidate_name"
-                  placeholder="John Doe"
-                  value={formData.candidate_name}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-gray-900/50 border border-cyan-800 rounded-lg px-4 py-3 text-cyan-300 placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm flex items-center gap-2 mb-2">
-                  <Mail className="w-4 h-4" /> Email
-                </label>
-                <input
-                  type="email"
-                  name="candidate_email"
-                  placeholder="john@example.com"
-                  value={formData.candidate_email}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-gray-900/50 border border-cyan-800 rounded-lg px-4 py-3 text-cyan-300 placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm flex items-center gap-2 mb-2">
-                  <Phone className="w-4 h-4" /> Phone
-                </label>
-                <input
-                  type="text"
-                  name="candidate_phone"
-                  placeholder="+91 98765 43210"
-                  value={formData.candidate_phone}
-                  onChange={handleChange}
-                  className="w-full bg-gray-900/50 border border-cyan-800 rounded-lg px-4 py-3 text-cyan-300 placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm flex items-center gap-2 mb-2">
-                  <Briefcase className="w-4 h-4" /> Job Opening
-                </label>
-                <select
-                  name="job_opening"
-                  value={formData.job_opening}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-gray-900/50 border border-cyan-800 rounded-lg px-4 py-3 text-cyan-300 focus:border-cyan-400 focus:outline-none transition"
-                >
-                  <option value="" className="bg-gray-900">Select Job Opening</option>
-                  {jobOpenings.map((job) => (
-                    <option key={job.id} value={job.id} className="bg-gray-900">
-                      {job.title} {job.organization?.name && `(${job.organization.name})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm flex items-center gap-2 mb-2">
-                  <FileText className="w-4 h-4" /> Remarks / Description
-                </label>
-                <textarea
-                  name="description"
-                  placeholder="Why is this candidate a good fit?"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows="4"
-                  className="w-full bg-gray-900/50 border border-cyan-800 rounded-lg px-4 py-3 text-cyan-300 placeholder-gray-500 focus:border-cyan-400 focus:outline-none transition resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm flex items-center gap-2 mb-2">
-                  <Upload className="w-4 h-4" /> Resume (Optional)
-                </label>
-                <input
-                  type="file"
-                  name="resume"
-                  onChange={handleChange}
-                  accept=".pdf,.doc,.docx"
-                  className="w-full file:bg-cyan-900/50 file:text-cyan-300 file:border file:border-cyan-800 file:rounded-lg file:px-4 file:py-2 file:mr-4 file:cursor-pointer text-gray-400"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-gray-900 font-bold py-3.5 rounded-lg hover:opacity-90 transition shadow-lg shadow-cyan-900/30"
-              >
-                Submit Referral
-              </button>
-            </form>
-          </div>
+    <div className="min-h-screen bg-zinc-100 text-zinc-800">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        
+        {/* Header */}
+        <div className="mb-10">
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 flex items-center gap-4">
+            <UserPlus className="w-10 h-10 text-blue-600" />
+            Job Referrals
+          </h1>
+          <p className="text-zinc-500 mt-2">Submit and track employee referrals</p>
         </div>
 
-        {/* Right: Referrals List */}
-        <div className="xl:col-span-2">
-          <div className="bg-gray-900/30 border border-cyan-900 rounded-xl shadow p-6">
-            <h3 className="text-blue-300 text-lg font-bold mb-6 flex items-center justify-between">
-              <span className="flex items-center gap-2">
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Left: Referral Submission Form */}
+          <div className="xl:col-span-1">
+            <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8">
+              <h3 className="text-2xl font-semibold text-zinc-900 mb-6 flex items-center gap-3">
+                <UserPlus className="w-6 h-6" />
+                Submit New Referral
+              </h3>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">
+                    Candidate Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="candidate_name"
+                    placeholder="John Doe"
+                    value={formData.candidate_name}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="candidate_email"
+                    placeholder="john@example.com"
+                    value={formData.candidate_email}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Phone</label>
+                  <input
+                    type="text"
+                    name="candidate_phone"
+                    placeholder="+91 98765 43210"
+                    value={formData.candidate_phone}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">
+                    Job Opening <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="job_opening"
+                    value={formData.job_opening}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="">Select Job Opening</option>
+                    {jobOpenings.map((job) => (
+                      <option key={job.id} value={job.id}>
+                        {job.title} {job.organization?.name && `(${job.organization.name})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Remarks / Description</label>
+                  <textarea
+                    name="description"
+                    placeholder="Why is this candidate a good fit?"
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows="4"
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none resize-y"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Resume (Optional)</label>
+                  <input
+                    type="file"
+                    name="resume"
+                    onChange={handleChange}
+                    accept=".pdf,.doc,.docx"
+                    className="w-full text-sm text-zinc-500 file:mr-4 file:py-3 file:px-6 file:rounded-2xl file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl transition"
+                >
+                  Submit Referral
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Right: Referrals List */}
+          <div className="xl:col-span-2">
+            <div className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8">
+              <h3 className="text-2xl font-semibold text-zinc-900 mb-6 flex items-center gap-3">
                 <FileText className="w-6 h-6" />
                 All Referrals ({referrals.length})
-              </span>
-            </h3>
+              </h3>
 
-            {loading && (
-              <p className="text-center text-gray-400 py-12">Loading referrals...</p>
-            )}
+              {loading && (
+                <p className="text-center text-zinc-500 py-12">Loading referrals...</p>
+              )}
 
-            {error && (
-              <p className="text-center text-red-400 py-8">{error}</p>
-            )}
+              {error && (
+                <p className="text-center text-red-500 py-8">{error}</p>
+              )}
 
-            {!loading && referrals.length === 0 && (
-              <p className="text-center text-gray-500 py-16">
-                No referrals submitted yet.
-              </p>
-            )}
+              {!loading && referrals.length === 0 && (
+                <p className="text-center text-zinc-500 py-16">
+                  No referrals submitted yet.
+                </p>
+              )}
 
-            {!loading && referrals.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-cyan-900 text-gray-400">
-                      <th className="text-left py-4 px-3">Candidate</th>
-                      <th className="text-left py-4 px-3">Email</th>
-                      <th className="text-left py-4 px-3">Phone</th>
-                      <th className="text-left py-4 px-3">Job</th>
-                      <th className="text-center py-4 px-3">Status</th>
-                      <th className="text-center py-4 px-3">Resume</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-cyan-900/30">
-                    {referrals.map((ref) => (
-                      <tr key={ref.referral_id} className="hover:bg-gray-900/40 transition">
-                        <td className="py-4 px-3 font-medium">{ref.candidate_name}</td>
-                        <td className="py-4 px-3 text-gray-400">{ref.candidate_email}</td>
-                        <td className="py-4 px-3 text-gray-400">{ref.candidate_phone || "—"}</td>
-                        <td className="py-4 px-3">
-                          <div>
-                            <span className="text-cyan-400 font-medium">
-                              {ref.job_opening.title}
-                            </span>
-                            {ref.job_opening.organization?.name && (
-                              <p className="text-xs text-gray-500">
-                                {ref.job_opening.organization.name}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-3 text-center">
-                          <StatusBadge status={ref.status} />
-                        </td>
-                        <td className="py-4 px-3 text-center">
-                          {ref.resume ? (
-                            <a
-                              href={ref.resume}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 transition"
-                            >
-                              View <ExternalLink className="w-4 h-4" />
-                            </a>
-                          ) : (
-                            <span className="text-gray-600">—</span>
-                          )}
-                        </td>
+              {!loading && referrals.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-200 text-zinc-600">
+                        <th className="text-left py-4 px-3">Candidate</th>
+                        <th className="text-left py-4 px-3">Email</th>
+                        <th className="text-left py-4 px-3">Phone</th>
+                        <th className="text-left py-4 px-3">Job</th>
+                        <th className="text-center py-4 px-3">Status</th>
+                        <th className="text-center py-4 px-3">Resume</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {referrals.map((ref) => (
+                        <tr key={ref.referral_id} className="hover:bg-zinc-50 transition">
+                          <td className="py-4 px-3 font-medium">{ref.candidate_name}</td>
+                          <td className="py-4 px-3 text-zinc-600">{ref.candidate_email}</td>
+                          <td className="py-4 px-3 text-zinc-600">{ref.candidate_phone || "—"}</td>
+                          <td className="py-4 px-3">
+                            <div>
+                              <span className="text-zinc-900 font-medium">
+                                {ref.job_opening.title}
+                              </span>
+                              {ref.job_opening.organization?.name && (
+                                <p className="text-xs text-zinc-500">
+                                  {ref.job_opening.organization.name}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-3 text-center">
+                            <StatusBadge status={ref.status} />
+                          </td>
+                          <td className="py-4 px-3 text-center">
+                            {ref.resume ? (
+                              <a
+                                href={ref.resume}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 transition"
+                              >
+                                View <ExternalLink className="w-4 h-4" />
+                              </a>
+                            ) : (
+                              <span className="text-zinc-400">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
