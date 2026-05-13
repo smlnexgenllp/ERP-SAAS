@@ -209,57 +209,57 @@ const FinanceDashboard = () => {
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-zinc-100">
       {/* Fixed Sidebar */}
-      <div className={`w-72 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full overflow-hidden fixed lg:static z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <div className={`w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full overflow-hidden fixed lg:static z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
 
-        <div className="p-6 border-b border-zinc-800">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-zinc-700 to-zinc-800 rounded-2xl flex items-center justify-center">
-              <Wallet className="h-6 w-6 text-white" />
+        <div className="p-4 border-b border-zinc-800">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-gradient-to-br from-zinc-700 to-zinc-800 rounded-xl flex items-center justify-center">
+              <Wallet className="h-4 w-4 text-white" />
             </div>
             <h2 className="text-2xl font-semibold text-white tracking-tight">Finance</h2>
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <button onClick={() => { navigate("/vendors"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <Building2 className="h-5 w-5" /> <span>Vendors</span>
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+          <button onClick={() => { navigate("/vendors"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <Building2 className="h-4 w-4" /> <span>Vendors</span>
           </button>
-          <button onClick={() => { navigate("/vendor-invoice"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <FileCheck className="h-5 w-5" /> <span>Vendor Invoices</span>
+          <button onClick={() => { navigate("/vendor-invoice"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <FileCheck className="h-4 w-4" /> <span>Vendor Invoices</span>
           </button>
-          <button onClick={() => { navigate("/vendor-payment"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <CreditCard className="h-5 w-5" /> <span>Vendor Payments</span>
+          <button onClick={() => { navigate("/vendor-payment"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <CreditCard className="h-4 w-4" /> <span>Vendor Payments</span>
           </button>
-          <button onClick={() => { navigate("/accounts/vouchers"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <FileText className="h-5 w-5" /> <span>Vouchers</span>
+          <button onClick={() => { navigate("/accounts/vouchers"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <FileText className="h-4 w-4" /> <span>Vouchers</span>
           </button>
-          <button onClick={() => { navigate("/bank-reconciliation"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <FileText className="h-5 w-5" /> <span>Bank Reconciliations</span>
+          <button onClick={() => { navigate("/bank-reconciliation"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <FileText className="h-4 w-4" /> <span>Bank Reconciliations</span>
           </button>
-          <button onClick={() => { navigate("/gst-reconciliation"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <FileText className="h-5 w-5" /> <span>GST Reconciliations</span>
+          <button onClick={() => { navigate("/gst-reconciliation"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <FileText className="h-4 w-4" /> <span>GST Reconciliations</span>
           </button>
-          <button onClick={() => { navigate("/items/create"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <Layers3 className="h-5 w-5" /> <span>Manage Items</span>
+          <button onClick={() => { navigate("/items/create"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <Layers3 className="h-4 w-4" /> <span>Manage Items</span>
           </button>
-          <button onClick={() => { navigate("/profit-loss"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <Layers3 className="h-5 w-5" /> <span>Profit & Loss</span>
+          <button onClick={() => { navigate("/profit-loss"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <Layers3 className="h-4 w-4" /> <span>Profit & Loss</span>
           </button>
-          <button onClick={() => { navigate("/balance-sheet"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <Layers3 className="h-5 w-5" /> <span>Balance Sheet</span>
+          <button onClick={() => { navigate("/balance-sheet"); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <Layers3 className="h-4 w-4" /> <span>Balance Sheet</span>
           </button>
 
-          <button onClick={() => { refreshAllocations(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl transition-all text-sm font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
-            <FiRefreshCw className="h-5 w-5" /> <span>Refresh Allocations</span>
+          <button onClick={() => { refreshAllocations(); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-l font-medium text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200">
+            <FiRefreshCw className="h-4 w-4" /> <span>Refresh Allocations</span>
           </button>
         </nav>
 
-        <div className="p-4 border-t border-zinc-800 mt-auto">
+        <div className="p-3 border-t border-zinc-800 mt-auto">
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-red-950/70 hover:bg-red-900/80 text-red-300 hover:text-red-200 transition text-sm font-medium"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-red-950/70 hover:bg-red-900/80 text-red-300 hover:text-red-200 transition text-sm font-medium"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-4 w-4" />
             <span>Sign Out</span>
           </button>
         </div>
@@ -273,54 +273,54 @@ const FinanceDashboard = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden lg:ml-0">
         {/* Fixed Header */}
-        <header className="bg-white border-b border-zinc-200 px-6 py-5 flex items-center justify-between shadow-sm flex-shrink-0">
-          <div className="flex items-center gap-4">
+        <header className="bg-white border-b border-zinc-200 px-4 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 text-zinc-700 hover:bg-zinc-100 rounded-xl"
+              className="lg:hidden p-1.5 text-zinc-700 hover:bg-zinc-100 rounded-lg"
             >
-              {isMobileMenuOpen ? <FiX size={26} /> : <FiMenu size={26} />}
+              {isMobileMenuOpen ? <FiX size={20} /> : <FiMenu size={20} />}
             </button>
 
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
-                <Wallet className="h-7 w-7 text-white" />
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-xl flex items-center justify-center">
+                <Wallet className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Finance Dashboard</h1>
-                <p className="text-zinc-500 text-sm">{currentMonthName} • {organization?.name || "Organization"}</p>
+                <h1 className="text-xl font-bold tracking-tight text-zinc-900">Finance Dashboard</h1>
+                <p className="text-zinc-500 text-xs">{currentMonthName} • {organization?.name || "Organization"}</p>
               </div>
             </div>
           </div>
 
           <div className="hidden sm:block text-right">
-            <p className="font-medium text-zinc-900">{user?.username || "Finance User"}</p>
+            <p className="font-medium text-zinc-900 text-sm">{user?.username || "Finance User"}</p>
             <p className="text-xs text-zinc-500">Finance Module</p>
           </div>
         </header>
 
         {/* Scrollable Main Content - ONLY THIS SCROLLS */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-5">
           {message && (
-            <div className={`mb-8 px-6 py-4 rounded-2xl flex items-center gap-3 border ${messageType === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-700" :
+            <div className={`mb-5 px-4 py-3 rounded-xl flex items-center gap-2 text-sm border ${messageType === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-700" :
                 messageType === "warning" ? "bg-yellow-50 border-yellow-200 text-yellow-700" :
                   "bg-red-50 border-red-200 text-red-700"
               }`}>
-              {messageType === "success" ? <FiCheckCircle size={22} /> : <FiAlertCircle size={22} />}
+              {messageType === "success" ? <FiCheckCircle size={18} /> : <FiAlertCircle size={18} />}
               {message}
             </div>
           )}
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KpiCard title="Released Budget" value={releasedBudget} />
             <KpiCard title="Allocated Amount" value={totalAllocated} />
             <KpiCard title="Remaining Balance" value={remaining} highlight={remaining < 0 ? "danger" : "normal"} />
 
-            <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all">
-              <p className="text-sm font-medium text-zinc-500">Total Vendors</p>
-              <p className="text-5xl font-bold text-zinc-900 tracking-tighter mt-4">{vendorStats.total}</p>
-              <div className="mt-6 flex justify-between text-sm text-zinc-600">
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 shadow-sm hover:shadow transition-all">
+              <p className="text-xs font-medium text-zinc-500">Total Vendors</p>
+              <p className="text-2xl font-bold text-zinc-900 tracking-tighter mt-2">{vendorStats.total}</p>
+              <div className="mt-3 flex justify-between text-xs text-zinc-600">
                 <span>Active: <strong>{vendorStats.active}</strong></span>
                 <span>Approved: <strong>{vendorStats.approved}</strong></span>
               </div>
@@ -329,35 +329,35 @@ const FinanceDashboard = () => {
 
           {/* Budget Allocation */}
           {budget && (
-            <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm mb-10">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8">
+            <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm mb-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
                 <div>
-                  <h2 className="text-3xl font-semibold text-zinc-900 flex items-center gap-3">
-                    <PieChart className="h-8 w-8" /> Department Budget Allocation
+                  <h2 className="text-xl font-semibold text-zinc-900 flex items-center gap-2">
+                    <PieChart className="h-5 w-5" /> Department Budget Allocation
                   </h2>
-                  <p className="text-zinc-500 mt-1">Budget for {currentMonthName}</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">Budget for {currentMonthName}</p>
                 </div>
 
                 {!budget?.is_closed && (
                   <button
                     onClick={handleAllocateBudget}
-                    className="flex items-center gap-3 bg-zinc-900 hover:bg-zinc-800 text-white px-8 py-4 rounded-2xl font-medium transition"
+                    className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition"
                   >
-                    <FiDollarSign size={22} />
+                    <FiDollarSign size={16} />
                     Allocate Budget
                   </button>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {DEPARTMENTS.map((dept) => (
-                  <div key={dept} className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6">
-                    <p className="font-semibold text-zinc-700 mb-3">{dept}</p>
+                  <div key={dept} className="bg-zinc-50 border border-zinc-200 rounded-xl p-4">
+                    <p className="font-semibold text-zinc-700 text-sm mb-2">{dept}</p>
                     <input
                       type="text"
                       value={budgetSplit[dept] || "0"}
                       onChange={(e) => handleAllocationChange(dept, e.target.value)}
-                      className="w-full bg-white border border-zinc-300 focus:border-zinc-500 rounded-2xl px-5 py-4 text-lg outline-none"
+                      className="w-full bg-white border border-zinc-300 focus:border-zinc-500 rounded-xl px-3 py-2 text-sm outline-none"
                       placeholder="0.00"
                       disabled={budget?.is_closed}
                     />
@@ -365,7 +365,7 @@ const FinanceDashboard = () => {
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <InfoCard title="Budget Released" value={`₹ ${Number(releasedBudget).toLocaleString()}`} />
                 <InfoCard title="Total Allocated" value={`₹ ${Number(totalAllocated).toLocaleString()}`} />
                 <InfoCard title="Remaining Balance" value={`₹ ${Number(remaining).toLocaleString()}`} danger={remaining < 0} />
@@ -374,23 +374,23 @@ const FinanceDashboard = () => {
           )}
 
           {/* Quick Actions */}
-          <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm">
-            <h2 className="text-2xl font-semibold text-zinc-900 mb-6 flex items-center gap-3">
-              <FiPlus /> Quick Actions
+          <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-zinc-900 mb-4 flex items-center gap-2">
+              <FiPlus size={18} /> Quick Actions
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <QuickActionButton title="Create Voucher" icon={<FiPlus />} onClick={() => navigate("/vendor-payments/create")} />
-              <QuickActionButton title="Manage Budgets" icon={<FiDollarSign />} onClick={() => navigate("/finance/budgets")} />
-              <QuickActionButton title="Manage Vendors" icon={<FiUsers />} onClick={() => navigate("/vendors")} />
-              <QuickActionButton title="View Reports" icon={<FiEye />} onClick={() => navigate("/finance/reports")} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <QuickActionButton title="Create Voucher" icon={<FiPlus size={16} />} onClick={() => navigate("/vendor-payments/create")} />
+              <QuickActionButton title="Manage Budgets" icon={<FiDollarSign size={16} />} onClick={() => navigate("/finance/budgets")} />
+              <QuickActionButton title="Manage Vendors" icon={<FiUsers size={16} />} onClick={() => navigate("/vendors")} />
+              <QuickActionButton title="View Reports" icon={<FiEye size={16} />} onClick={() => navigate("/finance/reports")} />
             </div>
           </div>
         </main>
       </div>
 
       {/* Command Bar */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-white border-t border-zinc-200 px-6 py-4 flex items-center z-50 shadow">
-        <span className="text-zinc-400 font-bold mr-4 text-xl">&gt;</span>
+      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-zinc-200 px-4 py-2 flex items-center z-50 shadow">
+        <span className="text-zinc-400 font-bold mr-3 text-base">&gt;</span>
         <input
           ref={inputRef}
           type="text"
@@ -398,14 +398,14 @@ const FinanceDashboard = () => {
           onChange={(e) => setCommand(e.target.value)}
           onKeyDown={handleCommand}
           placeholder="Type command (help, vendors, vouchers, budget, allocate, logout...)"
-          className="flex-1 bg-transparent text-zinc-700 outline-none font-mono text-base"
+          className="flex-1 bg-transparent text-zinc-700 outline-none font-mono text-sm"
           spellCheck={false}
           autoComplete="off"
         />
       </div>
 
       {showAlert && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-zinc-900 text-white px-8 py-4 rounded-2xl shadow-2xl z-[60] border border-zinc-700">
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 bg-zinc-900 text-white px-6 py-2.5 rounded-xl shadow-2xl z-[60] border border-zinc-700 text-sm">
           {alertMessage}
         </div>
       )}
@@ -415,30 +415,30 @@ const FinanceDashboard = () => {
 
 /* ===================== SUB COMPONENTS ===================== */
 const KpiCard = ({ title, value, highlight = "normal" }) => (
-  <div className={`bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm hover:shadow transition-all ${highlight === "danger" ? "border-red-300" : ""}`}>
-    <p className="text-sm font-medium text-zinc-500">{title}</p>
-    <p className={`text-5xl font-bold tracking-tighter mt-4 ${highlight === "danger" ? "text-red-600" : "text-zinc-900"}`}>
+  <div className={`bg-white border border-zinc-200 rounded-xl p-4 shadow-sm hover:shadow transition-all ${highlight === "danger" ? "border-red-300" : ""}`}>
+    <p className="text-xs font-medium text-zinc-500">{title}</p>
+    <p className={`text-2xl font-bold tracking-tighter mt-2 ${highlight === "danger" ? "text-red-600" : "text-zinc-900"}`}>
       ₹ {Number(value || 0).toLocaleString()}
     </p>
   </div>
 );
 
 const InfoCard = ({ title, value, danger = false }) => (
-  <div className={`rounded-3xl p-6 border ${danger ? "bg-red-50 border-red-200 text-red-700" : "bg-zinc-50 border-zinc-200 text-zinc-800"}`}>
-    <p className="text-sm text-zinc-500 mb-2">{title}</p>
-    <p className="text-2xl font-bold">{value}</p>
+  <div className={`rounded-xl p-4 border ${danger ? "bg-red-50 border-red-200 text-red-700" : "bg-zinc-50 border-zinc-200 text-zinc-800"}`}>
+    <p className="text-xs text-zinc-500 mb-1">{title}</p>
+    <p className="text-lg font-bold">{value}</p>
   </div>
 );
 
 const QuickActionButton = ({ title, icon, onClick }) => (
   <button
     onClick={onClick}
-    className="bg-white border border-zinc-200 hover:border-zinc-400 hover:shadow transition-all rounded-3xl p-6 flex items-center gap-4 text-left"
+    className="bg-white border border-zinc-200 hover:border-zinc-400 hover:shadow transition-all rounded-xl p-3 flex items-center gap-3 text-left"
   >
-    <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-700 text-2xl">
+    <div className="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center text-zinc-700">
       {icon}
     </div>
-    <span className="font-medium text-zinc-800">{title}</span>
+    <span className="font-medium text-zinc-800 text-sm">{title}</span>
   </button>
 );
 
