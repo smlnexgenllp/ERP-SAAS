@@ -220,8 +220,8 @@ ${branding.name || "Our Company"}`,
             </button>
 
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
-                <UserPlus className="w-8 h-8 text-white" />
+              <div className="w-14 h-14 bg-blue-100 rounded-3xl flex items-center justify-center">
+                <UserPlus className="w-8 h-8 text-blue-600" />
               </div>
               <div>
                 <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
@@ -247,20 +247,20 @@ ${branding.name || "Our Company"}`,
                 placeholder="Job Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800"
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-blue-500 outline-none text-zinc-800"
               />
               <textarea
                 rows="5"
                 placeholder="Job Description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none text-zinc-800 resize-y"
+                className="w-full px-5 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-blue-500 outline-none text-zinc-800 resize-y"
               />
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={saveJob}
                   disabled={!title.trim() || !description.trim()}
-                  className="px-6 py-3 bg-zinc-900 text-white font-medium rounded-2xl hover:bg-black transition disabled:opacity-50"
+                  className="px-6 py-3 bg-blue-600 text-white font-medium rounded-2xl hover:bg-blue-700 transition disabled:opacity-50"
                 >
                   {selectedJob ? "Update Job" : "Create Job"}
                 </button>
@@ -292,7 +292,7 @@ ${branding.name || "Our Company"}`,
                     onClick={() => selectJobForEdit(job)}
                     className={`p-5 rounded-2xl border cursor-pointer transition-all ${
                       selectedJob?.id === job.id
-                        ? "border-zinc-900 bg-zinc-50 shadow"
+                        ? "border-blue-600 bg-blue-50"
                         : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
                     }`}
                   >
@@ -348,13 +348,13 @@ ${branding.name || "Our Company"}`,
                       placeholder="Search candidate or referrer..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
+                      className="w-full pl-11 pr-4 py-3 border border-zinc-200 rounded-2xl focus:border-blue-500 outline-none"
                     />
                   </div>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-5 py-3 border border-zinc-200 rounded-2xl focus:border-zinc-400 outline-none"
+                    className="px-5 py-3 border border-zinc-200 rounded-2xl focus:border-blue-500 outline-none"
                   >
                     <option value="all">All Statuses</option>
                     {STATUS.map((s) => (
@@ -414,7 +414,7 @@ ${branding.name || "Our Company"}`,
                             </td>
                             <td className="px-8 py-5 text-center">
                               {r.resume ? (
-                                <a href={r.resume} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:text-emerald-700">
+                                <a href={r.resume} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
                                   <Download className="w-5 h-5 inline" />
                                 </a>
                               ) : "—"}
@@ -424,7 +424,7 @@ ${branding.name || "Our Company"}`,
                                 value={r.status}
                                 onChange={(e) => updateStatus(r.id, e.target.value)}
                                 disabled={r.status === "joined"}
-                                className="px-4 py-2 bg-white border border-zinc-200 rounded-2xl text-sm focus:border-zinc-400"
+                                className="px-4 py-2 bg-white border border-zinc-200 rounded-2xl text-sm focus:border-blue-500"
                               >
                                 {STATUS.map((s) => (
                                   <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
@@ -435,7 +435,7 @@ ${branding.name || "Our Company"}`,
                               {r.status === "selected" && (
                                 <button
                                   onClick={() => openOfferModal(r)}
-                                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-medium flex items-center gap-2 mx-auto"
+                                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-medium flex items-center gap-2 mx-auto"
                                 >
                                   <Send className="w-4 h-4" /> Send Offer
                                 </button>
@@ -461,164 +461,226 @@ ${branding.name || "Our Company"}`,
         </div>
       </div>
 
-      {/* Custom Send Offer Modal */}
+      {/* ================= CUSTOM SEND OFFER MODAL (Updated UI Color) ================= */}
       {showOfferModal && currentReferral && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-gray-900/95 border border-cyan-700 rounded-xl shadow-2xl p-8 w-full max-w-4xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-cyan-300 flex items-center gap-3">
-                <Send className="w-6 h-6" />
-                Customize & Send Job Offer
-              </h2>
-              <button onClick={() => setShowOfferModal(false)}>
-                <X className="w-6 h-6 text-gray-400 hover:text-cyan-300" />
-              </button>
-            </div>
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <div className="bg-white border border-zinc-200 rounded-3xl shadow-2xl p-6 w-full max-w-4xl max-h-[85vh] overflow-y-auto">
+      
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-zinc-900 flex items-center gap-3">
+          <Send className="w-5 h-5 text-blue-600" />
+          Customize & Send Job Offer
+        </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left: Branding */}
-              <div className="space-y-5">
-                <h3 className="text-lg font-medium text-cyan-200">Branding (for this offer)</h3>
+        <button onClick={() => setShowOfferModal(false)}>
+          <X className="w-5 h-5 text-zinc-400 hover:text-zinc-600" />
+        </button>
+      </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Company Logo</label>
-                  <div className="flex items-center gap-4">
-                    {offerData.logo_preview ? (
-                      <img src={offerData.logo_preview} alt="Logo" className="h-20 rounded border border-cyan-800 object-contain bg-white" />
-                    ) : (
-                      <div className="h-20 w-32 bg-gray-800 rounded border-2 border-dashed border-cyan-800 flex items-center justify-center">
-                        <FileText className="w-8 h-8 text-gray-600" />
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          setOfferData({
-                            ...offerData,
-                            logo_file: file,
-                            logo_preview: URL.createObjectURL(file),
-                          });
-                        }
-                      }}
-                      className="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-cyan-800 file:text-cyan-200 hover:file:bg-cyan-700"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">Upload a new logo just for this offer (optional)</p>
+      {/* Content */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        
+        {/* Left */}
+        <div className="space-y-4">
+          <h3 className="text-base font-medium text-zinc-900">
+            Branding (for this offer)
+          </h3>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              Company Logo
+            </label>
+
+            <div className="flex items-center gap-3">
+              {offerData.logo_preview ? (
+                <img
+                  src={offerData.logo_preview}
+                  alt="Logo"
+                  className="h-16 rounded border border-zinc-200 object-contain bg-white"
+                />
+              ) : (
+                <div className="h-16 w-28 bg-zinc-100 rounded border-2 border-dashed border-zinc-300 flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-zinc-400" />
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Company Name</label>
-                  <input
-                    type="text"
-                    value={offerData.company_name}
-                    onChange={(e) => setOfferData({ ...offerData, company_name: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">From Email</label>
-                  <input
-                    type="email"
-                    value={offerData.from_email}
-                    onChange={(e) => setOfferData({ ...offerData, from_email: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
-                  />
-                </div>
-              </div>
-
-              {/* Right: Email Content */}
-              <div className="space-y-5">
-                <h3 className="text-lg font-medium text-cyan-200">Email Content</h3>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">To</label>
-                  <input
-                    type="text"
-                    value={currentReferral.candidate_email}
-                    disabled
-                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-gray-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
-                  <input
-                    type="text"
-                    value={offerData.subject}
-                    onChange={(e) => setOfferData({ ...offerData, subject: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Message Body</label>
-                  <textarea
-                    rows="12"
-                    value={offerData.body}
-                    onChange={(e) => setOfferData({ ...offerData, body: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 resize-none font-mono text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 flex gap-4 justify-end">
-              <button
-                onClick={async () => {
-                  const formData = new FormData();
-                  formData.append("subject", offerData.subject);
-                  formData.append("body", offerData.body);
-                  formData.append("company_name", offerData.company_name);
-                  formData.append("from_email", offerData.from_email);
-                  if (offerData.logo_file) {
-                    formData.append("custom_logo", offerData.logo_file);
-                  }
-
-                  try {
-                    await api.post(`/hr/referrals/${currentReferral.id}/send-offer/`, formData);
-                    alert("Offer sent successfully with custom branding!");
-                    setShowOfferModal(false);
-                    await loadReferrals(selectedJob.id);
-                  } catch (err) {
-                    alert("Failed to send offer.");
-                    console.error(err);
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    setOfferData({
+                      ...offerData,
+                      logo_file: file,
+                      logo_preview: URL.createObjectURL(file),
+                    });
                   }
                 }}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-lg shadow-md hover:shadow-green-600/50 transition"
-              >
-                Send Offer with PDF
-              </button>
-              <button
-                onClick={() => setShowOfferModal(false)}
-                className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800/50 transition"
-              >
-                Cancel
-              </button>
+                className="text-sm text-zinc-500 file:mr-3 file:py-2 file:px-3 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+              />
             </div>
+
+            <p className="text-xs text-zinc-500 mt-1">
+              Upload a new logo just for this offer
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              Company Name
+            </label>
+
+            <input
+              type="text"
+              value={offerData.company_name}
+              onChange={(e) =>
+                setOfferData({
+                  ...offerData,
+                  company_name: e.target.value,
+                })
+              }
+              className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              From Email
+            </label>
+
+            <input
+              type="email"
+              value={offerData.from_email}
+              onChange={(e) =>
+                setOfferData({
+                  ...offerData,
+                  from_email: e.target.value,
+                })
+              }
+              className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
-      )}
+
+        {/* Right */}
+        <div className="space-y-4">
+          <h3 className="text-base font-medium text-zinc-900">
+            Email Content
+          </h3>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              To
+            </label>
+
+            <input
+              type="text"
+              value={currentReferral.candidate_email}
+              disabled
+              className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              Subject
+            </label>
+
+            <input
+              type="text"
+              value={offerData.subject}
+              onChange={(e) =>
+                setOfferData({
+                  ...offerData,
+                  subject: e.target.value,
+                })
+              }
+              className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              Message Body
+            </label>
+
+            <textarea
+              rows="8"
+              value={offerData.body}
+              onChange={(e) =>
+                setOfferData({
+                  ...offerData,
+                  body: e.target.value,
+                })
+              }
+              className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-6 flex gap-3 justify-end">
+        <button
+          onClick={async () => {
+            const formData = new FormData();
+            formData.append("subject", offerData.subject);
+            formData.append("body", offerData.body);
+            formData.append("company_name", offerData.company_name);
+            formData.append("from_email", offerData.from_email);
+
+            if (offerData.logo_file) {
+              formData.append("custom_logo", offerData.logo_file);
+            }
+
+            try {
+              await api.post(
+                `/hr/referrals/${currentReferral.id}/send-offer/`,
+                formData
+              );
+
+              alert("Offer sent successfully with custom branding!");
+              setShowOfferModal(false);
+              await loadReferrals(selectedJob.id);
+            } catch (err) {
+              alert("Failed to send offer.");
+              console.error(err);
+            }
+          }}
+          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-2xl transition"
+        >
+          Send Offer with PDF
+        </button>
+
+        <button
+          onClick={() => setShowOfferModal(false)}
+          className="px-6 py-2.5 border border-zinc-200 text-zinc-600 hover:bg-zinc-50 rounded-2xl transition"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Direct Offer Modal */}
       {showDirectOfferModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900/95 border border-cyan-700 rounded-xl shadow-2xl p-8 w-full max-w-lg">
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-2xl p-8 w-full max-w-lg">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-cyan-300 flex items-center gap-3">
-                <Send className="w-6 h-6" />
+              <h2 className="text-xl font-semibold text-zinc-900 flex items-center gap-3">
+                <Send className="w-6 h-6 text-blue-600" />
                 Send Direct Offer
               </h2>
               <button onClick={() => setShowDirectOfferModal(false)}>
-                <X className="w-6 h-6 text-gray-400 hover:text-cyan-300" />
+                <X className="w-6 h-6 text-zinc-400 hover:text-zinc-600" />
               </button>
             </div>
-            <p className="text-sm text-gray-400 mb-5">
+            <p className="text-sm text-zinc-500 mb-5">
               Position:{' '}
-              <span className="text-cyan-300 font-medium">
+              <span className="text-zinc-900 font-medium">
                 {selectedJob.title}
                 {selectedJob.organization?.name && ` - ${selectedJob.organization.name}`}
               </span>
@@ -629,39 +691,39 @@ ${branding.name || "Our Company"}`,
                 placeholder="Candidate Name *"
                 value={directCandidate.name}
                 onChange={(e) => setDirectCandidate({ ...directCandidate, name: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
+                className="w-full px-5 py-3.5 border border-zinc-200 rounded-2xl focus:border-blue-500 outline-none"
               />
               <input
                 type="email"
                 placeholder="Email *"
                 value={directCandidate.email}
                 onChange={(e) => setDirectCandidate({ ...directCandidate, email: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
+                className="w-full px-5 py-3.5 border border-zinc-200 rounded-2xl focus:border-blue-500 outline-none"
               />
               <input
                 type="text"
                 placeholder="Phone (Optional)"
                 value={directCandidate.phone}
                 onChange={(e) => setDirectCandidate({ ...directCandidate, phone: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30"
+                className="w-full px-5 py-3.5 border border-zinc-200 rounded-2xl focus:border-blue-500 outline-none"
               />
               <textarea
                 rows="4"
                 placeholder="Notes (Optional)"
                 value={directCandidate.notes}
                 onChange={(e) => setDirectCandidate({ ...directCandidate, notes: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-800/60 border border-cyan-800/50 rounded-lg text-cyan-100 placeholder-gray-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30 resize-none"
+                className="w-full px-5 py-3.5 border border-zinc-200 rounded-2xl focus:border-blue-500 outline-none resize-y"
               />
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={sendDirectOffer}
-                  className="flex-1 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-lg shadow-md hover:shadow-green-600/40 transition"
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-2xl transition"
                 >
                   Send Offer
                 </button>
                 <button
                   onClick={() => setShowDirectOfferModal(false)}
-                  className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800/50 transition"
+                  className="flex-1 py-3 border border-zinc-200 hover:bg-zinc-50 rounded-2xl font-medium transition"
                 >
                   Cancel
                 </button>

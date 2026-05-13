@@ -37,24 +37,23 @@ const MonthlyBudgetDashboard = () => {
 
   /* ================= CREATE BUDGET ================= */
   const handleCreateBudget = async () => {
-  if (!amount || !monthYear) return;
+    if (!amount || !monthYear) return;
 
-  const [year, month] = monthYear.split("-");
+    const [year, month] = monthYear.split("-");
+    const monthDate = `${year}-${month}-01`;
 
-  const monthDate = `${year}-${month}-01`; // ✅ REQUIRED
-
-  try {
-    await api.post("/finance/monthly-budgets/", {
-      month: monthDate,   // backend DateField
-      amount,
-    });
-    setAmount("");
-    setMonthYear("");
-    fetchBudgets();
-  } catch (error) {
-    alert("Budget already exists for this month.");
-  }
-};
+    try {
+      await api.post("/finance/monthly-budgets/", {
+        month: monthDate,
+        amount,
+      });
+      setAmount("");
+      setMonthYear("");
+      fetchBudgets();
+    } catch (error) {
+      alert("Budget already exists for this month.");
+    }
+  };
 
   /* ================= RELEASE BUDGET ================= */
   const releaseBudget = async (id) => {
@@ -77,20 +76,20 @@ const MonthlyBudgetDashboard = () => {
 
   /* ================= UI ================= */
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 p-6 font-mono">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800 p-6">
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-cyan-400 hover:text-blue-400 mb-2"
+            className="flex items-center gap-2 text-zinc-600 hover:text-zinc-900 mb-2 font-medium"
           >
             <FiArrowLeft /> Back
           </button>
-          <h1 className="text-3xl font-bold text-blue-300">
+          <h1 className="text-3xl font-bold text-zinc-900">
             Monthly Budget Management
           </h1>
-          <p className="text-cyan-400 mt-1">
+          <p className="text-zinc-500 mt-1">
             Define, approve and release organization budgets
           </p>
         </div>
@@ -104,8 +103,8 @@ const MonthlyBudgetDashboard = () => {
       </div>
 
       {/* CREATE BUDGET */}
-      <div className="bg-gray-900 border border-cyan-800 rounded-xl p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+      <div className="bg-white border border-zinc-200 rounded-3xl p-6 mb-8 shadow-sm">
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-zinc-900">
           <FiPlus /> Create Monthly Budget
         </h2>
 
@@ -115,19 +114,19 @@ const MonthlyBudgetDashboard = () => {
             placeholder="Budget Amount (₹)"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="bg-gray-800 px-4 py-2 rounded-lg outline-none"
+            className="bg-white border border-zinc-200 px-5 py-3 rounded-2xl outline-none focus:border-blue-500"
           />
 
           <input
             type="month"
             value={monthYear}
             onChange={(e) => setMonthYear(e.target.value)}
-            className="bg-gray-800 px-4 py-2 rounded-lg outline-none"
+            className="bg-white border border-zinc-200 px-5 py-3 rounded-2xl outline-none focus:border-blue-500"
           />
 
           <button
             onClick={handleCreateBudget}
-            className="bg-blue-600 hover:bg-blue-700 rounded-lg font-bold"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-semibold py-3 transition"
           >
             Save Budget
           </button>
@@ -135,28 +134,28 @@ const MonthlyBudgetDashboard = () => {
       </div>
 
       {/* BUDGET TABLE */}
-      <div className="bg-gray-900 border border-cyan-800 rounded-xl overflow-hidden">
+      <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-sm">
         <table className="w-full text-left">
-          <thead className="bg-gray-800">
+          <thead className="bg-zinc-50 border-b border-zinc-200">
             <tr>
-              <th className="px-4 py-3">Month</th>
-              <th className="px-4 py-3">Year</th>
-              <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Action</th>
+              <th className="px-6 py-4 font-semibold text-zinc-700">Month</th>
+              <th className="px-6 py-4 font-semibold text-zinc-700">Year</th>
+              <th className="px-6 py-4 font-semibold text-zinc-700">Amount</th>
+              <th className="px-6 py-4 font-semibold text-zinc-700">Status</th>
+              <th className="px-6 py-4 font-semibold text-zinc-700">Action</th>
             </tr>
           </thead>
 
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="5" className="p-6 text-center">
+                <td colSpan="5" className="p-12 text-center text-zinc-500">
                   Loading budgets...
                 </td>
               </tr>
             ) : budgets.length === 0 ? (
               <tr>
-                <td colSpan="5" className="p-6 text-center">
+                <td colSpan="5" className="p-12 text-center text-zinc-500">
                   No budgets created yet
                 </td>
               </tr>
@@ -164,27 +163,27 @@ const MonthlyBudgetDashboard = () => {
               budgets.map((b) => (
                 <tr
                   key={b.id}
-                  className="border-t border-cyan-800 hover:bg-gray-800/40"
+                  className="border-t border-zinc-100 hover:bg-zinc-50 transition-colors"
                 >
-                  <td className="px-4 py-3">{b.month}</td>
-                  <td className="px-4 py-3">{b.year}</td>
-                  <td className="px-4 py-3">₹ {b.amount}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-6 py-4 text-zinc-800">{b.month}</td>
+                  <td className="px-6 py-4 text-zinc-800">{b.year}</td>
+                  <td className="px-6 py-4 font-medium text-zinc-900">₹ {b.amount}</td>
+                  <td className="px-6 py-4">
                     {b.released ? (
-                      <span className="text-green-400 flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">
                         <FiCheckCircle /> Released
                       </span>
                     ) : (
-                      <span className="text-yellow-400 flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
                         <FiClock /> Pending
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-6 py-4">
                     {!b.released && (
                       <button
                         onClick={() => releaseBudget(b.id)}
-                        className="bg-green-600 hover:bg-green-700 px-4 py-1 rounded-lg"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-2xl text-sm font-medium transition"
                       >
                         Release
                       </button>
@@ -203,9 +202,9 @@ const MonthlyBudgetDashboard = () => {
 /* ================= COMPONENTS ================= */
 
 const SummaryCard = ({ title, value }) => (
-  <div className="bg-gray-900 border border-cyan-800 rounded-xl p-6">
-    <p className="text-cyan-400 text-sm">{title}</p>
-    <p className="text-2xl font-bold text-blue-300 mt-2">{value}</p>
+  <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+    <p className="text-zinc-500 text-sm font-medium">{title}</p>
+    <p className="text-3xl font-bold text-zinc-900 mt-3">{value}</p>
   </div>
 );
 
