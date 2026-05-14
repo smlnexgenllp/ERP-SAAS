@@ -81,19 +81,255 @@ export default function PurchaseOrdersList() {
     });
   };
 
-  const handlePrint = (po) => {
-    // Your existing print function (unchanged)
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Please allow pop-ups to print the document");
-      return;
-    }
+const handlePrint = (po) => {
+  const printWindow = window.open("", "_blank");
 
-    // ... (your full print logic remains unchanged)
-    // Keeping it as is for brevity
-    console.log("Printing PO:", po.po_number);
-    // Paste your original printWindow.document.write logic here if needed
+  if (!printWindow) {
+    alert("Please allow pop-ups to print the document");
+    return;
+  }
+
+  const formatDate = (date) => {
+    if (!date) return "—";
+    return new Date(date).toLocaleDateString("en-IN");
   };
+
+  const items = po.items || [];
+
+  const itemsHtml = items.length
+    ? items.map((item, index) => {
+        const qty = Number(item.ordered_qty || item.quantity || 0);
+        const price = Number(item.unit_price || item.rate || 0);
+        const total = qty * price;
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${item.item_details?.name || item.item?.name || "—"}</td>
+            <td style="text-align:center;">${qty}</td>
+            <td style="text-align:right;">₹ ${formatAmount(price)}</td>
+            <td style="text-align:right;">₹ ${formatAmount(total)}</td>
+          </tr>
+        `;
+      }).join("")
+    : `
+      <tr>
+        <td colspan="5" style="text-align:center; padding:20px;">
+          No items found
+        </td>
+      </tr>
+    `;
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Purchase Order - ${po.po_number || "N/A"}</title>
+
+        <style>
+          *{
+            box-sizing:border-box;
+          }
+
+          body{
+            font-family: Arial, sans-serif;
+            padding:40px;
+            color:#222;
+          }
+
+          .container{
+            max-width:1000px;
+            margin:auto;
+          }
+
+          .header{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:40px;
+            border-bottom:2px solid #e5e5e5;
+            padding-bottom:20px;
+          }
+
+          .title{
+            font-size:32px;
+            font-weight:bold;
+          }
+
+          .po-info{
+            text-align:right;
+            line-height:1.8;
+          }
+
+          .section{
+            display:flex;
+            justify-content:space-between;
+            margin-bottom:30px;
+            gap:40px;
+          }
+
+          .card{
+            flex:1;
+            border:1px solid #ddd;
+            border-radius:10px;
+            padding:20px;
+            background:#fafafa;
+          }
+
+          .card h3{
+            margin-top:0;
+            margin-bottom:15px;
+            font-size:18px;
+          }
+
+          table{
+            width:100%;
+            border-collapse:collapse;
+            margin-top:20px;
+          }
+
+          th{
+            background:#f4f4f4;
+            padding:14px;
+            border:1px solid #ddd;
+            text-align:left;
+          }
+
+          td{
+            padding:14px;
+            border:1px solid #ddd;
+          }
+
+          .totals{
+            margin-top:30px;
+            margin-left:auto;
+            width:350px;
+          }
+
+          .totals-row{
+            display:flex;
+            justify-content:space-between;
+            margin-bottom:12px;
+            font-size:16px;
+          }
+
+          .grand-total{
+            font-size:22px;
+            font-weight:bold;
+            border-top:2px solid #000;
+            padding-top:15px;
+            margin-top:15px;
+          }
+
+          .footer{
+            margin-top:80px;
+            text-align:center;
+            color:#666;
+            font-size:14px;
+          }
+
+          @media print {
+            body{
+              padding:20px;
+            }
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="container">
+
+          <div class="header">
+            <div>
+              <div class="title">Purchase Order</div>
+            </div>
+
+            <div class="po-info">
+              <div><strong>PO Number:</strong> ${po.po_number || "—"}</div>
+              <div><strong>Date:</strong> ${formatDate(po.created_at)}</div>
+              <div><strong>Status:</strong> ${(po.status || "DRAFT").toUpperCase()}</div>
+            </div>
+          </div>
+
+          <div class="section">
+
+            <div class="card">
+              <h3>Department</h3>
+              <div>
+                ${departments[po.department] || po.department_name || "—"}
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Vendor Details</h3>
+
+              <div>
+                ${po.vendor?.name || po.vendor_name || "—"}
+              </div>
+
+              <div>
+                ${po.vendor?.phone || ""}
+              </div>
+
+              <div>
+                ${po.vendor?.email || ""}
+              </div>
+            </div>
+
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width:70px;">#</th>
+                <th>Item</th>
+                <th style="width:120px; text-align:center;">Qty</th>
+                <th style="width:160px; text-align:right;">Unit Price</th>
+                <th style="width:180px; text-align:right;">Total</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <div class="totals">
+
+            <div class="totals-row">
+              <span>Subtotal</span>
+              <span>₹ ${formatAmount(po.subtotal || 0)}</span>
+            </div>
+
+            <div class="totals-row">
+              <span>Tax (${po.tax_percentage || 0}%)</span>
+              <span>₹ ${formatAmount(po.tax_amount || 0)}</span>
+            </div>
+
+            <div class="totals-row grand-total">
+              <span>Grand Total</span>
+              <span>₹ ${formatAmount(po.total_amount || 0)}</span>
+            </div>
+
+          </div>
+
+          <div class="footer">
+            Thank you for your business
+          </div>
+
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+
+      </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+};
 
   const handleGoBack = () => {
     navigate(-1);

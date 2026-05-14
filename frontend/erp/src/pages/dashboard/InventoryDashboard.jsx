@@ -47,6 +47,12 @@ const Sidebar = ({ active = "overview" }) => {
       path: "/purchase-orders",
       key: "create-po",
     },
+     {
+      icon: ShoppingCart,
+      label: "Pending-PO",
+      path: "/Pending-PO",
+      key: "pending-po",
+    },
     {
       icon: FileText,
       label: "Purchase Orders",
@@ -58,6 +64,18 @@ const Sidebar = ({ active = "overview" }) => {
       label: "Gate Entry",
       path: "/gate-entry",
       key: "gate-entry",
+    },
+    {
+      icon: Box,
+      label: "QC",
+      path: "/QC",
+      key: "QC",
+    },
+    {
+      icon: Box,
+      label: "QC List",
+      path: "/QC-list",
+      key: "QC-list",
     },
     {
       icon: ClipboardList,

@@ -115,13 +115,14 @@ export default function SalesOrderCreate() {
     const items = [...formData.items];
     items[index] = { ...items[index], [field]: value };
 
-    if (field === 'product' && value) {
-      const prod = products.find(p => p.id === Number(value));
-      if (prod) {
-        items[index].unit_price = Number(prod.price || 0);
-        items[index].description = prod.name || '';
-      }
-    }
+   if (field === 'product' && value) {
+  const prod = products.find(p => p.id === Number(value));
+
+  if (prod) {
+    items[index].unit_price = Number(prod.standard_price || 0);
+    items[index].description = prod.name || '';
+  }
+}
 
     setFormData(prev => ({ ...prev, items }));
   };
@@ -196,8 +197,8 @@ export default function SalesOrderCreate() {
       setMessage({ text: 'Sales Order created successfully!', type: 'success' });
 
       setTimeout(() => {
-        navigate(`/sale/orders/${res.data.id}`);
-      }, 1500);
+  navigate(-1);
+}, 1500);
     } catch (err) {
       const errorData = err.response?.data || {};
       setFieldErrors(errorData);
@@ -420,9 +421,9 @@ export default function SalesOrderCreate() {
                         >
                           <option value="">— Select or Custom —</option>
                           {products.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} (₹{Number(p.price || 0).toFixed(2)})
-                            </option>
+                           <option key={p.id} value={p.id}>
+  {p.name} (₹{Number(p.standard_price || 0).toFixed(2)})
+</option>
                           ))}
                         </select>
                       </td>

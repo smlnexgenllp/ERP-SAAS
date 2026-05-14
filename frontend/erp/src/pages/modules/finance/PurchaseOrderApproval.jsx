@@ -106,199 +106,175 @@ export default function PurchaseOrderApproval() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-950 text-cyan-50 px-4 py-6 md:px-8 md:py-10">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Back Button + Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleGoBack}
-              className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-cyan-300 hover:text-cyan-200 transition-all"
-            >
-              <FiArrowLeft size={22} />
-              <span className="font-medium">Back</span>
-            </button>
+ return (
+  <div className="min-h-screen bg-zinc-100 text-zinc-800">
+   <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
 
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-cyan-300">
-                Purchase Order Approval
-              </h1>
-              <p className="text-cyan-400/70 mt-1">
-                Review and approve/reject pending purchase orders
-              </p>
-            </div>
-          </div>
+  {/* HEADER */}
+  <div className="px-8 py-6 border-b border-slate-200 flex items-center justify-between">
+    <div>
+      <h1 className="text-3xl font-bold text-slate-800">
+        Purchase Order Approvals
+      </h1>
 
-          <button
-            onClick={loadPurchaseOrders}
-            disabled={loading || submitting}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <FiRefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            Refresh List
-          </button>
-        </div>
-
-        {error && (
-          <div className="mb-8 p-4 bg-red-900/40 border border-red-700 rounded-lg text-red-300 flex items-center gap-3">
-            <FiInfo size={18} /> {error}
-          </div>
-        )}
-
-        {/* Main Card */}
-        <div className="bg-gray-900/90 border border-cyan-900/60 rounded-xl shadow-xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-gray-900 to-gray-800 px-6 py-5 border-b border-cyan-900/50">
-            <h2 className="text-xl md:text-2xl font-semibold text-cyan-300">
-              Pending Approval ({pendingPos.length})
-            </h2>
-          </div>
-
-          <div className="p-6">
-            {pendingPos.length === 0 ? (
-              <div className="text-center py-16 text-cyan-400/60 italic">
-                No purchase orders pending approval at this time.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1200px]">
-                  <thead className="bg-gray-800/70">
-                    <tr className="text-cyan-300/90 text-sm uppercase tracking-wider">
-                      <th className="px-6 py-4 text-left w-12"></th>
-                      <th className="px-6 py-4 text-left">PO Number</th>
-                      <th className="px-6 py-4 text-left">Vendor</th>
-                      <th className="px-6 py-4 text-right">Total Amount</th>
-                      <th className="px-6 py-4 text-center">Items</th>
-                      <th className="px-6 py-4 text-center">Created By</th>
-                      <th className="px-6 py-4 text-center">Actions</th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-cyan-900/40">
-                    {pendingPos.map((po) => (
-                      <React.Fragment key={po.id}>
-                        <tr className="hover:bg-gray-800/40 transition-colors">
-                          <td className="px-6 py-5 text-center">
-                            <button
-                              onClick={() => toggleExpand(po.id)}
-                              className="text-cyan-400 hover:text-cyan-300"
-                            >
-                              {expandedId === po.id ? <FiChevronUp /> : <FiChevronDown />}
-                            </button>
-                          </td>
-                          <td className="px-6 py-5 font-medium">{po.po_number}</td>
-                          <td className="px-6 py-5">{po.vendor?.name || "—"}</td>
-                          <td className="px-6 py-5 text-right font-medium">
-                            {formatCurrency(po.total_amount)}
-                          </td>
-                          <td className="px-6 py-5 text-center">
-                            {po.items?.length || 0}
-                          </td>
-                          <td className="px-6 py-5 text-center">
-                            {po.created_by?.username || "—"}
-                          </td>
-                          <td className="px-6 py-5 text-center">
-                            <div className="flex items-center justify-center gap-3">
-                              <button
-                                onClick={() => handleApprove(po)}
-                                disabled={submitting}
-                                className="p-2 bg-green-900/50 hover:bg-green-800/60 text-green-300 rounded-full transition-colors disabled:opacity-50"
-                                title="Approve"
-                              >
-                                <FiCheck size={18} />
-                              </button>
-                              <button
-                                onClick={() => handleReject(po)}
-                                disabled={submitting}
-                                className="p-2 bg-red-900/50 hover:bg-red-800/60 text-red-300 rounded-full transition-colors disabled:opacity-50"
-                                title="Reject"
-                              >
-                                <FiX size={18} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Expanded Details */}
-                        {expandedId === po.id && (
-                          <tr className="bg-gray-900/70">
-                            <td colSpan={7} className="p-6">
-                              <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                  <div className="bg-gray-800/50 p-5 rounded-lg border border-cyan-900/30">
-                                    <h4 className="text-sm text-cyan-400 mb-2">Department</h4>
-                                    <p className="font-medium">{po.department || "—"}</p>
-                                  </div>
-                                  <div className="bg-gray-800/50 p-5 rounded-lg border border-cyan-900/30">
-                                    <h4 className="text-sm text-cyan-400 mb-2">Created By</h4>
-                                    <p className="font-medium">
-                                      {po.created_by?.username || "—"}
-                                      <span className="text-gray-500 text-sm ml-2">
-                                        {new Date(po.created_at).toLocaleString()}
-                                      </span>
-                                    </p>
-                                  </div>
-                                  <div className="bg-gray-800/50 p-5 rounded-lg border border-cyan-900/30">
-                                    <h4 className="text-sm text-cyan-400 mb-2">Total Amount</h4>
-                                    <p className="text-xl font-bold text-cyan-200">
-                                      {formatCurrency(po.total_amount)}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <h3 className="text-lg font-semibold text-cyan-300 mb-4">
-                                    Items in this Purchase Order
-                                  </h3>
-                                  <div className="overflow-x-auto rounded-lg border border-cyan-900/40">
-                                    <table className="w-full">
-                                      <thead className="bg-gray-800/70">
-                                        <tr className="text-cyan-300/90 text-sm uppercase tracking-wider">
-                                          <th className="px-6 py-3 text-left">Item</th>
-                                          <th className="px-6 py-3 text-center">Quantity</th>
-                                          <th className="px-6 py-3 text-right">Unit Price</th>
-                                          <th className="px-6 py-3 text-right">Total</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-cyan-900/30">
-                                        {(po.items || []).map((item, idx) => (
-                                          <tr key={idx}>
-                                            <td className="px-6 py-4">
-                                              <div>{item.item?.name || "—"}</div>
-                                              <div className="text-xs text-gray-500">
-                                                {item.item?.code || "—"}
-                                              </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                              {item.quantity || item.ordered_qty || "—"}
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                              ₹ {(Number(item.unit_price) || 0).toFixed(2)}
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-medium text-cyan-200">
-                                              ₹ {((item.quantity || item.ordered_qty || 0) * (item.unit_price || 0)).toFixed(2)}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <p className="text-slate-500 mt-1">
+        Review and manage pending purchase orders
+      </p>
     </div>
-  );
+    <div className="px-5 py-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 font-semibold">
+      {pendingPos.length} Pending
+    </div>
+  </div>
+  {/* TABLE */}
+  <div className="overflow-hidden">
+    <table className="w-full">
+      <thead className="bg-slate-50 border-b border-slate-200">
+        <tr className="text-sm text-slate-600">
+          <th className="px-6 py-5 text-left font-semibold">PO Number</th>
+          <th className="px-6 py-5 text-left font-semibold">Vendor</th>
+          <th className="px-6 py-5 text-left font-semibold">Department</th>
+          <th className="px-6 py-5 text-left font-semibold">Items</th>
+          <th className="px-6 py-5 text-right font-semibold">Amount</th>
+          <th className="px-6 py-5 text-center font-semibold">Created By</th>
+          <th className="px-6 py-5 text-center font-semibold">Date</th>
+          <th className="px-6 py-5 text-center font-semibold">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody className="divide-y divide-slate-100">
+        {pendingPos.map((po) => (
+          <tr
+            key={po.id}
+            className="hover:bg-slate-50 transition-all duration-200"
+          >
+            {/* PO NUMBER */}
+            <td className="px-6 py-6">
+              <div className="font-bold text-blue-600 text-[15px]">
+                {po.po_number || "N/A"}
+              </div>
+            </td>
+
+            {/* VENDOR */}
+            <td className="px-6 py-6">
+              <div className="font-medium text-slate-700">
+                {po.vendor?.name || "No Vendor"}
+              </div>
+            </td>
+
+            {/* DEPARTMENT */}
+            <td className="px-6 py-6">
+              <span className="px-3 py-1 rounded-xl bg-blue-50 text-blue-700 text-xs font-semibold">
+                {po.department || "Inventory"}
+              </span>
+            </td>
+
+            {/* ITEMS */}
+            <td className="px-6 py-6">
+              <div className="space-y-3">
+                {(po.items || []).slice(0, 2).map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="min-w-[240px] bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-slate-700 text-sm">
+                          {item.item?.name || "Unknown Item"}
+                        </p>
+
+                        <p className="text-xs text-slate-500 mt-1">
+                          Qty : {item.quantity || item.ordered_qty || 0}
+                        </p>
+                      </div>
+
+                      <div className="text-sm font-semibold text-slate-600">
+                        ₹ {Number(item.unit_price || 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {po.items?.length > 2 && (
+                  <div className="text-xs text-slate-500">
+                    +{po.items.length - 2} more items
+                  </div>
+                )}
+              </div>
+            </td>
+
+            {/* AMOUNT */}
+            <td className="px-6 py-6 text-right">
+              <div className="text-xl font-bold text-emerald-600">
+                {formatCurrency(po.total_amount)}
+              </div>
+            </td>
+
+            {/* CREATED BY */}
+            <td className="px-6 py-6">
+              <div className="flex flex-col items-center">
+                <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">
+                  {po.created_by?.username?.charAt(0)?.toUpperCase() || "U"}
+                </div>
+
+                <p className="text-xs text-slate-500 mt-2">
+                  {po.created_by?.username || "Unknown"}
+                </p>
+              </div>
+            </td>
+
+            {/* DATE */}
+            <td className="px-6 py-6 text-center">
+              <p className="text-sm font-medium text-slate-700">
+                {new Date(po.created_at).toLocaleDateString()}
+              </p>
+
+              <p className="text-xs text-slate-400 mt-1">
+                {new Date(po.created_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </td>
+            <td className="px-6 py-6">
+              <div className="flex flex-col gap-3 items-center">
+                <button
+                  onClick={() => handleApprove(po)}
+                  disabled={submitting}
+                  className="w-[110px] h-10 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-all disabled:opacity-50"
+                >
+                  Approve
+                </button>
+
+                <button
+                  onClick={() => handleReject(po)}
+                  disabled={submitting}
+                  className="w-[110px] h-10 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm font-semibold transition-all disabled:opacity-50"
+                >
+                  Reject
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+
+    {/* EMPTY STATE */}
+    {pendingPos.length === 0 && (
+      <div className="py-24 text-center">
+        <div className="text-6xl mb-5">📦</div>
+
+        <h2 className="text-2xl font-bold text-slate-700">
+          No Pending Purchase Orders
+        </h2>
+
+        <p className="text-slate-500 mt-2">
+          All purchase orders are already reviewed.
+        </p>
+      </div>
+    )}
+  </div>
+</div>
+  </div>
+);
 }

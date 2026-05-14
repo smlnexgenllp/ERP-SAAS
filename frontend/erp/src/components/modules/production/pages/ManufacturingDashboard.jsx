@@ -27,6 +27,8 @@ const Sidebar = ({ active = 'dashboard' }) => {
     { icon: ClipboardList, label: 'MRP & Demand', path: '/production/pending-sales-orders', key: 'plans' },
     { icon: Package, label: 'Planned Orders', path: '/planned-orders', key: 'planned-orders' },
     { icon: PlayCircle, label: 'Manufacturing Orders', path: '/manufacture-orders', key: 'manufacturing-orders' },
+    { icon: PlayCircle, label: 'Machine Assignment', path: '/machine-assign', key: 'machine-assignment' },
+    { icon: PlayCircle, label: 'Work Orders', path: '/workorder-list', key: 'work-orders' },
     { icon: Truck, label: 'Material Transfer', path: '/department-transaction', key: 'Transactions' },
     { icon: History, label: 'Transfer History', path: '/transaction-history', key: 'History' },
     { icon: Settings, label: 'Machines', path: '/machines-list', key: 'List of machines' },
@@ -36,7 +38,6 @@ const Sidebar = ({ active = 'dashboard' }) => {
 
   return (
     <div className="w-72 bg-zinc-900 border-r border-zinc-800 flex flex-col h-screen overflow-hidden">
-      {/* Logo / Brand */}
       <div className="p-6 border-b border-zinc-800">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-gradient-to-br from-zinc-700 to-zinc-800 rounded-2xl flex items-center justify-center">
@@ -45,8 +46,6 @@ const Sidebar = ({ active = 'dashboard' }) => {
           <h2 className="text-2xl font-semibold text-white tracking-tight">Manufacturing</h2>
         </div>
       </div>
-
-      {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {menuItems.map((item) => (
           <button
@@ -63,8 +62,6 @@ const Sidebar = ({ active = 'dashboard' }) => {
           </button>
         ))}
       </nav>
-
-      {/* Logout */}
       <div className="p-4 border-t border-zinc-800 mt-auto">
         <button
           onClick={() => navigate('/logout')}
@@ -77,25 +74,20 @@ const Sidebar = ({ active = 'dashboard' }) => {
     </div>
   );
 };
-
 export default function ManufacturingDashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-
   const [stats, setStats] = useState({
     manufacturingOrders: 0,
     plannedOrders: 0,
     runningProduction: 0,
     completedProduction: 0,
   });
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const fetchDashboardData = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const [poRes, moRes] = await Promise.all([
         api.get('/production/planned-orders/'),
