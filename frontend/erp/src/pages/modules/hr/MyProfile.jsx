@@ -56,7 +56,7 @@ export default function MyProfile() {
   const [activeTab, setActiveTab] = useState("documents");
   const [statusSubTab, setStatusSubTab] = useState("leaves");
   const [reimbursementTab, setReimbursementTab] = useState("pending");
-const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = new Date().toISOString().split("T")[0];
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [showVideosModal, setShowVideosModal] = useState(false);
@@ -547,8 +547,9 @@ const todayStr = new Date().toISOString().split("T")[0];
 
   if (loading || !profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-950 text-cyan-300 text-xl font-mono">
-        Loading My Profile...
+      <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-100">
+        <div className="w-10 h-10 border-4 border-zinc-300 border-t-zinc-800 rounded-full animate-spin mb-4"></div>
+        <p className="text-zinc-600 text-xl font-mono">Loading My Profile...</p>
       </div>
     );
   }
@@ -561,66 +562,67 @@ const todayStr = new Date().toISOString().split("T")[0];
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
 
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono flex flex-col relative">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800 font-mono flex flex-col relative">
       <div className="flex-1 overflow-y-auto pb-20">
         <div className="p-6">
-          <header className="border-b border-cyan-800 pb-3 mb-6 flex items-center justify-between">
+          <header className="border-b border-zinc-200 pb-3 mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-cyan-400 shadow shadow-cyan-400/50"></div>
-              <h1 className="text-blue-300 text-lg font-bold">
+              <div className="w-3 h-3 rounded-full bg-zinc-700"></div>
+              <h1 className="text-zinc-900 text-lg font-bold">
                 ALU-CORE: MY PROFILE
               </h1>
             </div>
 
             <div className="flex items-center gap-6">
-              <span className="text-gray-400 text-sm">
+              <span className="text-zinc-500 text-sm">
                 [ {profile.full_name} ]
               </span>
 
               <button
-                onClick={employeeLogout}                    // ← Use context logout
+                onClick={employeeLogout}
                 disabled={isLoggingOut}
-                className={`flex items-center gap-2 px-4 py-2 bg-red-900/60 hover:bg-red-800/80 border border-red-700 rounded-lg text-red-300 text-sm font-medium transition
-                  ${isLoggingOut ? "opacity-50 cursor-not-allowed" : ""}
-                `}
+                className={`flex items-center gap-2 px-4 py-2 bg-white hover:bg-red-50 border border-zinc-200 hover:border-red-200 rounded-lg text-red-600 text-sm font-medium transition
+        ${isLoggingOut ? "opacity-50 cursor-not-allowed" : ""}
+      `}
               >
                 <LogOut size={18} />
                 {isLoggingOut ? "Logging out..." : "Logout"}
               </button>
             </div>
           </header>
-
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-cyan-300">
+            <h2 className="text-2xl font-bold text-zinc-900">
               Hello, {profile.full_name.split(" ")[0]}!
             </h2>
             <div className="text-right">
-              <p className="text-gray-400 text-lg">{today.toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}</p>
+              <p className="text-zinc-500 text-lg">
+                {today.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
               <button
                 onClick={handlePunch}
                 disabled={punchLoading || attendance?.punch_out}
-                className="mt-3 px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-black font-bold disabled:opacity-50"
+                className="mt-3 px-6 py-3 rounded-xl bg-zinc-900 hover:bg-black text-white font-bold disabled:opacity-50 transition"
               >
                 {punchLoading ? "Processing..." : punchButtonText()}
               </button>
               {punchMsg && (
-                <p className="mt-2 text-sm text-green-400">{punchMsg}</p>
+                <p className="mt-2 text-sm text-emerald-600 font-medium">{punchMsg}</p>
               )}
             </div>
           </div>
 
           {trainingCompleted && (
-            <div className="bg-gray-900/30 border border-green-800 p-4 rounded-xl mb-6 flex items-center gap-3">
-              <CheckCircle className="w-6 h-6 text-green-400" />
-              <span className="text-green-300 font-semibold">
+            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl mb-6 flex items-center gap-3">
+              <CheckCircle className="w-6 h-6 text-emerald-600" />
+              <span className="text-emerald-700 font-semibold">
                 Training Completed
                 {trainingCompletedAt && (
-                  <span className="text-sm ml-2 text-gray-400">
+                  <span className="text-sm ml-2 text-emerald-600">
                     ({new Date(trainingCompletedAt).toLocaleDateString()})
                   </span>
                 )}
@@ -630,123 +632,128 @@ const todayStr = new Date().toISOString().split("T")[0];
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="space-y-6">
-              <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
-                <h3 className="text-blue-300 text-xl font-bold mb-4">
+              {/* Quick Actions Card */}
+              <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+                <h3 className="text-zinc-900 text-xl font-bold mb-4">
                   Quick Actions
                 </h3>
                 <div className="space-y-3">
                   <button
                     onClick={() => setShowLeaveModal(true)}
-                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                    className="w-full flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-white transition-all"
                   >
-                    <span className="flex items-center gap-3">
-                      <Calendar className="w-6 h-6 text-cyan-400" /> Apply Leave
+                    <span className="flex items-center gap-3 text-zinc-700">
+                      <Calendar className="w-6 h-6 text-zinc-600" /> Apply Leave
                     </span>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
                   </button>
 
                   <button
                     onClick={() => navigate("/hr/jobreferrals")}
-                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                    className="w-full flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-white transition-all"
                   >
-                    <span className="flex items-center gap-3">
-                      <Users className="w-6 h-6 text-cyan-400" /> Job Referrals
+                    <span className="flex items-center gap-3 text-zinc-700">
+                      <Users className="w-6 h-6 text-zinc-600" /> Job Referrals
                     </span>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
                   </button>
 
                   <button
                     onClick={() => setShowPermissionModal(true)}
-                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                    className="w-full flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-white transition-all"
                   >
-                    <span className="flex items-center gap-3">
-                      <Clock className="w-6 h-6 text-cyan-400" /> Request Permission
+                    <span className="flex items-center gap-3 text-zinc-700">
+                      <Clock className="w-6 h-6 text-zinc-600" /> Request Permission
                     </span>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
                   </button>
 
                   <button
                     onClick={openVideosModal}
-                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                    className="w-full flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-white transition-all"
                   >
-                    <span className="flex items-center gap-3">
-                      <PlayCircle className="w-6 h-6 text-cyan-400" /> Training Videos
+                    <span className="flex items-center gap-3 text-zinc-700">
+                      <PlayCircle className="w-6 h-6 text-zinc-600" /> Training Videos
                     </span>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
                   </button>
 
                   <button
                     onClick={() => setShowReimbursementModal(true)}
-                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                    className="w-full flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-white transition-all"
                   >
-                    <span className="flex items-center gap-3">
-                      <Gift className="w-6 h-6 text-cyan-400" /> Reimbursement
+                    <span className="flex items-center gap-3 text-zinc-700">
+                      <Gift className="w-6 h-6 text-zinc-600" /> Reimbursement
                     </span>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
                   </button>
+
                   <button
                     onClick={() => navigate("/hr/tasks")}
-                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                    className="w-full flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-white transition-all"
                   >
-                    <span className="flex items-center gap-3">
-                      <ClipboardList className="w-6 h-6 text-cyan-400" />
+                    <span className="flex items-center gap-3 text-zinc-700">
+                      <ClipboardList className="w-6 h-6 text-zinc-600" />
                       Task Management
                     </span>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
                   </button>
+
                   <button
                     onClick={() => navigate("/hr/chat")}
-                    className="w-full flex items-center justify-between p-4 bg-gray-900/20 border border-cyan-900 rounded-xl hover:bg-gray-800/40 transition"
+                    className="w-full flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-white transition-all"
                   >
-                    <span className="flex items-center gap-3">
-                      <Users className="w-6 h-6 text-cyan-400" />
+                    <span className="flex items-center gap-3 text-zinc-700">
+                      <Users className="w-6 h-6 text-zinc-600" />
                       Chat
                     </span>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
                   </button>
                 </div>
               </div>
 
-              <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
-                <h3 className="text-blue-300 font-bold mb-3 flex items-center gap-2">
-                  <Users className="w-5 h-5" /> Team Planned Leaves
+              <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+                <h3 className="text-zinc-900 font-bold mb-3 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-zinc-500" /> Team Planned Leaves
                 </h3>
-                <p className="text-3xl font-bold text-cyan-300">2 members</p>
+                <p className="text-3xl font-bold text-zinc-900">2 members</p>
               </div>
             </div>
 
             <div className="lg:col-span-2 space-y-6">
-              <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
-                <h3 className="text-blue-300 text-xl font-bold mb-6">
+              {/* Leave Balance */}
+              <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+                <h3 className="text-zinc-900 text-xl font-bold mb-6">
                   Leave Balance
                 </h3>
                 <div className="grid grid-cols-3 gap-6">
                   <div className="text-center">
-                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-red-600 to-pink-600 rounded-full flex items-center justify-center text-3xl font-bold shadow-lg shadow-red-600/50">
+                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-red-600 to-pink-600 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow">
                       {leaveBalance.sick}
                     </div>
-                    <p className="mt-3 text-gray-400">Sick Leave</p>
+                    <p className="mt-3 text-zinc-600">Sick Leave</p>
                   </div>
                   <div className="text-center">
-                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center text-3xl font-bold shadow-lg shadow-cyan-600/50">
+                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow">
                       {leaveBalance.casual}
                     </div>
-                    <p className="mt-3 text-gray-400">Casual Leave</p>
+                    <p className="mt-3 text-zinc-600">Casual Leave</p>
                   </div>
                   <div className="text-center">
-                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-green-600 to-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold shadow-lg shadow-emerald-600/50">
+                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-green-600 to-emerald-600 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow">
                       {leaveBalance.earned}
                     </div>
-                    <p className="mt-3 text-gray-400">Earned Leave</p>
+                    <p className="mt-3 text-zinc-600">Earned Leave</p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
-                <h3 className="text-blue-300 text-xl font-bold mb-6">
+              {/* My Requests & Documents */}
+              <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+                <h3 className="text-zinc-900 text-xl font-bold mb-6">
                   My Requests & Documents
                 </h3>
-                <div className="flex border-b border-cyan-800 mb-6 text-sm">
+                <div className="flex border-b border-zinc-200 mb-6 text-sm">
                   {["documents", "upload", "status", "reimbursement"].map((tab) => (
                     <button
                       key={tab}
@@ -756,8 +763,8 @@ const todayStr = new Date().toISOString().split("T")[0];
                         if (tab === "reimbursement") setReimbursementTab("pending");
                       }}
                       className={`px-6 py-3 ${activeTab === tab
-                        ? "text-cyan-300 border-b-2 border-cyan-400"
-                        : "text-gray-500 hover:text-gray-400"
+                        ? "text-zinc-900 border-b-2 border-zinc-900 font-medium"
+                        : "text-zinc-500 hover:text-zinc-700"
                         } transition`}
                     >
                       {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -768,22 +775,22 @@ const todayStr = new Date().toISOString().split("T")[0];
                 {activeTab === "documents" && (
                   <div className="space-y-4">
                     {uploadedDocs.length === 0 ? (
-                      <p className="text-gray-500 italic text-center py-12">
+                      <p className="text-zinc-500 italic text-center py-12">
                         No documents uploaded yet
                       </p>
                     ) : (
                       uploadedDocs.map((doc) => (
                         <div
                           key={doc.id}
-                          className="flex items-center justify-between bg-gray-900/20 p-5 rounded-lg border border-cyan-900/50 hover:bg-gray-800/30 transition"
+                          className="flex items-center justify-between bg-zinc-50 p-5 rounded-2xl border border-zinc-100 hover:bg-white hover:border-zinc-200 transition-all"
                         >
                           <div className="flex items-center gap-4">
-                            <FileText className="w-8 h-8 text-cyan-400" />
+                            <FileText className="w-8 h-8 text-zinc-600" />
                             <div>
-                              <p className="font-medium">
+                              <p className="font-medium text-zinc-900">
                                 {formatTitle(doc.title)}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-zinc-500">
                                 Uploaded{" "}
                                 {doc.uploaded_at
                                   ? new Date(doc.uploaded_at).toLocaleDateString()
@@ -797,10 +804,10 @@ const todayStr = new Date().toISOString().split("T")[0];
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              <Eye className="w-6 h-6 text-cyan-400 hover:text-cyan-300" />
+                              <Eye className="w-6 h-6 text-zinc-500 hover:text-zinc-700 transition" />
                             </a>
                             <button onClick={() => deleteDoc(doc.id)}>
-                              <Trash2 className="w-6 h-6 text-red-400 hover:text-red-300" />
+                              <Trash2 className="w-6 h-6 text-red-500 hover:text-red-600 transition" />
                             </button>
                           </div>
                         </div>
@@ -825,13 +832,13 @@ const todayStr = new Date().toISOString().split("T")[0];
                         );
                         return (
                           <div key={key}>
-                            <label className="block text-sm text-gray-400 mb-2">
+                            <label className="block text-sm text-zinc-600 mb-2 font-medium">
                               {formatTitle(key)}
                             </label>
                             {isUploaded ? (
-                              <div className="bg-green-900/30 border-2 border-green-600 rounded-lg p-6 flex items-center justify-center gap-3">
-                                <CheckCircle className="w-8 h-8 text-green-400" />
-                                <span className="font-semibold text-green-300">
+                              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-6 flex items-center justify-center gap-3">
+                                <CheckCircle className="w-8 h-8 text-emerald-600" />
+                                <span className="font-semibold text-emerald-700">
                                   Submitted
                                 </span>
                               </div>
@@ -840,17 +847,18 @@ const todayStr = new Date().toISOString().split("T")[0];
                                 type="file"
                                 name={key}
                                 onChange={handleFileChange}
-                                className="w-full text-sm text-cyan-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-cyan-600 file:text-gray-900 hover:file:bg-cyan-500 cursor-pointer"
+                                className="w-full text-sm text-zinc-700 file:mr-4 file:py-3 file:px-5 file:rounded-2xl file:border-0 file:bg-zinc-900 file:text-white hover:file:bg-black cursor-pointer transition"
                               />
                             )}
                           </div>
                         );
                       })}
                     </div>
+
                     <button
                       onClick={saveDocuments}
                       disabled={Object.values(newDocs).every((f) => !f)}
-                      className="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-lg font-bold flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-3.5 bg-zinc-900 hover:bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Upload className="w-5 h-5" /> Upload Selected Documents
                     </button>
@@ -859,15 +867,15 @@ const todayStr = new Date().toISOString().split("T")[0];
 
                 {activeTab === "status" && (
                   <div>
-                    <h4 className="font-semibold text-gray-300 mb-6">
+                    <h4 className="font-semibold text-zinc-700 mb-6">
                       Leave & Permission Requests
                     </h4>
-                    <div className="flex border-b border-cyan-800 mb-6 text-sm">
+                    <div className="flex border-b border-zinc-200 mb-6 text-sm">
                       <button
                         onClick={() => setStatusSubTab("leaves")}
                         className={`px-6 py-3 ${statusSubTab === "leaves"
-                          ? "text-cyan-300 border-b-2 border-cyan-400"
-                          : "text-gray-500 hover:text-gray-400"
+                          ? "text-zinc-900 border-b-2 border-zinc-900 font-medium"
+                          : "text-zinc-500 hover:text-zinc-700"
                           } transition`}
                       >
                         Leaves
@@ -875,8 +883,8 @@ const todayStr = new Date().toISOString().split("T")[0];
                       <button
                         onClick={() => setStatusSubTab("permissions")}
                         className={`px-6 py-3 ${statusSubTab === "permissions"
-                          ? "text-cyan-300 border-b-2 border-cyan-400"
-                          : "text-gray-500 hover:text-gray-400"
+                          ? "text-zinc-900 border-b-2 border-zinc-900 font-medium"
+                          : "text-zinc-500 hover:text-zinc-700"
                           } transition`}
                       >
                         Permissions
@@ -886,7 +894,7 @@ const todayStr = new Date().toISOString().split("T")[0];
                     {statusSubTab === "leaves" && (
                       <>
                         {leaveHistory.length === 0 ? (
-                          <p className="text-gray-500 italic text-center py-12">
+                          <p className="text-zinc-500 italic text-center py-12">
                             No leave requests submitted yet.
                           </p>
                         ) : (
@@ -894,18 +902,18 @@ const todayStr = new Date().toISOString().split("T")[0];
                             {leaveHistory.map((l) => (
                               <div
                                 key={l.id}
-                                className="bg-gray-900/20 p-4 rounded-lg border border-cyan-900/50 flex justify-between items-center"
+                                className="bg-zinc-50 p-5 rounded-2xl border border-zinc-100 flex justify-between items-center hover:bg-white transition"
                               >
                                 <div>
-                                  <p className="font-medium capitalize">
+                                  <p className="font-medium text-zinc-900 capitalize">
                                     {l.leave_type} Leave
                                   </p>
-                                  <p className="text-xs text-gray-500">
+                                  <p className="text-xs text-zinc-500">
                                     {new Date(l.start_date).toLocaleDateString()} →{" "}
                                     {new Date(l.end_date).toLocaleDateString()}
                                   </p>
                                   {l.reason && (
-                                    <p className="text-xs text-gray-500 mt-1 truncate max-w-md">
+                                    <p className="text-xs text-zinc-500 mt-1 truncate max-w-md">
                                       {l.reason}
                                     </p>
                                   )}
@@ -921,7 +929,7 @@ const todayStr = new Date().toISOString().split("T")[0];
                     {statusSubTab === "permissions" && (
                       <>
                         {permissionHistory.length === 0 ? (
-                          <p className="text-gray-500 italic text-center py-12">
+                          <p className="text-zinc-500 italic text-center py-12">
                             No permission requests submitted yet.
                           </p>
                         ) : (
@@ -929,17 +937,17 @@ const todayStr = new Date().toISOString().split("T")[0];
                             {permissionHistory.map((p) => (
                               <div
                                 key={p.id}
-                                className="bg-gray-900/20 p-4 rounded-lg border border-cyan-900/50 flex justify-between items-center"
+                                className="bg-zinc-50 p-5 rounded-2xl border border-zinc-100 flex justify-between items-center hover:bg-white transition"
                               >
                                 <div>
-                                  <p className="font-medium">
+                                  <p className="font-medium text-zinc-900">
                                     {new Date(p.date).toLocaleDateString()}
                                   </p>
-                                  <p className="text-xs text-gray-500">
+                                  <p className="text-xs text-zinc-500">
                                     {p.time_from} - {p.time_to}
                                   </p>
                                   {p.reason && (
-                                    <p className="text-xs text-gray-500 mt-1 truncate max-w-md">
+                                    <p className="text-xs text-zinc-500 mt-1 truncate max-w-md">
                                       {p.reason}
                                     </p>
                                   )}
@@ -956,12 +964,12 @@ const todayStr = new Date().toISOString().split("T")[0];
 
                 {activeTab === "reimbursement" && (
                   <div>
-                    <div className="flex border-b border-cyan-800 mb-6 text-sm">
+                    <div className="flex border-b border-zinc-200 mb-6 text-sm">
                       <button
                         onClick={() => setReimbursementTab("pending")}
                         className={`px-6 py-3 ${reimbursementTab === "pending"
-                          ? "text-cyan-300 border-b-2 border-cyan-400"
-                          : "text-gray-500 hover:text-gray-400"
+                          ? "text-zinc-900 border-b-2 border-zinc-900 font-medium"
+                          : "text-zinc-500 hover:text-zinc-700"
                           } transition`}
                       >
                         Pending
@@ -969,8 +977,8 @@ const todayStr = new Date().toISOString().split("T")[0];
                       <button
                         onClick={() => setReimbursementTab("completed")}
                         className={`px-6 py-3 ${reimbursementTab === "completed"
-                          ? "text-cyan-300 border-b-2 border-cyan-400"
-                          : "text-gray-500 hover:text-gray-400"
+                          ? "text-zinc-900 border-b-2 border-zinc-900 font-medium"
+                          : "text-zinc-500 hover:text-zinc-700"
                           } transition`}
                       >
                         Completed
@@ -978,9 +986,9 @@ const todayStr = new Date().toISOString().split("T")[0];
                     </div>
 
                     {reimbursementsLoading ? (
-                      <p className="text-center py-8 text-gray-500">Loading...</p>
+                      <p className="text-center py-8 text-zinc-500">Loading...</p>
                     ) : filteredReimbursements.length === 0 ? (
-                      <p className="text-gray-500 italic text-center py-12">
+                      <p className="text-zinc-500 italic text-center py-12">
                         {reimbursementTab === "pending"
                           ? "No pending reimbursement requests."
                           : "No completed reimbursement requests."}
@@ -990,13 +998,13 @@ const todayStr = new Date().toISOString().split("T")[0];
                         {filteredReimbursements.map((r) => (
                           <div
                             key={r.id}
-                            className="bg-gray-900/20 p-4 rounded-lg border border-cyan-900/50 flex justify-between items-center"
+                            className="bg-zinc-50 p-5 rounded-2xl border border-zinc-100 flex justify-between items-center hover:bg-white transition"
                           >
                             <div>
-                              <p className="font-medium">
+                              <p className="font-medium text-zinc-900">
                                 ₹{r.amount} - {r.reason}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-zinc-500">
                                 {new Date(r.date).toLocaleDateString()}
                               </p>
                             </div>
@@ -1011,15 +1019,15 @@ const todayStr = new Date().toISOString().split("T")[0];
             </div>
 
             <div>
-              <div className="bg-gray-900/30 border border-cyan-900 rounded-xl p-6">
-                <h3 className="text-blue-300 font-bold mb-4">Calendar</h3>
+              <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+                <h3 className="text-zinc-900 font-bold mb-4">Calendar</h3>
                 <div className="text-center">
-                  <p className="text-xl font-bold text-cyan-300">
+                  <p className="text-xl font-bold text-zinc-900">
                     {currentMonth} {currentYear}
                   </p>
                   <div className="grid grid-cols-7 gap-2 mt-6 text-sm">
                     {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
-                      <div key={day} className="text-gray-500 py-2">
+                      <div key={day} className="text-zinc-500 py-2 font-medium">
                         {day}
                       </div>
                     ))}
@@ -1032,10 +1040,10 @@ const todayStr = new Date().toISOString().split("T")[0];
                       (day) => (
                         <div
                           key={day}
-                          className={`py-3 rounded-lg ${day === today.getDate()
-                            ? "bg-cyan-600 text-gray-900 font-bold"
-                            : "hover:bg-gray-800/40"
-                            } transition`}
+                          className={`py-3 rounded-xl transition font-medium ${day === today.getDate()
+                            ? "bg-zinc-900 text-white font-bold"
+                            : "hover:bg-zinc-100 text-zinc-700"
+                            }`}
                         >
                           {day}
                         </div>
@@ -1050,10 +1058,10 @@ const todayStr = new Date().toISOString().split("T")[0];
       </div>
 
       <div
-        className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t-2 border-cyan-500 px-6 py-4 flex items-center cursor-text shadow-2xl"
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-200 px-6 py-4 flex items-center cursor-text shadow-2xl"
         onClick={handleCommandBarClick}
       >
-        <span className="text-green-400 font-bold mr-3">&gt;</span>
+        <span className="text-zinc-500 font-bold mr-3">&gt;</span>
         <input
           ref={inputRef}
           type="text"
@@ -1061,78 +1069,59 @@ const todayStr = new Date().toISOString().split("T")[0];
           onChange={(e) => setCommand(e.target.value)}
           onKeyDown={handleCommand}
           placeholder="Type 'help' for commands..."
-          className="flex-1 bg-transparent text-green-400 outline-none font-mono text-base"
+          className="flex-1 bg-transparent text-zinc-700 outline-none font-mono text-base"
           spellCheck={false}
         />
       </div>
 
       {showAlert && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800/90 border border-cyan-500 text-cyan-200 px-6 py-3 rounded-lg shadow-xl text-sm font-mono z-50">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-white border border-zinc-200 text-zinc-800 px-6 py-3 rounded-2xl shadow-xl text-sm font-medium z-50">
           {alertMessage}
         </div>
       )}
 
       {showLeaveModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-hidden">
-          <div
-            className="
-        bg-gray-900 border border-cyan-700 rounded-2xl shadow-2xl 
-        p-6 sm:p-8 
-        w-full max-w-lg 
-        max-h-[90vh] overflow-y-auto
-        scrollbar-thin scrollbar-thumb-cyan-600 scrollbar-track-gray-800
-        scrollbar-thumb-rounded scrollbar-track-rounded
-      "
-          >
-            {/* Sticky header */}
-            <div className="flex justify-between items-center mb-6 border-b border-cyan-900 pb-4 sticky top-0 bg-gray-900 z-10">
-              <h2 className="text-xl sm:text-2xl font-bold text-cyan-300">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-hidden">
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            {/* Sticky Header */}
+            <div className="flex justify-between items-center mb-6 border-b border-zinc-100 pb-4 sticky top-0 bg-white z-10 px-6 pt-6">
+              <h2 className="text-2xl font-bold text-zinc-900">
                 Apply for Leave
               </h2>
               <button
                 onClick={() => setShowLeaveModal(false)}
-                className="text-gray-400 hover:text-cyan-300 p-2 rounded-full hover:bg-gray-800 transition"
+                className="text-zinc-400 hover:text-zinc-600 p-2 rounded-full hover:bg-zinc-100 transition"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <form onSubmit={submitLeave} className="space-y-5">
+            <form onSubmit={submitLeave} className="space-y-6 px-6 pb-6">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   Leave Type
                 </label>
                 <select
-                  className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 focus:border-zinc-400 outline-none"
                   value={leave.type}
                   onChange={(e) => setLeave({ ...leave, type: e.target.value })}
                   required
                 >
-                  <option value="" className="bg-gray-900">
-                    Select Leave Type
-                  </option>
-                  <option value="sick" className="bg-gray-900">
-                    Sick Leave
-                  </option>
-                  <option value="casual" className="bg-gray-900">
-                    Casual Leave
-                  </option>
-                  <option value="earned" className="bg-gray-900">
-                    Earned Leave
-                  </option>
-                  <option value="wfh" className="bg-gray-900">
-                    Work From Home
-                  </option>
+                  <option value="">Select Leave Type</option>
+                  <option value="sick">Sick Leave</option>
+                  <option value="casual">Casual Leave</option>
+                  <option value="earned">Earned Leave</option>
+                  <option value="wfh">Work From Home</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   From Date
                 </label>
                 <input
                   type="date"
-                  className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 focus:border-zinc-400 outline-none"
                   min={todayStr}
                   value={leave.from}
                   onChange={(e) => setLeave({ ...leave, from: e.target.value })}
@@ -1141,12 +1130,12 @@ const todayStr = new Date().toISOString().split("T")[0];
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   To Date
                 </label>
                 <input
                   type="date"
-                  className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 focus:border-zinc-400 outline-none"
                   min={leave.from || todayStr}
                   value={leave.to}
                   onChange={(e) => setLeave({ ...leave, to: e.target.value })}
@@ -1155,20 +1144,18 @@ const todayStr = new Date().toISOString().split("T")[0];
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   Reporting Manager
                 </label>
                 <select
-                  className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 focus:border-zinc-400 outline-none"
                   value={leave.manager_id}
                   onChange={(e) => setLeave({ ...leave, manager_id: e.target.value })}
                   required
                 >
-                  <option value="" className="bg-gray-900">
-                    Select Manager
-                  </option>
+                  <option value="">Select Manager</option>
                   {managers.map((m) => (
-                    <option key={m.id} value={m.id} className="bg-gray-900">
+                    <option key={m.id} value={m.id}>
                       {m.full_name}
                     </option>
                   ))}
@@ -1176,35 +1163,29 @@ const todayStr = new Date().toISOString().split("T")[0];
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   Reason
                 </label>
                 <textarea
-                  className="
-              w-full px-4 py-3 bg-gray-800 border border-cyan-900 
-              rounded-lg text-cyan-300 placeholder-gray-500 
-              focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none
-              h-24 sm:h-32 resize-none
-            "
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 placeholder-zinc-400 focus:border-zinc-400 outline-none h-28 resize-y"
                   placeholder="Describe your reason for leave"
-                  
                   value={leave.reason}
                   onChange={(e) => setLeave({ ...leave, reason: e.target.value })}
                   required
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-cyan-900">
+              <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-zinc-100">
                 <button
                   type="submit"
-                  className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 text-gray-900 font-bold rounded-lg transition shadow-md"
+                  className="flex-1 py-3.5 bg-zinc-900 hover:bg-black text-white font-semibold rounded-2xl transition"
                 >
                   Submit Leave
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowLeaveModal(false)}
-                  className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-cyan-300 font-bold rounded-lg transition"
+                  className="flex-1 py-3.5 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-semibold rounded-2xl transition"
                 >
                   Cancel
                 </button>
@@ -1215,36 +1196,29 @@ const todayStr = new Date().toISOString().split("T")[0];
       )}
 
       {showPermissionModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-hidden">
-          <div
-            className="
-        bg-gray-900 border border-cyan-700 rounded-2xl shadow-2xl 
-        p-6 sm:p-8 
-        w-full max-w-lg 
-        max-h-[90vh] overflow-y-auto
-        scrollbar-thin scrollbar-thumb-cyan-600 scrollbar-track-gray-800
-        scrollbar-thumb-rounded scrollbar-track-rounded
-      "
-          >
-            {/* Sticky header */}
-            <div className="flex justify-between items-center mb-6 border-b border-cyan-900 pb-4 sticky top-0 bg-gray-900 z-10">
-              <h2 className="text-xl sm:text-2xl font-bold text-cyan-300">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-hidden">
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+
+            {/* Sticky Header */}
+            <div className="flex justify-between items-center mb-6 border-b border-zinc-100 pb-4 sticky top-0 bg-white z-10 px-6 pt-6">
+              <h2 className="text-2xl font-bold text-zinc-900">
                 Request Permission
               </h2>
               <button
                 onClick={() => setShowPermissionModal(false)}
-                className="text-gray-400 hover:text-cyan-300 p-2 rounded-full hover:bg-gray-800 transition"
+                className="text-zinc-400 hover:text-zinc-600 p-2 rounded-full hover:bg-zinc-100 transition"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <form onSubmit={submitPermission} className="space-y-5">
+            <form onSubmit={submitPermission} className="space-y-6 px-6 pb-6">
+
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Date</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Date</label>
                 <input
                   type="date"
-                  className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 focus:border-zinc-400 outline-none"
                   min={todayStr}
                   value={permission.date}
                   onChange={(e) => setPermission({ ...permission, date: e.target.value })}
@@ -1254,12 +1228,10 @@ const todayStr = new Date().toISOString().split("T")[0];
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
-                    From Time
-                  </label>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">From Time</label>
                   <input
                     type="time"
-                    className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                    className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 focus:border-zinc-400 outline-none"
                     value={permission.from}
                     onChange={(e) => setPermission({ ...permission, from: e.target.value })}
                     required
@@ -1267,12 +1239,10 @@ const todayStr = new Date().toISOString().split("T")[0];
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">
-                    To Time
-                  </label>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">To Time</label>
                   <input
                     type="time"
-                    className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                    className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 focus:border-zinc-400 outline-none"
                     value={permission.to}
                     onChange={(e) => setPermission({ ...permission, to: e.target.value })}
                     required
@@ -1281,20 +1251,16 @@ const todayStr = new Date().toISOString().split("T")[0];
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
-                  Reporting Manager
-                </label>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Reporting Manager</label>
                 <select
-                  className="w-full px-4 py-3 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 focus:border-zinc-400 outline-none"
                   value={permission.manager_id}
                   onChange={(e) => setPermission({ ...permission, manager_id: e.target.value })}
                   required
                 >
-                  <option value="" className="bg-gray-900">
-                    Select Manager
-                  </option>
+                  <option value="">Select Manager</option>
                   {managers.map((m) => (
-                    <option key={m.id} value={m.id} className="bg-gray-900">
+                    <option key={m.id} value={m.id}>
                       {m.full_name}
                     </option>
                   ))}
@@ -1302,16 +1268,9 @@ const todayStr = new Date().toISOString().split("T")[0];
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
-                  Reason
-                </label>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Reason</label>
                 <textarea
-                  className="
-              w-full px-4 py-3 bg-gray-800 border border-cyan-900 
-              rounded-lg text-cyan-300 placeholder-gray-500 
-              focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none
-              h-24 sm:h-32 resize-none
-            "
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 placeholder-zinc-400 focus:border-zinc-400 outline-none h-28 resize-y"
                   placeholder="Describe your reason for permission"
                   value={permission.reason}
                   onChange={(e) => setPermission({ ...permission, reason: e.target.value })}
@@ -1319,17 +1278,17 @@ const todayStr = new Date().toISOString().split("T")[0];
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-cyan-900">
+              <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-zinc-100">
                 <button
                   type="submit"
-                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-500 text-gray-900 font-bold rounded-lg transition shadow-md"
+                  className="flex-1 py-3.5 bg-zinc-900 hover:bg-black text-white font-semibold rounded-2xl transition"
                 >
                   Submit Permission
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowPermissionModal(false)}
-                  className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-cyan-300 font-bold rounded-lg transition"
+                  className="flex-1 py-3.5 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-semibold rounded-2xl transition"
                 >
                   Cancel
                 </button>
@@ -1340,33 +1299,26 @@ const todayStr = new Date().toISOString().split("T")[0];
       )}
 
       {showReimbursementModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-hidden">
-          <div
-            className="
-        bg-gray-900 border border-cyan-700 rounded-2xl shadow-2xl 
-        p-5 sm:p-7 
-        w-full max-w-md 
-        max-h-[85vh] overflow-y-auto
-        scrollbar-thin scrollbar-thumb-cyan-600 scrollbar-track-gray-800
-        scrollbar-thumb-rounded scrollbar-track-rounded
-      "
-          >
-            {/* Sticky header – compact */}
-            <div className="flex justify-between items-center mb-5 border-b border-cyan-900 pb-3 sticky top-0 bg-gray-900 z-10">
-              <h2 className="text-lg sm:text-xl font-bold text-cyan-300">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-hidden">
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
+
+            {/* Sticky Header */}
+            <div className="flex justify-between items-center mb-5 border-b border-zinc-100 pb-3 sticky top-0 bg-white z-10 px-6 pt-6">
+              <h2 className="text-xl font-bold text-zinc-900">
                 Submit Reimbursement
               </h2>
               <button
                 onClick={() => setShowReimbursementModal(false)}
-                className="text-gray-400 hover:text-cyan-300 p-1.5 rounded-full hover:bg-gray-800 transition"
+                className="text-zinc-400 hover:text-zinc-600 p-2 rounded-full hover:bg-zinc-100 transition"
               >
                 <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
-            <form onSubmit={submitReimbursement} className="space-y-4">
+            <form onSubmit={submitReimbursement} className="space-y-5 px-6 pb-6">
+
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   Amount (₹)
                 </label>
                 <input
@@ -1374,7 +1326,7 @@ const todayStr = new Date().toISOString().split("T")[0];
                   min="0"
                   step="0.01"
                   placeholder="0.00"
-                  className="w-full px-4 py-2.5 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 placeholder-gray-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 placeholder-zinc-400 focus:border-zinc-400 outline-none"
                   value={reimbursement.amount}
                   onChange={(e) =>
                     setReimbursement({
@@ -1387,12 +1339,12 @@ const todayStr = new Date().toISOString().split("T")[0];
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   Date of Expense
                 </label>
                 <input
                   type="date"
-                  className="w-full px-4 py-2.5 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none"
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 focus:border-zinc-400 outline-none"
                   value={reimbursement.date}
                   onChange={(e) =>
                     setReimbursement({ ...reimbursement, date: e.target.value })
@@ -1402,12 +1354,12 @@ const todayStr = new Date().toISOString().split("T")[0];
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   Reporting Manager
                 </label>
                 <select
                   disabled
-                  className="w-full px-4 py-2.5 bg-gray-800 border border-cyan-900 rounded-lg text-cyan-300 opacity-70 cursor-not-allowed"
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 opacity-70 cursor-not-allowed"
                 >
                   {managers.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -1418,16 +1370,11 @@ const todayStr = new Date().toISOString().split("T")[0];
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   Reason / Description
                 </label>
                 <textarea
-                  className="
-              w-full px-4 py-2.5 bg-gray-800 border border-cyan-900 
-              rounded-lg text-cyan-300 placeholder-gray-500 
-              focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none
-              h-20 sm:h-28 resize-none
-            "
+                  className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-zinc-800 placeholder-zinc-400 focus:border-zinc-400 outline-none h-24 sm:h-28 resize-none"
                   placeholder="Explain the expense"
                   value={reimbursement.reason}
                   onChange={(e) =>
@@ -1440,17 +1387,17 @@ const todayStr = new Date().toISOString().split("T")[0];
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-cyan-900 mt-2">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-zinc-100">
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-gray-900 font-bold rounded-lg transition shadow-sm text-sm sm:text-base"
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-2xl transition text-sm sm:text-base"
                 >
                   Submit Request
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowReimbursementModal(false)}
-                  className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-cyan-300 font-bold rounded-lg transition text-sm sm:text-base"
+                  className="flex-1 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-semibold rounded-2xl transition text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -1461,42 +1408,43 @@ const todayStr = new Date().toISOString().split("T")[0];
       )}
 
       {showVideosModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-gray-900 border border-cyan-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-screen overflow-y-auto">
-            <div className="sticky top-0 bg-gray-900 border-b border-cyan-900 px-8 py-6 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-cyan-300">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white border border-zinc-200 rounded-3xl shadow-xl w-full max-w-4xl max-h-screen overflow-y-auto">
+
+            {/* Sticky Header */}
+            <div className="sticky top-0 bg-white border-b border-zinc-200 px-8 py-6 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-zinc-900">
                 Training Videos
               </h2>
               <button
                 onClick={() => setShowVideosModal(false)}
-                className="text-gray-400 hover:text-cyan-300"
+                className="text-zinc-400 hover:text-zinc-600 p-2 rounded-full hover:bg-zinc-100 transition"
               >
                 <X className="w-8 h-8" />
               </button>
             </div>
+
             <div className="p-8">
               {videosLoading ? (
                 <div className="text-center py-12">
-                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-cyan-500"></div>
-                  <p className="mt-4 text-gray-400">Loading videos...</p>
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-zinc-400"></div>
+                  <p className="mt-4 text-zinc-500">Loading videos...</p>
                 </div>
               ) : trainingVideos.length === 0 ? (
-                <p className="text-center text-gray-500 py-12 italic">
+                <p className="text-center text-zinc-500 py-12 italic">
                   No training videos available yet.
                 </p>
               ) : (
                 <>
                   <div className="mb-8">
-                    <p className="text-sm text-gray-400">
-                      Progress: {watchedVideos.size} / {trainingVideos.length}{" "}
-                      completed
+                    <p className="text-sm text-zinc-600">
+                      Progress: {watchedVideos.size} / {trainingVideos.length} completed
                     </p>
-                    <div className="w-full bg-gray-800 rounded-full h-3 mt-2">
+                    <div className="w-full bg-zinc-200 rounded-full h-3 mt-2">
                       <div
-                        className="bg-cyan-500 h-3 rounded-full transition-all duration-500"
+                        className="bg-zinc-900 h-3 rounded-full transition-all duration-500"
                         style={{
-                          width: `${(watchedVideos.size / trainingVideos.length) * 100
-                            }%`,
+                          width: `${(watchedVideos.size / trainingVideos.length) * 100}%`,
                         }}
                       />
                     </div>
@@ -1509,10 +1457,9 @@ const todayStr = new Date().toISOString().split("T")[0];
                       return (
                         <div
                           key={video.id}
-                          className={`bg-gray-800/50 rounded-lg overflow-hidden shadow hover:shadow-cyan-800/50 transition ${!unlocked ? "opacity-60" : ""
-                            }`}
+                          className={`bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition ${!unlocked ? "opacity-75" : ""}`}
                         >
-                          <div className="aspect-video bg-black relative">
+                          <div className="aspect-video bg-zinc-950 relative">
                             {video.video ? (
                               <video
                                 controls={unlocked}
@@ -1528,14 +1475,14 @@ const todayStr = new Date().toISOString().split("T")[0];
                                 Your browser does not support the video tag.
                               </video>
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gray-700">
-                                <PlayCircle className="w-16 h-16 text-gray-500" />
+                              <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                                <PlayCircle className="w-16 h-16 text-zinc-500" />
                               </div>
                             )}
 
                             {!unlocked && (
                               <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                                <div className="text-cyan-300 text-center">
+                                <div className="text-white text-center">
                                   <svg
                                     className="w-16 h-16 mx-auto mb-4"
                                     fill="currentColor"
@@ -1547,55 +1494,47 @@ const todayStr = new Date().toISOString().split("T")[0];
                                       clipRule="evenodd"
                                     />
                                   </svg>
-                                  <p className="text-lg font-semibold">
-                                    Locked
-                                  </p>
-                                  <p className="text-sm mt-1">
-                                    Complete previous video first
-                                  </p>
+                                  <p className="text-lg font-semibold">Locked</p>
+                                  <p className="text-sm mt-1">Complete previous video first</p>
                                 </div>
                               </div>
                             )}
 
                             {watched && (
-                              <div className="absolute top-4 right-4 bg-green-600 text-gray-900 rounded-full p-2">
+                              <div className="absolute top-4 right-4 bg-emerald-600 text-white rounded-full p-2">
                                 <CheckCircle className="w-8 h-8" />
                               </div>
                             )}
                           </div>
 
-                          <div className="p-4">
+                          <div className="p-6">
                             <div className="flex items-start justify-between">
                               <div>
-                                <h4 className="font-semibold text-cyan-300 flex items-center gap-2">
-                                  <span className="text-sm font-bold text-cyan-500">
+                                <h4 className="font-semibold text-zinc-900 flex items-center gap-2">
+                                  <span className="text-sm font-bold text-zinc-500">
                                     #{index + 1}
                                   </span>
                                   {video.title || "Untitled Video"}
                                 </h4>
                                 {video.description && (
-                                  <p className="text-sm text-gray-400 mt-1">
+                                  <p className="text-sm text-zinc-600 mt-1">
                                     {video.description}
                                   </p>
                                 )}
                               </div>
                               {watched && (
-                                <span className="text-sm text-green-400 font-medium">
+                                <span className="text-sm text-emerald-600 font-medium">
                                   Completed
                                 </span>
                               )}
                               {!unlocked && !watched && (
-                                <span className="text-sm text-gray-500">
-                                  Locked
-                                </span>
+                                <span className="text-sm text-zinc-400">Locked</span>
                               )}
                             </div>
                             {video.created_at && (
-                              <p className="text-xs text-gray-500 mt-2">
+                              <p className="text-xs text-zinc-500 mt-2">
                                 Uploaded on{" "}
-                                {new Date(
-                                  video.created_at
-                                ).toLocaleDateString()}
+                                {new Date(video.created_at).toLocaleDateString()}
                               </p>
                             )}
                           </div>
@@ -1605,7 +1544,7 @@ const todayStr = new Date().toISOString().split("T")[0];
                   </div>
 
                   {trainingCompleted ? (
-                    <div className="mt-12 text-center text-green-400 font-bold text-xl flex items-center justify-center gap-3">
+                    <div className="mt-12 text-center text-emerald-600 font-bold text-xl flex items-center justify-center gap-3">
                       <CheckCircle className="w-10 h-10" />
                       Training Completed
                     </div>
@@ -1614,7 +1553,7 @@ const todayStr = new Date().toISOString().split("T")[0];
                       <div className="mt-12 text-center">
                         <button
                           onClick={markTrainingCompleted}
-                          className="px-10 py-5 bg-green-600 hover:bg-green-500 text-gray-900 font-bold text-xl rounded-lg transition"
+                          className="px-10 py-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xl rounded-2xl transition"
                         >
                           Mark Training as Completed
                         </button>
