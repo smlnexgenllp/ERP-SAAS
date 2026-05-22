@@ -36,16 +36,12 @@ export default function SalesOrderCreate() {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        // Customers
         const custRes = await api.get('/sale/customers/');
         setCustomers(custRes.data);
 
-        // Products
         const prodRes = await api.get('/inventory/items/');
         setProducts(prodRes.data);
 
-        // Pre-fill if coming from customer creation
         if (preSelectedCustomerId) {
           const selected = custRes.data.find(c => c.id === Number(preSelectedCustomerId));
           if (selected) {
@@ -59,10 +55,7 @@ export default function SalesOrderCreate() {
           }
         }
       } catch (err) {
-        setMessage({
-          text: 'Failed to load customers or products.',
-          type: 'error',
-        });
+        setMessage({ text: 'Failed to load customers or products.', type: 'error' });
       } finally {
         setLoading(false);
       }
@@ -79,7 +72,6 @@ export default function SalesOrderCreate() {
 
   const handleCommand = (e) => {
     if (e.key !== "Enter") return;
-
     const cmd = command.trim().toLowerCase();
     setCommand("");
 
@@ -87,23 +79,28 @@ export default function SalesOrderCreate() {
 
     if (["help", "commands"].includes(cmd)) {
       showToast("Available commands: clear, reset");
-      return;
     } else if (cmd === "clear") {
       showToast("Terminal cleared ✓");
     } else if (cmd === "reset") {
-      setFormData({
-        customer: preSelectedCustomerId || '',
-        expected_delivery_date: '',
-        billing_address: '',
-        shipping_address: '',
-        payment_terms_days: 30,
-        notes: '',
-        items: [{ product: '', description: '', quantity: 1, unit_price: 0 }],
-      });
+      resetForm();
       showToast("Form reset ✓");
     } else {
       showToast(`Unknown command: ${cmd}`);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      customer: preSelectedCustomerId || '',
+      expected_delivery_date: '',
+      billing_address: '',
+      shipping_address: '',
+      payment_terms_days: 30,
+      notes: '',
+      items: [{ product: '', description: '', quantity: 1, unit_price: 0 }],
+    });
+    setMessage({ text: '', type: '' });
+    setFieldErrors({});
   };
 
   const handleChange = (e) => {
@@ -122,7 +119,6 @@ export default function SalesOrderCreate() {
         items[index].description = prod.name || '';
       }
     }
-
     setFormData(prev => ({ ...prev, items }));
   };
 
@@ -166,15 +162,6 @@ export default function SalesOrderCreate() {
       return;
     }
 
-    // Validate product IDs (optional but helpful)
-    const validProductIds = new Set(products.map(p => p.id));
-    const invalidItems = validItems.filter(i => i.product && !validProductIds.has(Number(i.product)));
-    if (invalidItems.length > 0) {
-      setMessage({ text: 'One or more selected products are invalid.', type: 'error' });
-      setSubmitting(false);
-      return;
-    }
-
     try {
       const payload = {
         customer: formData.customer,
@@ -193,11 +180,14 @@ export default function SalesOrderCreate() {
 
       const res = await api.post('/sale/sales-orders/create/', payload);
 
-      setMessage({ text: 'Sales Order created successfully!', type: 'success' });
+      // ✅ Success: Stay on same page
+      setMessage({ 
+        text: `Sales Order #${res.data.id} created successfully!`, 
+        type: 'success' 
+      });
 
-      setTimeout(() => {
-        navigate(`/sale/orders/${res.data.id}`);
-      }, 1500);
+      resetForm(); // Reset form for next order
+
     } catch (err) {
       const errorData = err.response?.data || {};
       setFieldErrors(errorData);
@@ -205,7 +195,7 @@ export default function SalesOrderCreate() {
       const errorMsg = errorData.detail ||
         errorData.non_field_errors?.[0] ||
         Object.values(errorData).flat().join(', ') ||
-        'Failed to create sales order. Check items/product IDs.';
+        'Failed to create sales order.';
 
       setMessage({ text: errorMsg, type: 'error' });
     } finally {
@@ -214,7 +204,6 @@ export default function SalesOrderCreate() {
   };
 
   const { subtotal, gst, grand_total } = calculateTotals();
-
   const selectedCustomer = customers.find(c => c.id === Number(formData.customer));
 
   if (loading) {
@@ -257,7 +246,7 @@ export default function SalesOrderCreate() {
           </div>
         </div>
 
-        {/* Message Alert */}
+        {/* Success / Error Message */}
         {message.text && (
           <div
             className={`p-4 rounded-2xl mb-6 flex items-center gap-3 border ${
@@ -272,6 +261,9 @@ export default function SalesOrderCreate() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ... Rest of your form remains exactly the same ... */}
+          {/* (Customer, Addresses, Order Items, Notes, etc.) */}
+
           {/* Main Form Card */}
           <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm">
             {/* Customer Selection */}
@@ -520,17 +512,14 @@ export default function SalesOrderCreate() {
                 submitting ? 'bg-zinc-400 cursor-not-allowed' : 'bg-zinc-900 hover:bg-black'
               }`}
             >
-              {submitting ? 'Creating...' : 'Create Sales Order'}
+              {submitting ? 'Creating Order...' : 'Create Sales Order'}
             </button>
           </div>
         </form>
       </div>
 
-      {/* Bottom Command Bar */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-200 px-8 py-5 flex items-center shadow-2xl z-50"
-        onClick={() => inputRef.current?.focus()}
-      >
+      {/* Bottom Command Bar & Toast - Unchanged */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-200 px-8 py-5 flex items-center shadow-2xl z-50" onClick={() => inputRef.current?.focus()}>
         <span className="text-zinc-400 font-bold text-2xl mr-4 font-mono">&gt;</span>
         <input
           ref={inputRef}
@@ -544,7 +533,6 @@ export default function SalesOrderCreate() {
         />
       </div>
 
-      {/* Toast Notification */}
       {showAlert && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-white border border-zinc-200 shadow-lg text-zinc-800 px-7 py-3.5 rounded-2xl text-sm z-50 flex items-center gap-3">
           <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></div>
