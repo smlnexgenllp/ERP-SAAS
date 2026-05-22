@@ -5,7 +5,7 @@ import api from "../../../services/api";
 import {
   ArrowLeft,
   ClipboardCheck,
-  Search,
+  Search,RefreshCw
 } from "lucide-react";
 
 export default function QualityInspectionList() {
@@ -98,7 +98,7 @@ export default function QualityInspectionList() {
             onClick={fetchInspections}
             className="px-6 py-2.5 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-700 font-medium flex items-center gap-2 transition"
           >
-            <FiRefreshCw size={16} /> Refresh List
+            <RefreshCw size={16} /> Refresh List
           </button>
         </div>
 
