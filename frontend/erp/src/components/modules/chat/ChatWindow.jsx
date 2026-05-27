@@ -208,123 +208,148 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
 
   // WebSocket connection
   const connectWebSocket = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/chat/${group.id}/`;
+  if (!group?.id) return null;
 
-    const newSocket = new WebSocket(wsUrl);
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/chat/${group.id}/`;
 
-    newSocket.onopen = () => {
-      console.log('WebSocket connected');
-      setError(null);
+  console.log("🔌 Connecting to:", wsUrl);
 
-      newSocket.send(JSON.stringify({
-        type: 'presence',
-        action: 'join',
-        user_id: currentUser?.id
-      }));
-    };
+  const newSocket = new WebSocket(wsUrl);
 
-    newSocket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+  newSocket.onopen = () => {
+    console.log('✅ WebSocket Connected Successfully');
+    setError(null);
 
-        switch (data.type) {
-          case 'new_message':
-            setMessages(prev => {
-              const updated = [...prev, data.message];
-              // Update cache
-              messagesCache.set(group.id, updated);
-              return updated;
-            });
-            setFilteredMessages(prev => {
-              if (!searchQuery) return [...prev, data.message];
-              const query = searchQuery.toLowerCase();
-              const matches = data.message.content?.toLowerCase().includes(query) ||
-                data.message.sender?.full_name?.toLowerCase().includes(query) ||
-                data.message.sender?.email?.toLowerCase().includes(query);
-              return matches ? [...prev, data.message] : prev;
-            });
-            break;
+    newSocket.send(JSON.stringify({
+      type: 'presence',
+      action: 'join',
+      user_id: currentUser?.id
+    }));
+  };
 
-          case 'message_deleted':
-            setMessages(prev => {
-              const updated = prev.filter(msg => msg.id !== data.message_id);
-              messagesCache.set(group.id, updated);
-              return updated;
-            });
-            setFilteredMessages(prev => prev.filter(msg => msg.id !== data.message_id));
-            break;
+  newSocket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
 
-          case 'typing':
-            setTyping(data.is_typing);
-            break;
+      switch (data.type) {
+       case 'new_message':
+  setMessages(prev => {
+    // Replace temporary message if it exists
+    const tempIndex = prev.findIndex(msg => msg.id === data.temp_id);
 
-          case 'presence':
-            if (data.action === 'join') {
-              setOnlineUsers(prev => [...new Set([...prev, data.user_id])]);
-            } else if (data.action === 'leave') {
-              setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
-            }
-            break;
+    if (tempIndex !== -1) {
+      const updated = [...prev];
+      updated[tempIndex] = {
+        ...data.message,
+        is_own: true
+      };
+      messagesCache.set(group.id, updated);
+      return updated;
+    }
 
-          case 'user_joined':
-            setOnlineUsers(prev => [...prev, data.user_id]);
-            break;
+    // Prevent duplicate messages
+    const alreadyExists = prev.some(msg => msg.id === data.message.id);
+    if (alreadyExists) return prev;
 
-          case 'user_left':
-            setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
-            break;
+    // Add new message from other users
+    const updated = [...prev, data.message];
+    messagesCache.set(group.id, updated);
+    return updated;
+  });
 
-          case 'message_pinned':
-            setPinnedMessages(prev => {
-              const updated = [...prev, data.message];
-              pinnedCache.set(group.id, updated);
-              return updated;
-            });
-            break;
+  // Handle filtered messages (search)
+  setFilteredMessages(prev => {
+    if (!searchQuery.trim()) {
+      const alreadyExists = prev.some(msg => msg.id === data.message.id);
+      return alreadyExists ? prev : [...prev, data.message];
+    }
 
-          case 'message_unpinned':
-            setPinnedMessages(prev => {
-              const updated = prev.filter(msg => msg.id !== data.message_id);
-              pinnedCache.set(group.id, updated);
-              return updated;
-            });
-            break;
+    const query = searchQuery.toLowerCase();
+    const matches = 
+      data.message.content?.toLowerCase().includes(query) ||
+      data.message.sender?.full_name?.toLowerCase().includes(query) ||
+      data.message.sender?.email?.toLowerCase().includes(query);
 
-          case 'group_updated':
-            if (onGroupUpdated) {
-              onGroupUpdated(data.group);
-            }
-            fetchGroupMembers();
-            break;
+    if (!matches) return prev;
 
-          case 'member_added':
-            fetchGroupMembers();
-            break;
+    const alreadyExists = prev.some(msg => msg.id === data.message.id);
+    return alreadyExists ? prev : [...prev, data.message];
+  });
+  break;
 
-          case 'member_removed':
-            fetchGroupMembers();
-            break;
+      case 'message_deleted':
+        setMessages(prev => {
+          const updated = prev.filter(msg => msg.id !== data.message_id);
+          messagesCache.set(group.id, updated);
+          return updated;
+        });
+        setFilteredMessages(prev => prev.filter(msg => msg.id !== data.message_id));
+        break;
 
-          case 'group_deleted':
-            if (onGroupDeleted) {
-              onGroupDeleted();
-            }
-            onBack();
-            break;
+      case 'typing':
+        setTyping(data.is_typing);
+        break;
 
-          case 'error':
-            console.error('WebSocket error:', data.error);
-            setError(data.error);
-            break;
-
-          default:
-            console.log('Unknown WebSocket message:', data);
+      case 'presence':
+        if (data.action === 'join') {
+          setOnlineUsers(prev => [...new Set([...prev, data.user_id])]);
+        } else if (data.action === 'leave') {
+          setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
         }
-      } catch (err) {
-        console.error('Failed to parse WebSocket message:', err);
-      }
-    };
+        break;
+
+      case 'user_joined':
+        setOnlineUsers(prev => [...prev, data.user_id]);
+        break;
+
+      case 'user_left':
+        setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
+        break;
+
+      case 'message_pinned':
+        setPinnedMessages(prev => {
+          const updated = [...prev, data.message];
+          pinnedCache.set(group.id, updated);
+          return updated;
+        });
+        break;
+
+      case 'message_unpinned':
+        setPinnedMessages(prev => {
+          const updated = prev.filter(msg => msg.id !== data.message_id);
+          pinnedCache.set(group.id, updated);
+          return updated;
+        });
+        break;
+
+      case 'group_updated':
+        if (onGroupUpdated) onGroupUpdated(data.group);
+        fetchGroupMembers();
+        break;
+
+      case 'member_added':
+      case 'member_removed':
+        fetchGroupMembers();
+        break;
+
+      case 'group_deleted':
+        if (onGroupDeleted) onGroupDeleted();
+        onBack();
+        break;
+
+      case 'error':
+        console.error('WebSocket error:', data.error);
+        setError(data.error);
+        break;
+
+      default:
+        console.log('Unknown WebSocket message:', data);
+    }
+  } catch (err) {
+    console.error('Failed to parse WebSocket message:', err);
+  }
+};
 
     newSocket.onerror = (err) => {
       console.error('WebSocket error:', err);
@@ -430,44 +455,64 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
     }
   };
 
-  const sendMessage = async () => {
-    if ((!input.trim() && !file) || sending || !socket) return;
+ const sendMessage = async () => {
+  if ((!input.trim() && !file) || sending || !socket || !group?.id) return;
 
-    setSending(true);
-    let fileUrl = null;
+  setSending(true);
 
-    if (file) {
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
+  const tempMessageId = `temp-${Date.now()}`;
+  let fileUrl = null;
 
-        const res = await api.post('/hr/chat/upload-file/', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        fileUrl = res.data.url;
-      } catch (err) {
-        console.error('File upload failed:', err);
-        alert('Failed to upload file. Please try again.');
-        setSending(false);
-        return;
-      }
-    }
-
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({
-        type: 'chat_message',
-        content: input.trim(),
-        file_url: fileUrl,
-        group_id: group.id
-      }));
-    }
-
-    setInput('');
-    setFile(null);
-    setSending(false);
-
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  // Optimistic Message
+  const optimisticMessage = {
+    id: tempMessageId,
+    content: input.trim(),
+    file_url: null,
+    sender: currentUser,                    // Use full currentUser object
+    timestamp: new Date().toISOString(),
+    is_own: true,
+    reactions: []
   };
+
+  // Add optimistic message
+  setMessages(prev => {
+    const updated = [...prev, optimisticMessage];
+    messagesCache.set(group.id, updated);
+    return updated;
+  });
+
+  setFilteredMessages(prev => [...prev, optimisticMessage]);
+
+  // Upload file if any
+  if (file) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/hr/chat/upload-file/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      fileUrl = res.data.url;
+    } catch (err) {
+      console.error('File upload failed:', err);
+    }
+  }
+
+  // Send via WebSocket
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({
+      type: 'chat_message',
+      content: input.trim(),
+      file_url: fileUrl,
+      group_id: group.id,
+      temp_id: tempMessageId
+    }));
+  }
+
+  setInput('');
+  setFile(null);
+  if (fileInputRef.current) fileInputRef.current.value = '';
+  setSending(false);
+};
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
