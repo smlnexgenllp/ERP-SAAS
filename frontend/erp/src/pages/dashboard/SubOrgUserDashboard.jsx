@@ -99,7 +99,7 @@ const SubOrgUserDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center text-cyan-300">
+      <div className="min-h-screen bg-zinc-100 flex items-center justify-center text-zinc-600 text-xl">
         Loading Dashboard...
       </div>
     );
@@ -107,32 +107,32 @@ const SubOrgUserDashboard = () => {
 
   /* ================= UI ================= */
   return (
-    <div className="min-h-screen bg-gray-950 text-cyan-300 font-mono pb-24">
+    <div className="min-h-screen bg-zinc-100 text-zinc-800 pb-24">
 
       {/* ================= NAV BAR ================= */}
-      <div className="bg-gray-900 border-b border-cyan-800 px-8 py-4 flex justify-between items-center">
+      <div className="bg-white border-b border-zinc-200 px-8 py-4 flex justify-between items-center shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-blue-300">
+          <h1 className="text-2xl font-bold text-zinc-900">
             {organization?.name}
           </h1>
-          <p className="text-cyan-400 text-sm">
+          <p className="text-zinc-500 text-sm">
             Plan: {organization?.plan_tier?.toUpperCase()}
           </p>
         </div>
 
         <div className="flex items-center gap-6">
           <div className="text-right">
-            <p className="flex items-center gap-2 text-blue-300 font-semibold">
+            <p className="flex items-center gap-2 text-zinc-800 font-semibold">
               <FiUser /> {user?.first_name} {user?.last_name}
             </p>
-            <p className="flex items-center gap-2 text-cyan-400 text-sm">
+            <p className="flex items-center gap-2 text-zinc-500 text-sm">
               <FiBriefcase /> Role: {userRole}
             </p>
           </div>
 
           <button
             onClick={logout}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-bold"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 px-5 py-2.5 rounded-xl text-white font-medium transition"
           >
             <FiLogOut /> Logout
           </button>
@@ -141,7 +141,7 @@ const SubOrgUserDashboard = () => {
 
       {/* ================= MODULES ================= */}
       <div className="p-8">
-        <h2 className="text-2xl font-bold mb-6 text-blue-300">
+        <h2 className="text-3xl font-bold mb-8 text-zinc-900">
           Assigned Modules
         </h2>
 
@@ -149,7 +149,6 @@ const SubOrgUserDashboard = () => {
           modules={modules}
           onModuleClick={(m) => {
             const target = `/${m.code}/dashboard`;
-            console.log("Clicked module:", m.code, "→ navigating to:", target);
             navigate(target);
           }}
         />
@@ -157,19 +156,19 @@ const SubOrgUserDashboard = () => {
 
       {/* ================= MD BUDGET ACCESS ================= */}
       {isMD && (
-        <div className="mx-8 mb-8 bg-gray-900/40 border border-cyan-800 rounded-xl p-6 flex justify-between items-center">
+        <div className="mx-8 mb-8 bg-white border border-zinc-200 rounded-3xl p-6 flex justify-between items-center shadow-sm">
           <div>
-            <h3 className="text-xl font-bold text-blue-300">
+            <h3 className="text-xl font-bold text-zinc-900">
               Monthly Budget Management
             </h3>
-            <p className="text-cyan-400 text-sm mt-1">
+            <p className="text-zinc-600 text-sm mt-1">
               Create, review & release organizational budgets
             </p>
           </div>
 
           <button
             onClick={() => navigate("/finance/budgets")}
-            className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-bold flex items-center gap-2"
+            className="bg-zinc-900 hover:bg-black px-6 py-3 rounded-2xl text-white font-semibold flex items-center gap-2 transition"
           >
             <FiPlus /> Manage Budgets
           </button>
@@ -177,20 +176,20 @@ const SubOrgUserDashboard = () => {
       )}
 
       {/* ================= TERMINAL ================= */}
-      <div className="fixed bottom-0 w-full bg-gray-900 border-t border-cyan-500 px-6 py-3 flex">
-        <span className="text-green-400 mr-2">&gt;</span>
+      <div className="fixed bottom-0 w-full bg-white border-t border-zinc-200 px-6 py-4 flex items-center shadow-2xl z-50">
+        <span className="text-zinc-400 mr-3 font-bold text-xl">&gt;</span>
         <input
           ref={inputRef}
           value={command}
           onChange={(e) => setCommand(e.target.value)}
           onKeyDown={handleCommand}
-          className="flex-1 bg-transparent outline-none text-green-400"
+          className="flex-1 bg-transparent outline-none text-zinc-700 placeholder-zinc-400"
           placeholder="Type command (help)..."
         />
       </div>
 
       {showAlert && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-800 border border-cyan-500 px-6 py-2 rounded-lg shadow-xl">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-white border border-zinc-200 px-6 py-3 rounded-2xl shadow-xl text-zinc-800 z-50">
           {alertMessage}
         </div>
       )}
