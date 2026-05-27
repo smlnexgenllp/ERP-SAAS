@@ -73,7 +73,7 @@ export default function HRDashboard() {
     const cmd = command.trim().toLowerCase();
     setCommand("");
 
-    const showAlert = (msg) => {
+    const showAlertMsg = (msg) => {
       setAlertMessage(msg);
       setShowAlert(true);
       setTimeout(() => setShowAlert(false), 3000);
@@ -82,7 +82,7 @@ export default function HRDashboard() {
     if (!cmd) return;
 
     if (["help", "?", "commands"].includes(cmd)) {
-      showAlert("Commands: employees, add employee, leaves, org-tree, payroll, attendance, recruit, tasks, chat, clear");
+      showAlertMsg("Commands: employees, add employee, leaves, org-tree, payroll, attendance, recruit, tasks, chat, clear");
       return;
     }
 
@@ -91,13 +91,13 @@ export default function HRDashboard() {
     if (["add employee", "hire"].includes(cmd)) { navigate("/hr/employees/add"); return; }
     if (["leaves"].includes(cmd)) { navigate("/hr/leaves"); return; }
     if (["org-tree"].includes(cmd)) { navigate("/hr/org-tree"); return; }
-    if (["payroll"].includes(cmd)) { showAlert(`Current monthly payroll: ₹${stats.totalPayroll.toLocaleString()}`); return; }
+    if (["payroll"].includes(cmd)) { showAlertMsg(`Current monthly payroll: ₹${stats.totalPayroll.toLocaleString()}`); return; }
     if (["attendance"].includes(cmd)) { navigate("/hr/attendance"); return; }
     if (["recruit"].includes(cmd)) { navigate("/hr/jobopenings"); return; }
     if (["tasks"].includes(cmd)) { navigate("/hr/tasks"); return; }
-    if (cmd === "clear") { showAlert("Terminal cleared."); return; }
+    if (cmd === "clear") { showAlertMsg("Terminal cleared."); return; }
 
-    showAlert(`Unknown command: "${cmd}". Type "help" for list.`);
+    showAlertMsg(`Unknown command: "${cmd}". Type "help" for list.`);
   };
 
   const handleCommandBarClick = () => inputRef.current?.focus();
@@ -114,113 +114,98 @@ export default function HRDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 text-zinc-800">
-      <div className="flex-1 overflow-y-auto pb-20">
-        <div className="max-w-7xl mx-auto p-2">
-          
-          {/* Header */}
-          <div className="bg-white border border-zinc-200 rounded-3xl p-2 mb-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-5">
-                <div className="w-16 h-16 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
-                  <Users className="w-9 h-9 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold tracking-tight text-zinc-900">HR Dashboard</h1>
-                  <p className="text-zinc-500 mt-1">
-                    {organization?.name || "Organization"} • {user?.first_name || user?.email}
-                  </p>
-                </div>
+    <div className="min-h-screen bg-zinc-100 text-zinc-800 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        {/* Header */}
+        <div className="bg-white border border-zinc-200 rounded-3xl p-5 mb-8 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-5">
+              <div className="w-16 h-16 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center flex-shrink-0">
+                <Users className="w-9 h-9 text-white" />
               </div>
-              <div className="text-right text-sm text-zinc-500">
-                {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900">HR Dashboard</h1>
+                <p className="text-zinc-500 mt-1 text-sm sm:text-base">
+                  {organization?.name || "Organization"} • {user?.first_name || user?.email}
+                </p>
               </div>
             </div>
-          </div>
-
-          {/* Stats Grid - Structure Same */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-5">
-            {[
-              { label: "Total Employees", value: stats.totalEmployees, icon: Users },
-              { label: "Active Recruitments", value: stats.activeRecruitments, icon: UserPlus },
-              { label: "Pending Leaves", value: stats.pendingLeaves, icon: Calendar },
-              { label: "Monthly Payroll", value: `₹${stats.totalPayroll.toLocaleString()}`, icon: DollarSign },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="bg-white border border-zinc-200 rounded-3xl p-3 shadow-sm hover:shadow transition-all"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="bg-zinc-100 p-4 rounded-2xl">
-                    <item.icon className="w-7 h-7 text-zinc-700" />
-                  </div>
-                </div>
-                <p className="text-zinc-500 text-sm">{item.label}</p>
-                <p className="font-bold text-zinc-900 text-3xl mt-3">{item.value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid  gap-6">
-            {/* Quick Actions - Structure Same */}
-            <div className="bg-white border border-zinc-200 p-8 rounded-3xl shadow-sm">
-              <h3 className="text-2xl font-semibold text-zinc-900 mb-6">Quick Actions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                {quickActions.map((a, i) => (
-                  <button
-                    key={i}
-                    onClick={a.action}
-                    className={`flex items-center gap-4 p-6 border rounded-3xl hover:shadow transition-all text-left
-                      ${a.highlight 
-                        ? "border-emerald-300 bg-emerald-50" 
-                        : "border-zinc-200 hover:border-zinc-300"}`}
-                  >
-                    <div className="bg-zinc-100 p-4 rounded-2xl">
-                      <a.icon className={`w-6 h-6 ${a.highlight ? 'text-emerald-600' : 'text-zinc-700'}`} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-zinc-900">{a.label}</p>
-                      <p className="text-sm text-zinc-500 mt-1">{a.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
+            <div className="text-sm text-zinc-500 text-right whitespace-nowrap">
+              {new Date().toLocaleDateString('en-IN', { 
+                weekday: 'long', 
+                month: 'long', 
+                day: 'numeric', 
+                year: 'numeric' 
+              })}
             </div>
-
-            {/* Recent Activity - Structure Same */}
-            {/* <div className="bg-white border border-zinc-200 p-8 rounded-3xl shadow-sm">
-              <h3 className="text-2xl font-semibold text-zinc-900 mb-6">Recent Activity</h3>
-              <div className="space-y-5">
-                {recentActivities.map((act) => (
-                  <div key={act.id} className="flex items-start gap-4">
-                    <div className="bg-zinc-100 p-3 rounded-2xl">
-                      <Clock className="w-5 h-5 text-zinc-500" />
-                    </div>
-                    <div>
-                      <p className="text-zinc-700">{act.message}</p>
-                      <p className="text-zinc-500 text-sm mt-1">{act.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div> */}
           </div>
         </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {[
+            { label: "Total Employees", value: stats.totalEmployees, icon: Users },
+            { label: "Active Recruitments", value: stats.activeRecruitments, icon: UserPlus },
+            { label: "Pending Leaves", value: stats.pendingLeaves, icon: Calendar },
+            { label: "Monthly Payroll", value: `₹${stats.totalPayroll.toLocaleString()}`, icon: DollarSign },
+          ].map((item, idx) => (
+            <div
+              key={idx}
+              className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-200"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-zinc-100 p-4 rounded-2xl">
+                  <item.icon className="w-7 h-7 text-zinc-700" />
+                </div>
+              </div>
+              <p className="text-zinc-500 text-sm">{item.label}</p>
+              <p className="font-bold text-zinc-900 text-3xl mt-2">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white border border-zinc-200 p-6 sm:p-8 rounded-3xl shadow-sm">
+          <h3 className="text-2xl font-semibold text-zinc-900 mb-6 px-1">Quick Actions</h3>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {quickActions.map((a, i) => (
+              <button
+                key={i}
+                onClick={a.action}
+                className={`flex items-start gap-4 p-6 border rounded-3xl hover:shadow-md transition-all text-left group
+                  ${a.highlight 
+                    ? "border-emerald-300 bg-emerald-50 hover:bg-emerald-100" 
+                    : "border-zinc-200 hover:border-zinc-300"}`}
+              >
+                <div className="bg-zinc-100 p-4 rounded-2xl group-hover:bg-white transition-colors">
+                  <a.icon className={`w-6 h-6 ${a.highlight ? 'text-emerald-600' : 'text-zinc-700'}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-zinc-900 text-base leading-tight">{a.label}</p>
+                  <p className="text-sm text-zinc-500 mt-1.5 line-clamp-2">{a.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
       </div>
 
-      {/* Command Bar - Light Theme */}
+      {/* Command Bar */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-200 px-6 py-4 flex items-center z-50 shadow-lg cursor-text"
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-200 px-6 py-5 flex items-center z-50 shadow-xl cursor-text"
         onClick={handleCommandBarClick}
       >
-        <span className="text-zinc-400 font-bold mr-4 text-xl">&gt;</span>
+        <span className="text-zinc-400 font-bold mr-4 text-2xl">&gt;</span>
         <input
           ref={inputRef}
           type="text"
           value={command}
           onChange={(e) => setCommand(e.target.value)}
           onKeyDown={handleCommand}
-          placeholder="Type command: help, employees, chat, leaves, tasks..."
+          placeholder="Type command (help, employees, chat, leaves...)"
           className="flex-1 bg-transparent text-zinc-700 outline-none font-mono text-base placeholder-zinc-400"
           spellCheck={false}
         />
@@ -228,7 +213,7 @@ export default function HRDashboard() {
 
       {/* Alert Toast */}
       {showAlert && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-zinc-800 text-white px-6 py-3 rounded-2xl shadow-xl text-sm z-50">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-zinc-800 text-white px-6 py-3.5 rounded-2xl shadow-2xl text-sm z-50 whitespace-nowrap">
           {alertMessage}
         </div>
       )}
