@@ -1,13 +1,22 @@
 import React, { useState } from "react";
 import api from "../../../../services/api";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, LogIn, Loader2 } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  LogIn,
+  Loader2,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 export default function EmployeeLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
   const navigate = useNavigate();
 
   const handleLogin = async () => {
@@ -30,6 +39,7 @@ export default function EmployeeLogin() {
         err.response?.data?.non_field_errors?.[0] ||
         err.message ||
         "Login failed. Please check your credentials.";
+
       setError(msg);
     } finally {
       setIsLoading(false);
@@ -39,7 +49,7 @@ export default function EmployeeLogin() {
   return (
     <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl shadow-xl p-8">
-        
+
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
@@ -47,8 +57,14 @@ export default function EmployeeLogin() {
               <LogIn className="w-9 h-9 text-emerald-600" />
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-zinc-900">Employee Login</h2>
-          <p className="text-zinc-600 mt-1">Access your employee portal</p>
+
+          <h2 className="text-3xl font-bold text-zinc-900">
+            Employee Login
+          </h2>
+
+          <p className="text-zinc-600 mt-1">
+            Access your employee portal
+          </p>
         </div>
 
         {/* Error Message */}
@@ -59,11 +75,16 @@ export default function EmployeeLogin() {
         )}
 
         <div className="space-y-5">
+
           {/* Email Field */}
           <div>
-            <label className="block text-zinc-700 font-medium mb-2">Email Address</label>
+            <label className="block text-zinc-700 font-medium mb-2">
+              Email Address
+            </label>
+
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+
               <input
                 type="email"
                 placeholder="Enter your email"
@@ -77,17 +98,33 @@ export default function EmployeeLogin() {
 
           {/* Password Field */}
           <div>
-            <label className="block text-zinc-700 font-medium mb-2">Password</label>
+            <label className="block text-zinc-700 font-medium mb-2">
+              Password
+            </label>
+
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                className="w-full pl-11 pr-4 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition"
+                className="w-full pl-11 pr-12 py-3.5 bg-white border border-zinc-200 rounded-2xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition"
               />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 transition"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
+              </button>
             </div>
           </div>
         </div>
