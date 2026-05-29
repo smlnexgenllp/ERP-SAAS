@@ -8,6 +8,7 @@ import {
   Loader2, 
   Package, 
   Calendar, 
+  X,
   Factory, 
   ClipboardList, 
   AlertCircle,

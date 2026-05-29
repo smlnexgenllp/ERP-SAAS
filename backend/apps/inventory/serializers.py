@@ -249,21 +249,23 @@ class PurchaseOrderItemSerializer(serializers.ModelSerializer):
 
 
 class PurchaseOrderSerializer(serializers.ModelSerializer):
-    # Nested Items
-    items = PurchaseOrderItemSerializer(many=True, read_only=True)
 
-    # Vendor - For Writing (ID) and Reading (Full Details)
+    items = PurchaseOrderItemSerializer(many=True)
+
     vendor = serializers.PrimaryKeyRelatedField(
         queryset=Vendor.objects.all(),
         required=True,
         write_only=True
     )
-    vendor_details = VendorSerializer(source='vendor', read_only=True)
-    vendor_name = serializers.CharField(source='vendor.name', read_only=True)   # ← Added for easy display
 
-    # Department - Since it's currently CharField, we add a display name
-    # If you later change department to ForeignKey, this will still work
-    department_name = serializers.SerializerMethodField()                     # ← Added
+    vendor_details = VendorSerializer(source='vendor', read_only=True)
+
+    vendor_name = serializers.CharField(
+        source='vendor.name',
+        read_only=True
+    )
+
+    department_name = serializers.SerializerMethodField()
 
     class Meta:
         model = PurchaseOrder
@@ -271,11 +273,11 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             'id',
             'po_number',
             'status',
-            'department',          # Keep original if needed
-            'department_name',     # ← New: Human readable name
+            'department',
+            'department_name',
             'vendor',
-            'vendor_name',         # ← New: Easy access to name
-            'vendor_details',      # Full vendor object (optional)
+            'vendor_name',
+            'vendor_details',
             'tax_percentage',
             'subtotal',
             'tax_amount',
@@ -284,30 +286,37 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             'created_at',
             'items',
         ]
+
         read_only_fields = [
-            'id', 
-            'po_number', 
-            'status', 
-            'created_at', 
+            'id',
+            'po_number',
+            'status',
+            'created_at',
             'created_by',
-            'subtotal', 
-            'tax_amount', 
+            'subtotal',
+            'tax_amount',
             'total_amount',
             'vendor_name',
             'department_name',
             'vendor_details',
         ]
 
-    # Method to get department name safely
     def get_department_name(self, obj):
-        if hasattr(obj.department, 'name'):        # If it's a ForeignKey object
+        if hasattr(obj.department, 'name'):
             return obj.department.name
-        return obj.department or "—"               # If it's still a string/CharField
+        return obj.department or "—"
 
     @transaction.atomic
     def create(self, validated_data):
+
         request = self.context["request"]
-        items_data = validated_data.pop('items')
+
+        items_data = validated_data.pop('items', [])
+
+        if not items_data:
+            raise serializers.ValidationError({
+                "items": "At least one item is required."
+            })
 
         validated_data['organization'] = request.user.organization
         validated_data['created_by'] = request.user
@@ -321,8 +330,8 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             )
 
         po.update_totals()
-        return po
 
+        return po
     # Optional: if you want to keep this method (for list/retrieve)
     def get_remaining_qty(self, obj):
         total_ordered = sum(item.ordered_qty for item in obj.items.all())

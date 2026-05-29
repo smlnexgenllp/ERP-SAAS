@@ -10,31 +10,23 @@ import api from '../../../services/api';
 
 export default function MachineList() {
   const navigate = useNavigate();
-  
   const [machines, setMachines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-
-  // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-
   const fetchMachines = async () => {
     setRefreshing(true);
     setError(null);
     try {
       const response = await api.get('/inventory/machines/');
-      
       const sortedData = (response.data || []).sort((a, b) => 
         new Date(b.created_at) - new Date(a.created_at)
       );
-      
       setMachines(sortedData);
       setCurrentPage(1);
     } catch (err) {
@@ -45,24 +37,18 @@ export default function MachineList() {
       setRefreshing(false);
     }
   };
-
   useEffect(() => {
     fetchMachines();
   }, []);
-
-  // Pagination logic
   const totalPages = Math.ceil(machines.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedMachines = machines.slice(startIndex, startIndex + itemsPerPage);
-
   const handleCreateNew = () => navigate('/machines/create');
   const handleEdit = (id) => navigate(`/machines/edit/${id}`);
-
   const handleViewDetails = (machine) => {
     setSelectedMachine(machine);
     setShowDetailModal(true);
   };
-
   const handleDeleteClick = (machine) => {
     setDeleteConfirm({ id: machine.id, name: machine.name });
   };

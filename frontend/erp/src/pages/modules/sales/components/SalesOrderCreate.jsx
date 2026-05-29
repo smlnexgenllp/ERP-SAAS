@@ -412,9 +412,9 @@ export default function SalesOrderCreate() {
                         >
                           <option value="">— Select or Custom —</option>
                           {products.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} (₹{Number(p.price || 0).toFixed(2)})
-                            </option>
+                           <option key={p.id} value={p.id}>
+  {p.name} (₹{Number(p.standard_price || 0).toFixed(2)})
+</option>
                           ))}
                         </select>
                       </td>

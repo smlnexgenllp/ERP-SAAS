@@ -109,6 +109,7 @@ import TestContactForm from "./pages/modules/crm/components/testcrm/TestContactF
 import TestContactDetail from "./pages/modules/crm/components/testcrm/TestContactDetail";
 import TestCallLogs from "./pages/modules/crm/components/testcrm/TestCallLogs";
 import CustomerDetails from "./pages/modules/crm/components/testcrm/TestCustomerDetails";
+import TransportDashboard from "./pages/modules/transport/TransportDashboard";
 
 
 
@@ -473,7 +474,7 @@ function App() {
 <Route path="/crm/customers-test/:id" element={<CustomerDetails />} />
 <Route path="/crm/opportunities-test/:id" element={<OpportunityDetails />} />
 <Route path="/crm/call-logs-test" element={<CallLogs />} />
-        
+<Route path="/transport" element={<TransportDashboard />} />
         </Routes>
 
       </Router>

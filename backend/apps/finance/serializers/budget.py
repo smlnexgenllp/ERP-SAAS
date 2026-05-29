@@ -6,9 +6,6 @@ from apps.finance.models.department_budget import DepartmentBudget
 
 
 class MonthlyBudgetSerializer(serializers.ModelSerializer):
-    """
-    Main serializer for monthly budget list
-    """
     department_allocations = serializers.SerializerMethodField(read_only=True)
 
     class Meta:

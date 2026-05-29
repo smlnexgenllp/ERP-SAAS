@@ -1,6 +1,17 @@
 import React, { useEffect, useState, useMemo } from "react";
 import api from "../../../../services/api";
-import { Search, X, ArrowLeft } from "lucide-react";
+import {
+  Search,
+  X,
+  ArrowLeft,
+  Building2,
+  Mail,
+  Phone,
+  Briefcase,
+  Calendar,
+  BadgeIndianRupee,
+  Users,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function TreeNode({ node, onSelect }) {
@@ -9,49 +20,76 @@ function TreeNode({ node, onSelect }) {
 
   return (
     <div className="flex flex-col items-center relative">
-      {hasChildren && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 w-9 h-9 rounded-full bg-white border-2 border-zinc-300 flex items-center justify-center text-zinc-600 text-xl font-bold hover:border-zinc-400 hover:bg-zinc-50 transition-all shadow-md"
-        >
-          {expanded ? "−" : "+"}
-        </button>
-      )}
-
-      <button
-        onClick={() => onSelect(node)}
-        className="w-52 bg-white border border-zinc-200 rounded-3xl p-6 text-center transition-all duration-300 hover:border-zinc-400 hover:shadow-xl hover:-translate-y-1 focus:outline-none"
-      >
-        {node.photo ? (
-          <img
-            src={node.photo}
-            alt={node.name}
-            className="w-24 h-24 rounded-2xl mx-auto mb-4 object-cover border-4 border-white shadow-md"
-            onError={(e) => {
-              e.target.src = "/fallback-avatar.png";
-              e.target.onerror = null;
-            }}
-          />
-        ) : (
-          <div className="w-24 h-24 rounded-2xl mx-auto mb-4 bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center text-white text-4xl font-semibold shadow-md">
-            {node.name?.[0]?.toUpperCase() || "?"}
-          </div>
+      {/* Node Card */}
+      <div className="relative">
+        {hasChildren && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center shadow-lg hover:scale-105 transition"
+          >
+            {expanded ? "−" : "+"}
+          </button>
         )}
-        <h3 className="font-semibold text-zinc-900 text-lg line-clamp-2">
-          {node.name || "—"}
-        </h3>
-        <p className="text-zinc-500 text-sm mt-1">{node.title || "No title"}</p>
-      </button>
 
+        <button
+  onClick={() => onSelect(node)}
+  className="group w-48 bg-white border border-zinc-200 rounded-2xl p-4 hover:shadow-xl hover:border-zinc-300 transition-all duration-300 hover:-translate-y-1"
+>
+  {/* Avatar */}
+  <div className="relative">
+    {node.photo ? (
+      <img
+        src={node.photo}
+        alt={node.name}
+        className="w-16 h-16 mx-auto rounded-2xl object-cover border-2 border-white shadow-md"
+        onError={(e) => {
+          e.target.src = "/fallback-avatar.png";
+          e.target.onerror = null;
+        }}
+      />
+    ) : (
+      <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-zinc-800 to-black flex items-center justify-center text-white text-2xl font-bold shadow-md">
+        {node.name?.[0]?.toUpperCase() || "?"}
+      </div>
+    )}
+
+    <div className="absolute bottom-0 right-[34%] w-3 h-3 rounded-full border-2 border-white bg-emerald-500"></div>
+  </div>
+
+  {/* Info */}
+  <div className="mt-3">
+    <h3 className="text-sm font-bold text-zinc-900 line-clamp-1">
+      {node.name || "—"}
+    </h3>
+
+    <p className="text-xs text-zinc-500 mt-1 line-clamp-1">
+      {node.title || "No Designation"}
+    </p>
+
+    {node.department && (
+      <div className="mt-3 inline-flex items-center gap-1 px-2 py-1 bg-zinc-100 rounded-lg text-[11px] text-zinc-600">
+        <Building2 size={11} />
+        <span className="truncate max-w-[100px]">
+          {node.department}
+        </span>
+      </div>
+    )}
+  </div>
+</button>
+      </div>
+
+      {/* Children */}
       {hasChildren && expanded && (
         <>
-          <div className="w-px bg-zinc-300 h-12 mt-6"></div>
-          <div className="relative mt-2 w-full">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-zinc-300"></div>
-            <div className="flex justify-center gap-20 pt-6 flex-wrap">
+          <div className="w-px h-10 bg-zinc-300"></div>
+
+          <div className="relative pt-6">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px bg-zinc-300 w-full"></div>
+
+            <div className="flex justify-center gap-16 flex-wrap">
               {node.children.map((child) => (
-                <div key={child.id} className="flex flex-col items-center min-w-max">
-                  <div className="w-px bg-zinc-300 h-12"></div>
+                <div key={child.id} className="flex flex-col items-center">
+                  <div className="w-px h-8 bg-zinc-300"></div>
                   <TreeNode node={child} onSelect={onSelect} />
                 </div>
               ))}
@@ -65,22 +103,22 @@ function TreeNode({ node, onSelect }) {
 
 export default function OrgTree() {
   const navigate = useNavigate();
-  
+
   const [fullTreeData, setFullTreeData] = useState([]);
-  const [filteredTreeData, setFilteredTreeData] = useState([]);
   const [displayedTreeData, setDisplayedTreeData] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   const [searchInput, setSearchInput] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  // Fetch tree data
+  // Fetch tree
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+
         let response;
+
         try {
           response = await api.get("/hr/org-tree/");
         } catch {
@@ -88,8 +126,8 @@ export default function OrgTree() {
         }
 
         const tree = response.data.tree || [];
+
         setFullTreeData(tree);
-        setFilteredTreeData(tree);
         setDisplayedTreeData(tree);
       } catch (err) {
         console.error("Failed to load org tree:", err);
@@ -97,215 +135,351 @@ export default function OrgTree() {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
-  const applySearch = () => {
-    const lowerSearch = appliedSearch.toLowerCase().trim();
-    if (!lowerSearch) {
-      setFilteredTreeData(fullTreeData);
-      setDisplayedTreeData(fullTreeData);
-      return;
-    }
+  // Flatten all employees
+  const flattenEmployees = (nodes) => {
+    let result = [];
 
-    const nodeOrDescendantMatches = (node) => {
-      if (node.name?.toLowerCase().includes(lowerSearch)) return true;
-      return node.children?.some(nodeOrDescendantMatches) || false;
-    };
+    nodes.forEach((node) => {
+      result.push(node);
 
-    const filterNode = (node) => {
-      if (!nodeOrDescendantMatches(node)) return null;
-      const filteredChildren = node.children
-        ? node.children.map(filterNode).filter(Boolean)
-        : [];
-      return { ...node, children: filteredChildren };
-    };
-
-    const newFiltered = fullTreeData.map(filterNode).filter(Boolean);
-    setFilteredTreeData(newFiltered);
-    setDisplayedTreeData(newFiltered);
-  };
-
-  const handleSearch = () => {
-    setAppliedSearch(searchInput);
-    applySearch();
-  };
-
-  const handleClear = () => {
-    setSearchInput("");
-    setAppliedSearch("");
-    setFilteredTreeData(fullTreeData);
-    setDisplayedTreeData(fullTreeData);
-  };
-
-  useEffect(() => {
-    applySearch();
-  }, [appliedSearch, fullTreeData]);
-
-  const formatDate = (dateStr) => 
-    !dateStr ? "—" : new Date(dateStr).toLocaleDateString("en-US", { 
-      year: "numeric", month: "long", day: "numeric" 
+      if (node.children?.length) {
+        result = result.concat(flattenEmployees(node.children));
+      }
     });
 
-  const formatCurrency = (amount) => 
-    !amount ? "—" : new Intl.NumberFormat("en-IN", { 
-      style: "currency", currency: "INR" 
-    }).format(amount);
+    return result;
+  };
+
+  const allEmployees = useMemo(() => {
+    return flattenEmployees(fullTreeData);
+  }, [fullTreeData]);
+
+  // Filtered employee cards
+  const filteredEmployees = useMemo(() => {
+    if (!searchInput.trim()) return [];
+
+    return allEmployees.filter((emp) =>
+      emp.name?.toLowerCase().includes(searchInput.toLowerCase())
+    );
+  }, [searchInput, allEmployees]);
+
+  const formatDate = (dateStr) =>
+    !dateStr
+      ? "—"
+      : new Date(dateStr).toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+
+  const formatCurrency = (amount) =>
+    !amount
+      ? "—"
+      : new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: "INR",
+        }).format(amount);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-100 flex items-center justify-center">
-        <div className="text-xl text-zinc-600">Loading Organization Tree...</div>
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-zinc-300 border-t-black rounded-full animate-spin"></div>
+          <p className="mt-5 text-zinc-600 font-medium text-lg">
+            Loading organization tree...
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-zinc-100 text-zinc-800">
-      <div className="max-w-7xl mx-auto px-6 py-10">
-        
-        {/* Header with Back Button */}
-        <div className="flex justify-between items-center mb-10">
+      <div className="max-w-[1700px] mx-auto px-6 py-10">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
           <div className="flex items-center gap-5">
             <button
               onClick={() => navigate("/hr/dashboard")}
-              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl transition"
             >
               <ArrowLeft size={20} />
               <span className="font-medium">Back</span>
             </button>
 
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
-                <Search className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-zinc-900 to-zinc-700 flex items-center justify-center shadow-lg">
+                <Users className="w-8 h-8 text-white" />
               </div>
+
               <div>
                 <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
                   Organization Tree
                 </h1>
-                <p className="text-zinc-500">Visual hierarchy of your company structure</p>
+
+                <p className="text-zinc-500 mt-1">
+                  Company hierarchy and employee structure
+                </p>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Search Bar */}
-        <div className="flex justify-center mb-12">
-          <div className="w-full max-w-md">
-            <label className="block text-zinc-600 font-medium mb-2">Search by Employee Name</label>
-            <div className="flex gap-2">
+          {/* Search */}
+          <div className="w-full lg:w-[420px]">
+            <div className="relative">
+              <Search
+                size={20}
+                className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400"
+              />
+
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search name (e.g. Kavitha, Priya...)"
-                className="flex-1 bg-white border border-zinc-200 rounded-2xl px-5 py-3 focus:border-zinc-400 outline-none text-zinc-800 placeholder-zinc-400"
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder="Search employee name..."
+                className="w-full bg-white border border-zinc-200 rounded-2xl pl-14 pr-14 py-4 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 shadow-sm"
               />
-              <button
-                onClick={handleSearch}
-                className="px-6 py-3 bg-zinc-900 hover:bg-black text-white rounded-2xl flex items-center gap-2 transition font-medium"
-              >
-                <Search size={20} />
-                Search
-              </button>
-              <button
-                onClick={handleClear}
-                className="px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 rounded-2xl flex items-center gap-2 transition"
-              >
-                <X size={20} />
-                Clear
-              </button>
-            </div>
-          </div>
-        </div>
 
-        {/* Tree Area */}
-        <div className="bg-white border border-zinc-200 rounded-3xl p-10 shadow-sm overflow-x-auto">
-          <div className="flex justify-center min-w-max py-8">
-            <div className="inline-flex gap-20">
-              {displayedTreeData.length === 0 ? (
-                <div className="text-xl text-zinc-500 py-20">
-                  No employees found matching "{appliedSearch}"
-                </div>
-              ) : (
-                displayedTreeData.map((root) => (
-                  <TreeNode key={root.id} node={root} onSelect={setSelectedEmployee} />
-                ))
+              {searchInput && (
+                <button
+                  onClick={() => setSearchInput("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
+                >
+                  <X size={20} />
+                </button>
               )}
             </div>
           </div>
         </div>
+
+        {/* Search Results */}
+        {searchInput.trim() ? (
+          <div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-zinc-900">
+                  Search Results
+                </h2>
+
+                <p className="text-zinc-500 mt-1">
+                  {filteredEmployees.length} employee
+                  {filteredEmployees.length !== 1 && "s"} found
+                </p>
+              </div>
+            </div>
+
+            {filteredEmployees.length === 0 ? (
+              <div className="text-center py-20">
+                <div className="w-20 h-20 bg-zinc-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <Search className="w-10 h-10 text-zinc-400" />
+                </div>
+
+                <h3 className="text-xl font-semibold text-zinc-800">
+                  No employee found
+                </h3>
+
+                <p className="text-zinc-500 mt-2">
+                  Try searching with another employee name
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                {filteredEmployees.map((emp) => (
+                  <button
+                    key={emp.id}
+                    onClick={() => setSelectedEmployee(emp)}
+                    className="text-left bg-zinc-50 hover:bg-white border border-zinc-200 hover:border-zinc-300 rounded-3xl p-6 transition-all hover:shadow-xl hover:-translate-y-1"
+                  >
+                    <div className="flex items-center gap-4">
+                      {emp.photo ? (
+                        <img
+                          src={emp.photo}
+                          alt={emp.name}
+                          className="w-16 h-16 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-zinc-800 to-black flex items-center justify-center text-white text-2xl font-bold">
+                          {emp.name?.[0]?.toUpperCase()}
+                        </div>
+                      )}
+
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-zinc-900 truncate">
+                          {emp.name}
+                        </h3>
+
+                        <p className="text-sm text-zinc-500 truncate">
+                          {emp.title || "No Designation"}
+                        </p>
+
+                        <p className="text-xs text-zinc-400 mt-1 truncate">
+                          {emp.department || "No Department"}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Tree View */
+          <div className="bg-white border border-zinc-200 rounded-[2rem] p-6 shadow-sm overflow-hidden">
+  <div className="w-full overflow-y-auto py-6">
+    <div className="flex flex-wrap justify-center gap-8">
+                {displayedTreeData.map((root) => (
+                  <TreeNode
+                    key={root.id}
+                    node={root}
+                    onSelect={setSelectedEmployee}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Employee Details Sidebar */}
+      {/* Employee Sidebar */}
       {selectedEmployee && (
         <>
           <div
-            className="fixed inset-0 bg-black/60 z-40"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             onClick={() => setSelectedEmployee(null)}
           />
-          <div className="fixed inset-y-0 right-0 w-96 bg-white border-l border-zinc-200 shadow-2xl z-50 overflow-y-auto">
+
+          <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[460px] bg-white shadow-2xl z-50 overflow-y-auto border-l border-zinc-200">
             <div className="p-8">
               <button
                 onClick={() => setSelectedEmployee(null)}
-                className="absolute top-6 right-6 text-3xl text-zinc-400 hover:text-zinc-600"
+                className="absolute top-6 right-6 w-10 h-10 rounded-xl hover:bg-zinc-100 flex items-center justify-center text-zinc-500"
               >
-                ×
+                <X size={24} />
               </button>
 
-              <div className="flex items-center gap-6 mb-8">
+              {/* Profile */}
+              <div className="text-center mb-10">
                 {selectedEmployee.photo ? (
                   <img
                     src={selectedEmployee.photo}
                     alt={selectedEmployee.name}
-                    className="w-28 h-28 rounded-3xl border-4 border-white shadow-md object-cover"
-                    onError={(e) => {
-                      e.target.src = "/fallback-avatar.png";
-                      e.target.onerror = null;
-                    }}
+                    className="w-36 h-36 rounded-[2rem] object-cover mx-auto border-4 border-white shadow-2xl"
                   />
                 ) : (
-                  <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-zinc-700 to-zinc-900 flex items-center justify-center text-white text-6xl font-bold shadow-md">
-                    {selectedEmployee.name?.[0] || "?"}
+                  <div className="w-36 h-36 rounded-[2rem] bg-gradient-to-br from-zinc-800 to-black flex items-center justify-center text-white text-6xl font-bold mx-auto shadow-2xl">
+                    {selectedEmployee.name?.[0]?.toUpperCase()}
                   </div>
                 )}
-                <div>
-                  <h2 className="text-3xl font-bold text-zinc-900">{selectedEmployee.name}</h2>
-                  <p className="text-xl text-zinc-600 mt-1">{selectedEmployee.title || "No designation"}</p>
+
+                <h2 className="text-3xl font-bold text-zinc-900 mt-6">
+                  {selectedEmployee.name}
+                </h2>
+
+                <p className="text-zinc-500 text-lg mt-1">
+                  {selectedEmployee.title || "No Designation"}
+                </p>
+
+                <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-2xl text-sm font-medium">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                  {selectedEmployee.is_active ? "Active" : "Inactive"}
                 </div>
               </div>
 
+              {/* Details */}
               <div className="space-y-8">
-                <div>
-                  <h3 className="text-lg font-semibold text-zinc-900 mb-4">Employment Details</h3>
-                  <div className="space-y-3 text-sm">
+                {/* Employment */}
+                <div className="bg-zinc-50 rounded-3xl p-6">
+                  <h3 className="text-lg font-bold text-zinc-900 mb-5">
+                    Employment Details
+                  </h3>
+
+                  <div className="space-y-4">
                     {[
-                      ["Department", selectedEmployee.department],
-                      ["Role", selectedEmployee.role],
-                      ["Employee Code", selectedEmployee.employee_code],
-                      ["Joining Date", formatDate(selectedEmployee.date_of_joining)],
-                      ["CTC", formatCurrency(selectedEmployee.ctc)],
-                      ["Status", selectedEmployee.is_active ? "Active" : "Inactive"],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex justify-between py-1">
-                        <span className="text-zinc-500">{label}</span>
-                        <span className="font-medium text-zinc-800">{value || "—"}</span>
+                      {
+                        icon: Building2,
+                        label: "Department",
+                        value: selectedEmployee.department,
+                      },
+                      {
+                        icon: Briefcase,
+                        label: "Role",
+                        value: selectedEmployee.role,
+                      },
+                      {
+                        icon: Calendar,
+                        label: "Joining Date",
+                        value: formatDate(
+                          selectedEmployee.date_of_joining
+                        ),
+                      },
+                      {
+                        icon: BadgeIndianRupee,
+                        label: "CTC",
+                        value: formatCurrency(selectedEmployee.ctc),
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        className="flex items-start gap-4"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center">
+                          <item.icon size={18} className="text-zinc-600" />
+                        </div>
+
+                        <div>
+                          <p className="text-sm text-zinc-500">
+                            {item.label}
+                          </p>
+
+                          <p className="font-semibold text-zinc-900">
+                            {item.value || "—"}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-semibold text-zinc-900 mb-4">Contact Information</h3>
-                  <div className="space-y-3 text-sm">
+                {/* Contact */}
+                <div className="bg-zinc-50 rounded-3xl p-6">
+                  <h3 className="text-lg font-bold text-zinc-900 mb-5">
+                    Contact Information
+                  </h3>
+
+                  <div className="space-y-4">
                     {[
-                      ["Email", selectedEmployee.email],
-                      ["Phone", selectedEmployee.phone],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex justify-between py-1">
-                        <span className="text-zinc-500">{label}</span>
-                        <span className="font-medium text-zinc-800">{value || "—"}</span>
+                      {
+                        icon: Mail,
+                        label: "Email",
+                        value: selectedEmployee.email,
+                      },
+                      {
+                        icon: Phone,
+                        label: "Phone",
+                        value: selectedEmployee.phone,
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        className="flex items-start gap-4"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center">
+                          <item.icon size={18} className="text-zinc-600" />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-sm text-zinc-500">
+                            {item.label}
+                          </p>
+
+                          <p className="font-semibold text-zinc-900 break-all">
+                            {item.value || "—"}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
