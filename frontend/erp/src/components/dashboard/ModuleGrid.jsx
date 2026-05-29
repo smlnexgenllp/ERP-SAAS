@@ -41,7 +41,7 @@ const ModuleGrid = ({ modules, onModuleClick }) => {
         break;
 
       case "transport":
-        navigate("/transport/dashboard");
+        navigate("/transport");
         break;
 
       case "manufacture":
