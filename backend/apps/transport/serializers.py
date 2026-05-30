@@ -21,9 +21,24 @@ from .models import (
 # =========================================================
 
 class VehicleSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Vehicle
         fields = "__all__"
+        extra_kwargs = {
+            "organization": {"required": False},
+        }
+
+    def create(self, validated_data):
+
+        request = self.context.get("request")
+
+        if request and request.user.is_authenticated:
+
+            # adjust based on your user model
+            validated_data["organization"] = request.user.organization
+
+        return super().create(validated_data)
 
 
 # =========================================================
@@ -31,9 +46,22 @@ class VehicleSerializer(serializers.ModelSerializer):
 # =========================================================
 
 class DriverSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Driver
         fields = "__all__"
+        extra_kwargs = {
+            "organization": {"required": False},
+        }
+
+    def create(self, validated_data):
+
+        request = self.context.get("request")
+
+        if request and request.user.is_authenticated:
+            validated_data["organization"] = request.user.organization
+
+        return super().create(validated_data)
 
 
 # =========================================================
@@ -41,6 +69,7 @@ class DriverSerializer(serializers.ModelSerializer):
 # =========================================================
 
 class TransportRouteSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = TransportRoute
         fields = "__all__"
@@ -90,8 +119,10 @@ class TransportTripSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def get_route_name(self, obj):
+
         if obj.route:
             return f"{obj.route.source_location} → {obj.route.destination_location}"
+
         return None
 
 
@@ -100,6 +131,7 @@ class TransportTripSerializer(serializers.ModelSerializer):
 # =========================================================
 
 class DeliveryProofSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = DeliveryProof
         fields = "__all__"
