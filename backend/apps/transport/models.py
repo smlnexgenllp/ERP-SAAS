@@ -9,12 +9,6 @@ from apps.organizations.models import Organization
 from apps.crm.models import Customer
 from apps.inventory.models import Item, Dispatch
 from apps.sales.models import SalesOrder
-
-
-# =========================================================
-# VEHICLE MASTER
-# =========================================================
-
 class Vehicle(models.Model):
 
     VEHICLE_STATUS = [
@@ -23,68 +17,55 @@ class Vehicle(models.Model):
         ('maintenance', 'Maintenance'),
         ('inactive', 'Inactive'),
     ]
-
     OWNER_TYPE = [
         ('company', 'Company Owned'),
         ('vendor', 'Vendor Vehicle'),
         ('leased', 'Leased Vehicle'),
     ]
-
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
         related_name='transport_vehicles'
     )
-
     vehicle_number = models.CharField(max_length=30, unique=True)
     vehicle_type = models.CharField(max_length=100)
     brand = models.CharField(max_length=100, blank=True)
     model = models.CharField(max_length=100, blank=True)
-
     capacity_kg = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=0
     )
-
     capacity_cbm = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=0
     )
-
     fuel_type = models.CharField(
         max_length=50,
         blank=True
     )
-
     insurance_expiry = models.DateField(null=True, blank=True)
     permit_expiry = models.DateField(null=True, blank=True)
     pollution_expiry = models.DateField(null=True, blank=True)
     fitness_expiry = models.DateField(null=True, blank=True)
-
     gps_enabled = models.BooleanField(default=False)
-
     current_odometer = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=0
     )
-
     owner_type = models.CharField(
         max_length=20,
         choices=OWNER_TYPE,
         default='company'
     )
-
     status = models.CharField(
         max_length=20,
         choices=VEHICLE_STATUS,
         default='available'
     )
-
     notes = models.TextField(blank=True)
-
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -92,77 +73,53 @@ class Vehicle(models.Model):
         blank=True,
         related_name='transport_vehicles_created'
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
-
     class Meta:
         ordering = ['vehicle_number']
-
     def __str__(self):
         return self.vehicle_number
-
-
-# =========================================================
-# DRIVER MASTER
-# =========================================================
-
 class Driver(models.Model):
-
     DRIVER_STATUS = [
         ('active', 'Active'),
         ('inactive', 'Inactive'),
         ('on_leave', 'On Leave'),
     ]
-
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
         related_name='transport_drivers'
     )
-
     full_name = models.CharField(max_length=255)
-
-    phone = models.CharField(max_length=20)
-
+    phone_number = models.CharField(max_length=20)
     alternate_phone = models.CharField(
         max_length=20,
         blank=True
     )
-
     address = models.TextField(blank=True)
-
     license_number = models.CharField(max_length=100)
-
     license_expiry = models.DateField()
-
     blood_group = models.CharField(
         max_length=10,
         blank=True
     )
-
     joining_date = models.DateField(
-        default=timezone.now
+        default=timezone.localdate
     )
-
     salary = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=0
     )
-
     salary_type = models.CharField(
         max_length=50,
         default='monthly'
     )
-
     status = models.CharField(
         max_length=20,
         choices=DRIVER_STATUS,
         default='active'
     )
-
     notes = models.TextField(blank=True)
-
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -170,22 +127,13 @@ class Driver(models.Model):
         blank=True,
         related_name='transport_drivers_created'
     )
-
     created_at = models.DateTimeField(auto_now_add=True)
-
     class Meta:
         ordering = ['full_name']
 
     def __str__(self):
         return self.full_name
-
-
-# =========================================================
-# ROUTE MASTER
-# =========================================================
-
 class TransportRoute(models.Model):
-
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
