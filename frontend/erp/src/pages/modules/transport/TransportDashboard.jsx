@@ -16,7 +16,7 @@ import {
   PlusCircle,
   LogOut,
   BarChart3,
-  MapPinned,
+  MapPinned,Receipt
 } from "lucide-react";
 
 import api from "../../../services/api";
@@ -44,6 +44,12 @@ const Sidebar = ({ active = "dashboard" }) => {
       key: "drivers",
     },
     {
+      icon: Route,           // ← Routes Menu Item
+      label: "Routes",
+      path: "/transport/routes",
+      key: "routes",
+    },
+    {
       icon: Route,
       label: "Trips",
       path: "/transport/trips",
@@ -67,6 +73,12 @@ const Sidebar = ({ active = "dashboard" }) => {
       path: "/transport/invoices",
       key: "invoices",
     },
+    {
+  icon: Receipt,
+  label: "Expenses",
+  path: "/transport/expenses",
+  key: "expenses",
+},
   ];
 
   return (
