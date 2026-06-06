@@ -110,6 +110,11 @@ import TestContactDetail from "./pages/modules/crm/components/testcrm/TestContac
 import TestCallLogs from "./pages/modules/crm/components/testcrm/TestCallLogs";
 import CustomerDetails from "./pages/modules/crm/components/testcrm/TestCustomerDetails";
 import TransportDashboard from "./pages/modules/transport/TransportDashboard";
+import VehicleList from "./pages/modules/transport/VehicleList";
+import VehicleCreate from "./pages/modules/transport/VehicleCreate";
+import DriverList from "./pages/modules/transport/DriverList";
+import DriverCreate from "./pages/modules/transport/DriverCreate";
+import FuelEntryList from "./pages/modules/transport/FuelEntryList";
 
 
 
@@ -475,6 +480,14 @@ function App() {
 <Route path="/crm/opportunities-test/:id" element={<OpportunityDetails />} />
 <Route path="/crm/call-logs-test" element={<CallLogs />} />
 <Route path="/transport" element={<TransportDashboard />} />
+<Route path="/transport/vehicles" element={<VehicleList />} />
+<Route path="/transport/vehicles/create" element={<VehicleCreate />} />
+<Route
+  path="/transport/fuel"
+  element={<FuelEntryList />}
+/>
+<Route path="/transport/drivers" element={<DriverList />} />
+<Route path="/transport/drivers/create" element={<DriverCreate />} />
         </Routes>
 
       </Router>

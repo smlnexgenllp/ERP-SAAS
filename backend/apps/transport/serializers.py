@@ -151,11 +151,19 @@ class FuelEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = FuelEntry
         fields = "__all__"
+        extra_kwargs = {
+            "organization": {"required": False},
+        }
 
+    def create(self, validated_data):
 
-# =========================================================
-# VEHICLE MAINTENANCE
-# =========================================================
+        request = self.context.get("request")
+
+        if request and request.user.is_authenticated:
+            validated_data["organization"] = request.user.organization
+
+        return super().create(validated_data)
+
 
 class VehicleMaintenanceSerializer(serializers.ModelSerializer):
 
@@ -169,14 +177,10 @@ class VehicleMaintenanceSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-# =========================================================
-# TRANSPORT EXPENSE
-# =========================================================
-
 class TransportExpenseSerializer(serializers.ModelSerializer):
 
-    vehicle_name = serializers.CharField(
-        source="vehicle.vehicle_number",
+    trip_number = serializers.CharField(
+        source="trip.trip_number",
         read_only=True
     )
 
