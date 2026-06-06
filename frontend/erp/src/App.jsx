@@ -116,6 +116,12 @@ import TransportRouteList from "./pages/modules/transport/TransportRouteList";
 import VehicleMaintance from "./pages/modules/transport/pages/VehicleMaintenancePage";
 import TransportExpensePage from "./pages/modules/transport/pages/TransportExpensePage";
 import TransportInvoicePage from "./pages/modules/transport/pages/TransportInvoicePage";
+import VehicleList from "./pages/modules/transport/VehicleList";
+import VehicleCreate from "./pages/modules/transport/VehicleCreate";
+import DriverList from "./pages/modules/transport/DriverList";
+import DriverCreate from "./pages/modules/transport/DriverCreate";
+import FuelEntryList from "./pages/modules/transport/FuelEntryList";
+
 
 
 const ProtectedRoute = ({ children }) => {
@@ -487,6 +493,14 @@ function App() {
 <Route path="/transport/expenses" element={<TransportExpensePage />} />
 <Route path="/transport/invoices" element={<TransportInvoicePage />} />
 
+<Route path="/transport/vehicles" element={<VehicleList />} />
+<Route path="/transport/vehicles/create" element={<VehicleCreate />} />
+<Route
+  path="/transport/fuel"
+  element={<FuelEntryList />}
+/>
+<Route path="/transport/drivers" element={<DriverList />} />
+<Route path="/transport/drivers/create" element={<DriverCreate />} />
         </Routes>
 
       </Router>
