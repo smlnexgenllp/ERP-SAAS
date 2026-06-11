@@ -121,7 +121,7 @@ import VehicleCreate from "./pages/modules/transport/VehicleCreate";
 import DriverList from "./pages/modules/transport/DriverList";
 import DriverCreate from "./pages/modules/transport/DriverCreate";
 import FuelEntryList from "./pages/modules/transport/FuelEntryList";
-
+import DeliveryProofManager from "./pages/modules/transport/DeliveryProofManager";
 
 
 const ProtectedRoute = ({ children }) => {
@@ -501,6 +501,7 @@ function App() {
 />
 <Route path="/transport/drivers" element={<DriverList />} />
 <Route path="/transport/drivers/create" element={<DriverCreate />} />
+<Route path="/transport/delivery-proofs" element={<DeliveryProofManager />} />
         </Routes>
 
       </Router>
