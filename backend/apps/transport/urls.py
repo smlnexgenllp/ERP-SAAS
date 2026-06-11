@@ -10,7 +10,7 @@ from .views import (
     FuelEntryViewSet,
     VehicleMaintenanceViewSet,
     TransportExpenseViewSet,
-    TransportInvoiceViewSet,TransportRouteViewSet
+    TransportInvoiceViewSet,TransportRouteViewSet,DeliveryProofViewSet
 )
 
 router = DefaultRouter()
@@ -23,7 +23,7 @@ router.register(r'transport-expenses', TransportExpenseViewSet)
 router.register(r"transport-invoices", TransportInvoiceViewSet)
 router.register(r'routes', TransportRouteViewSet, basename='transport-route')
 router.register(r'vehicle-maintenance', VehicleMaintenanceViewSet, basename='vehicle-maintenance')
-
+router.register(r'delivery-proofs', DeliveryProofViewSet, basename='deliveryproof')
 urlpatterns = [
     path("", include(router.urls)),
 ]

@@ -21,7 +21,6 @@ from apps.sales.models import SalesOrder
 # =========================================================
 
 class VehicleSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Vehicle
         fields = "__all__"
@@ -30,14 +29,10 @@ class VehicleSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-
         request = self.context.get("request")
-
         if request and request.user.is_authenticated:
-
-            # adjust based on your user model
             validated_data["organization"] = request.user.organization
-
+            validated_data["created_by"] = request.user   # ← Add this line
         return super().create(validated_data)
 
 
@@ -140,7 +135,7 @@ class TransportTripSerializer(serializers.ModelSerializer):
             'starting_km',
             'fuel_used',
             'remarks',
-
+            'ending_km',
             # Timing Fields
             'loading_start_time',
             'loading_end_time',
@@ -175,10 +170,36 @@ class TransportTripSerializer(serializers.ModelSerializer):
 # =========================================================
 
 class DeliveryProofSerializer(serializers.ModelSerializer):
+    trip_number = serializers.ReadOnlyField(source='trip.trip_number')
+    driver_name = serializers.ReadOnlyField(
+        source='trip.driver.full_name',
+        default=None
+    )
 
     class Meta:
         model = DeliveryProof
-        fields = "__all__"
+        fields = [
+            'id',
+            'trip',
+            'trip_number',
+            'driver_name',
+            'customer_name',
+            'received_by',
+            'received_phone',
+            'delivery_time',
+            'delivery_status',
+            'otp_verified',
+            'signature',
+            'photo',
+            'delivery_notes',
+            'created_at',
+        ]
+
+        read_only_fields = [
+            'delivery_time',
+            'created_at',
+            'otp_verified'
+        ]
 
 
 # =========================================================
@@ -186,10 +207,14 @@ class DeliveryProofSerializer(serializers.ModelSerializer):
 # =========================================================
 
 class FuelEntrySerializer(serializers.ModelSerializer):
-
     vehicle_name = serializers.CharField(
-        source="vehicle.vehicle_number",
-        read_only=True
+        source="vehicle.vehicle_number", read_only=True
+    )
+    trip_number = serializers.CharField(
+        source="trip.trip_number", read_only=True
+    )
+    created_by_name = serializers.CharField(
+        source="created_by.get_full_name", read_only=True
     )
 
     class Meta:
@@ -200,14 +225,13 @@ class FuelEntrySerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-
         request = self.context.get("request")
 
         if request and request.user.is_authenticated:
             validated_data["organization"] = request.user.organization
+            validated_data["created_by"] = request.user   # ← FIX: Auto set created_by
 
         return super().create(validated_data)
-
 
 class VehicleMaintenanceSerializer(serializers.ModelSerializer):
     vehicle_number = serializers.CharField(source='vehicle.vehicle_number', read_only=True)

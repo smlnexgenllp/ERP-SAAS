@@ -9,7 +9,7 @@ from .models import (
     FuelEntry,
     VehicleMaintenance,
     TransportExpense,
-    TransportInvoice,TransportRoute
+    TransportInvoice,TransportRoute,DeliveryProof
 )
 
 from .serializers import (
@@ -19,11 +19,12 @@ from .serializers import (
     FuelEntrySerializer,
     VehicleMaintenanceSerializer,VehicleMaintenanceListSerializer,VehicleDropdownSerializer,
     TransportExpenseSerializer,
-    TransportInvoiceSerializer,TransportRouteSerializer
+    TransportInvoiceSerializer,TransportRouteSerializer,DeliveryProofSerializer
 )
 from rest_framework.decorators import action
 from django.utils import timezone
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 # =========================================================
 # VEHICLE
 # =========================================================
@@ -116,8 +117,23 @@ class TransportTripViewSet(viewsets.ModelViewSet):
             return Response(data)
         except SalesOrder.DoesNotExist:
             return Response({"error": "Sales Order not found"}, status=404)
+    def perform_update(self, serializer):
+        # Auto update total_distance when ending_km changes
+        if 'ending_km' in serializer.validated_data:
+            instance = serializer.instance
+            ending = serializer.validated_data.get('ending_km')
+            if ending and instance.starting_km:
+                serializer.validated_data['total_distance'] = max(0, ending - instance.starting_km)
 
+        # Auto set unloading times based on status
+        new_status = serializer.validated_data.get('trip_status')
+        if new_status == 'unloading' and not serializer.validated_data.get('unloading_start_time'):
+            serializer.validated_data['unloading_start_time'] = timezone.now()
+        elif new_status == 'completed' and not serializer.validated_data.get('unloading_end_time'):
+            serializer.validated_data['unloading_end_time'] = timezone.now()
 
+        serializer.save()
+    
 # =========================================================
 # FUEL ENTRY
 # =========================================================
@@ -126,6 +142,8 @@ class FuelEntryViewSet(viewsets.ModelViewSet):
     queryset = FuelEntry.objects.all().order_by("-id")
     serializer_class = FuelEntrySerializer
 
+    def get_queryset(self):
+        return self.queryset.filter(organization=self.request.user.organization)
 
 # =========================================================
 # VEHICLE MAINTENANCE
@@ -270,3 +288,44 @@ class TransportRouteViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(organization=self.request.user.organization)
+
+class DeliveryProofViewSet(viewsets.ModelViewSet):
+    queryset = DeliveryProof.objects.select_related('trip', 'trip__driver').all()
+    serializer_class = DeliveryProofSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    # Important for handling file uploads (signature & photo)
+    parser_classes = (MultiPartParser, FormParser)
+    
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['delivery_status', 'trip']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Filter by organization if your user has it
+        user = self.request.user
+        if hasattr(user, 'organization'):
+            qs = qs.filter(trip__driver__organization=user.organization)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+    # Extra Action: Mark OTP as Verified
+    @action(detail=True, methods=['post'])
+    def verify_otp(self, request, pk=None):
+        proof = self.get_object()
+        proof.otp_verified = True
+        proof.save()
+        return Response({"message": "OTP verified successfully"}, status=status.HTTP_200_OK)
+
+    # Extra Action: Update Status Only
+    @action(detail=True, methods=['patch'])
+    def update_status(self, request, pk=None):
+        proof = self.get_object()
+        status_value = request.data.get('delivery_status')
+        if status_value:
+            proof.delivery_status = status_value
+            proof.save()
+            return Response({"message": "Status updated"}, status=status.HTTP_200_OK)
+        return Response({"error": "delivery_status required"}, status=status.HTTP_400_BAD_REQUEST)
