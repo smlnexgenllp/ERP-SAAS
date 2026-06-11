@@ -1,11 +1,12 @@
 // components/transport/TransportTripList.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit2, X } from "lucide-react"; // Make sure lucide-react is installed
+import { ArrowLeft, Edit2, X, Clock, Gauge } from "lucide-react";
 import api from "../../../services/api";
 
 const TransportTripList = () => {
   const navigate = useNavigate();
+  
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
@@ -15,12 +16,16 @@ const TransportTripList = () => {
   const [editFormData, setEditFormData] = useState({
     trip_number: '',
     trip_date: '',
-    trip_type: 'delivery',
-    vehicle: '',
-    driver: '',
-    customer: '',
-    sales_order: '',
-    trip_status: 'planned'
+    trip_type: 'outbound',
+    trip_status: 'planned',
+    starting_km: '',
+    ending_km: '',
+    actual_arrival: '',
+    loading_start_time: '',
+    loading_end_time: '',
+    unloading_start_time: '',
+    unloading_end_time: '',
+    remarks: ''
   });
 
   useEffect(() => {
@@ -59,12 +64,16 @@ const TransportTripList = () => {
     setEditFormData({
       trip_number: trip.trip_number || '',
       trip_date: trip.trip_date ? trip.trip_date.split('T')[0] : '',
-      trip_type: trip.trip_type || 'delivery',
-      vehicle: trip.vehicle || '',
-      driver: trip.driver || '',
-      customer: trip.customer || '',
-      sales_order: trip.sales_order || '',
-      trip_status: trip.trip_status || 'planned'
+      trip_type: trip.trip_type || 'outbound',
+      trip_status: trip.trip_status || 'planned',
+      starting_km: trip.starting_km || '',
+      ending_km: trip.ending_km || '',
+      actual_arrival: trip.actual_arrival || '',
+      loading_start_time: trip.loading_start_time || '',
+      loading_end_time: trip.loading_end_time || '',
+      unloading_start_time: trip.unloading_start_time || '',
+      unloading_end_time: trip.unloading_end_time || '',
+      remarks: trip.remarks || ''
     });
     setShowEditModal(true);
   };
@@ -105,6 +114,14 @@ const TransportTripList = () => {
     }
   };
 
+  const formatDateTime = (dateTime) => {
+    if (!dateTime) return "—";
+    return new Date(dateTime).toLocaleString('en-IN', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
@@ -116,7 +133,7 @@ const TransportTripList = () => {
   return (
     <div className="min-h-screen bg-zinc-50 py-8">
       <div className="max-w-7xl mx-auto px-6">
-        {/* Header with Back Button */}
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <button
@@ -128,12 +145,12 @@ const TransportTripList = () => {
             </button>
             <div>
               <h1 className="text-3xl font-bold text-zinc-900">Transport Trips</h1>
-              <p className="text-zinc-600 mt-1">Manage all your delivery and transport trips</p>
+              <p className="text-zinc-600 mt-1">Complete overview with Loading & Unloading times</p>
             </div>
           </div>
 
           <button
-            onClick={() => navigate("transport-list")}
+            onClick={() => navigate("/transport/create")}
             className="px-6 py-3 bg-zinc-900 hover:bg-black text-white rounded-xl font-medium flex items-center gap-2 transition"
           >
             + Create New Trip
@@ -143,8 +160,8 @@ const TransportTripList = () => {
         {/* Table */}
         <div className="bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-zinc-100">
+            <table className="w-full min-w-[1400px]">
+              <thead className="bg-zinc-100 sticky top-0">
                 <tr>
                   <th className="px-6 py-4 text-left font-medium text-zinc-700">Trip Number</th>
                   <th className="px-6 py-4 text-left font-medium text-zinc-700">Date</th>
@@ -152,7 +169,17 @@ const TransportTripList = () => {
                   <th className="px-6 py-4 text-left font-medium text-zinc-700">Vehicle</th>
                   <th className="px-6 py-4 text-left font-medium text-zinc-700">Driver</th>
                   <th className="px-6 py-4 text-left font-medium text-zinc-700">Customer</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Sales Order</th>
+
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">
+                    <div className="flex items-center gap-1">
+                      <Gauge className="w-4 h-4" /> KM
+                    </div>
+                  </th>
+
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Loading Time</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Actual Arrival</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Unloading Time</th>
+
                   <th className="px-6 py-4 text-center font-medium text-zinc-700">Status</th>
                   <th className="px-6 py-4 text-center font-medium text-zinc-700">Actions</th>
                 </tr>
@@ -160,7 +187,7 @@ const TransportTripList = () => {
               <tbody className="divide-y divide-zinc-200">
                 {trips.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="px-6 py-20 text-center text-zinc-500">
+                    <td colSpan="12" className="px-6 py-20 text-center text-zinc-500">
                       No transport trips found.
                     </td>
                   </tr>
@@ -175,32 +202,71 @@ const TransportTripList = () => {
                       <td className="px-6 py-4 font-medium">{trip.vehicle_number || trip.vehicle || "—"}</td>
                       <td className="px-6 py-4 font-medium">{trip.driver_name || trip.driver || "—"}</td>
                       <td className="px-6 py-4 text-zinc-700">{trip.customer_name || trip.customer || "—"}</td>
+
+                      {/* KM Column */}
                       <td className="px-6 py-4">
-                        {trip.sales_order_number || trip.sales_order ? `SO-${trip.sales_order_number || trip.sales_order}` : "—"}
+                        <div className="text-sm">
+                          <span className="font-medium">{trip.starting_km || 0}</span>
+                          <span className="text-zinc-400 mx-1">→</span>
+                          <span className="font-medium text-emerald-600">{trip.ending_km || "—"}</span>
+                        </div>
+                        {trip.total_distance > 0 && (
+                          <div className="text-xs text-emerald-600 font-medium">
+                            {trip.total_distance} km
+                          </div>
+                        )}
                       </td>
-                      <td className="px-6 py-4 text-center">
+
+                      {/* Loading Time */}
+                      <td className="px-6 py-4 text-sm">
+                        <div>{trip.loading_start_time ? formatDateTime(trip.loading_start_time) : "—"}</div>
+                        <div className="text-emerald-600">
+                          {trip.loading_end_time ? formatDateTime(trip.loading_end_time) : ""}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-sm">
+                        {formatDateTime(trip.actual_arrival)}
+                      </td>
+
+                      {/* Unloading Time */}
+                      <td className="px-6 py-4 text-sm">
+                        <div>{trip.unloading_start_time ? formatDateTime(trip.unloading_start_time) : "—"}</div>
+                        <div className="text-emerald-600">
+                          {trip.unloading_end_time ? formatDateTime(trip.unloading_end_time) : ""}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
                         <select
                           value={trip.trip_status}
                           onChange={(e) => handleStatusUpdate(trip.id, e.target.value)}
                           className={`px-4 py-1.5 text-xs font-semibold rounded-full border-0 cursor-pointer transition-all ${
                             trip.trip_status === "planned" ? "bg-blue-100 text-blue-700" :
+                            trip.trip_status === "loading" ? "bg-purple-100 text-purple-700" :
                             trip.trip_status === "in_transit" ? "bg-amber-100 text-amber-700" :
+                            trip.trip_status === "reached" ? "bg-indigo-100 text-indigo-700" :
+                            trip.trip_status === "unloading" ? "bg-orange-100 text-orange-700" :
                             trip.trip_status === "completed" ? "bg-emerald-100 text-emerald-700" :
                             "bg-red-100 text-red-700"
                           }`}
                         >
                           <option value="planned">PLANNED</option>
+                          <option value="loading">LOADING</option>
                           <option value="in_transit">IN TRANSIT</option>
+                          <option value="reached">REACHED</option>
+                          <option value="unloading">UNLOADING</option>
                           <option value="completed">COMPLETED</option>
                           <option value="cancelled">CANCELLED</option>
                         </select>
                       </td>
+
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-4">
                           <button
                             onClick={() => handleEditClick(trip)}
                             className="text-blue-600 hover:text-blue-700 transition"
-                            title="Edit"
+                            title="Edit Trip"
                           >
                             <Edit2 className="w-5 h-5" />
                           </button>
@@ -223,142 +289,100 @@ const TransportTripList = () => {
         </div>
       </div>
 
-      {/* ==================== IMPROVED EDIT MODAL ==================== */}
+      {/* ==================== EDIT MODAL WITH LOADING & UNLOADING ==================== */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-hidden shadow-2xl">
-            {/* Modal Header */}
+          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[95vh] overflow-hidden shadow-2xl">
             <div className="px-8 py-5 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
               <div className="flex items-center gap-3">
                 <Edit2 className="w-6 h-6 text-zinc-700" />
                 <h2 className="text-2xl font-semibold text-zinc-900">Edit Transport Trip</h2>
               </div>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="text-zinc-500 hover:text-zinc-700 transition"
-              >
+              <button onClick={() => setShowEditModal(false)} className="text-zinc-500 hover:text-zinc-700">
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleEditSubmit} className="p-8 space-y-8 overflow-y-auto max-h-[calc(92vh-80px)]">
+            <form onSubmit={handleEditSubmit} className="p-8 space-y-8 overflow-y-auto max-h-[calc(95vh-80px)]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-2">Trip Number *</label>
-                  <input
-                    type="text"
-                    name="trip_number"
-                    value={editFormData.trip_number}
-                    onChange={handleEditInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-zinc-300 rounded-2xl focus:ring-2 focus:ring-zinc-500 focus:border-transparent"
-                  />
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Trip Number</label>
+                  <input type="text" name="trip_number" value={editFormData.trip_number} disabled className="w-full px-4 py-3 bg-zinc-100 border border-zinc-300 rounded-2xl" />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-2">Trip Date *</label>
-                  <input
-                    type="date"
-                    name="trip_date"
-                    value={editFormData.trip_date}
-                    onChange={handleEditInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-zinc-300 rounded-2xl focus:ring-2 focus:ring-zinc-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-2">Trip Type *</label>
-                  <select
-                    name="trip_type"
-                    value={editFormData.trip_type}
-                    onChange={handleEditInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-zinc-300 rounded-2xl focus:ring-2 focus:ring-zinc-500 focus:border-transparent"
-                  >
-                    <option value="delivery">Delivery</option>
-                    <option value="pickup">Pickup</option>
-                    <option value="transfer">Transfer</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-2">Vehicle</label>
-                  <input
-                    type="text"
-                    name="vehicle"
-                    value={editFormData.vehicle}
-                    onChange={handleEditInputChange}
-                    className="w-full px-4 py-3 border border-zinc-300 rounded-2xl focus:ring-2 focus:ring-zinc-500 focus:border-transparent"
-                    placeholder="e.g. TN67 AB 1234"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-2">Driver</label>
-                  <input
-                    type="text"
-                    name="driver"
-                    value={editFormData.driver}
-                    onChange={handleEditInputChange}
-                    className="w-full px-4 py-3 border border-zinc-300 rounded-2xl focus:ring-2 focus:ring-zinc-500 focus:border-transparent"
-                    placeholder="Driver name / ID"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-2">Customer</label>
-                  <input
-                    type="text"
-                    name="customer"
-                    value={editFormData.customer}
-                    onChange={handleEditInputChange}
-                    className="w-full px-4 py-3 border border-zinc-300 rounded-2xl focus:ring-2 focus:ring-zinc-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-2">Sales Order</label>
-                  <input
-                    type="text"
-                    name="sales_order"
-                    value={editFormData.sales_order}
-                    onChange={handleEditInputChange}
-                    className="w-full px-4 py-3 border border-zinc-300 rounded-2xl focus:ring-2 focus:ring-zinc-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-2">Status *</label>
-                  <select
-                    name="trip_status"
-                    value={editFormData.trip_status}
-                    onChange={handleEditInputChange}
-                    required
-                    className="w-full px-4 py-3 border border-zinc-300 rounded-2xl focus:ring-2 focus:ring-zinc-500 focus:border-transparent"
-                  >
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Trip Status *</label>
+                  <select name="trip_status" value={editFormData.trip_status} onChange={handleEditInputChange} className="w-full px-4 py-3 border border-zinc-300 rounded-2xl">
                     <option value="planned">Planned</option>
+                    <option value="loading">Loading</option>
                     <option value="in_transit">In Transit</option>
+                    <option value="reached">Reached</option>
+                    <option value="unloading">Unloading</option>
                     <option value="completed">Completed</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Starting KM</label>
+                  <input type="number" name="starting_km" value={editFormData.starting_km} onChange={handleEditInputChange} className="w-full px-4 py-3 border border-zinc-300 rounded-2xl" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Ending KM</label>
+                  <input type="number" name="ending_km" value={editFormData.ending_km} onChange={handleEditInputChange} className="w-full px-4 py-3 border border-zinc-300 rounded-2xl" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Actual Arrival</label>
+                  <input type="datetime-local" name="actual_arrival" value={editFormData.actual_arrival?.slice(0,16) || ''} onChange={handleEditInputChange} className="w-full px-4 py-3 border border-zinc-300 rounded-2xl" />
+                </div>
+
+                {/* Loading Section */}
+                <div className="md:col-span-2 border border-blue-200 bg-blue-50 rounded-2xl p-6">
+                  <h3 className="font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                    <Clock className="w-5 h-5" /> Loading Time (Origin)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 mb-2">Loading Start</label>
+                      <input type="datetime-local" name="loading_start_time" value={editFormData.loading_start_time?.slice(0,16) || ''} onChange={handleEditInputChange} className="w-full px-4 py-3 border border-zinc-300 rounded-2xl" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 mb-2">Loading End</label>
+                      <input type="datetime-local" name="loading_end_time" value={editFormData.loading_end_time?.slice(0,16) || ''} onChange={handleEditInputChange} className="w-full px-4 py-3 border border-zinc-300 rounded-2xl" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Unloading Section */}
+                <div className="md:col-span-2 border border-amber-200 bg-amber-50 rounded-2xl p-6">
+                  <h3 className="font-semibold text-amber-800 mb-4 flex items-center gap-2">
+                    <Clock className="w-5 h-5" /> Unloading at Customer
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 mb-2">Unloading Start</label>
+                      <input type="datetime-local" name="unloading_start_time" value={editFormData.unloading_start_time?.slice(0,16) || ''} onChange={handleEditInputChange} className="w-full px-4 py-3 border border-zinc-300 rounded-2xl" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 mb-2">Unloading End</label>
+                      <input type="datetime-local" name="unloading_end_time" value={editFormData.unloading_end_time?.slice(0,16) || ''} onChange={handleEditInputChange} className="w-full px-4 py-3 border border-zinc-300 rounded-2xl" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Remarks</label>
+                  <textarea name="remarks" value={editFormData.remarks} onChange={handleEditInputChange} rows={4} className="w-full px-4 py-3 border border-zinc-300 rounded-2xl" placeholder="Notes about loading/unloading..." />
+                </div>
               </div>
 
-              {/* Footer Buttons */}
-              <div className="flex gap-4 pt-6 border-t border-zinc-200">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 py-3.5 border border-zinc-300 text-zinc-700 font-medium rounded-2xl hover:bg-zinc-50 transition"
-                >
+              <div className="flex gap-4 pt-6 border-t">
+                <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 py-3.5 border border-zinc-300 rounded-2xl hover:bg-zinc-50">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3.5 bg-zinc-900 text-white font-medium rounded-2xl hover:bg-black transition"
-                >
+                <button type="submit" className="flex-1 py-3.5 bg-zinc-900 text-white rounded-2xl hover:bg-black">
                   Save Changes
                 </button>
               </div>
