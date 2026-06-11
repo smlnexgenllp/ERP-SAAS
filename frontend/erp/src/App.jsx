@@ -110,12 +110,18 @@ import TestContactDetail from "./pages/modules/crm/components/testcrm/TestContac
 import TestCallLogs from "./pages/modules/crm/components/testcrm/TestCallLogs";
 import CustomerDetails from "./pages/modules/crm/components/testcrm/TestCustomerDetails";
 import TransportDashboard from "./pages/modules/transport/TransportDashboard";
+import CreateTransport from "./pages/modules/transport/CreateTransportTrip";
+import TransportTripList from "./pages/modules/transport/TransportTripList";
+import TransportRouteList from "./pages/modules/transport/TransportRouteList";
+import VehicleMaintance from "./pages/modules/transport/pages/VehicleMaintenancePage";
+import TransportExpensePage from "./pages/modules/transport/pages/TransportExpensePage";
+import TransportInvoicePage from "./pages/modules/transport/pages/TransportInvoicePage";
 import VehicleList from "./pages/modules/transport/VehicleList";
 import VehicleCreate from "./pages/modules/transport/VehicleCreate";
 import DriverList from "./pages/modules/transport/DriverList";
 import DriverCreate from "./pages/modules/transport/DriverCreate";
 import FuelEntryList from "./pages/modules/transport/FuelEntryList";
-
+import DeliveryProofManager from "./pages/modules/transport/DeliveryProofManager";
 
 
 const ProtectedRoute = ({ children }) => {
@@ -480,6 +486,13 @@ function App() {
 <Route path="/crm/opportunities-test/:id" element={<OpportunityDetails />} />
 <Route path="/crm/call-logs-test" element={<CallLogs />} />
 <Route path="/transport" element={<TransportDashboard />} />
+<Route path="/transport/trips" element={<CreateTransport />} />
+<Route path="/transport-list" element={<TransportTripList />} />
+<Route path="/transport/routes" element={<TransportRouteList />} />
+<Route path="/transport/maintenance" element={<VehicleMaintance />} />
+<Route path="/transport/expenses" element={<TransportExpensePage />} />
+<Route path="/transport/invoices" element={<TransportInvoicePage />} />
+
 <Route path="/transport/vehicles" element={<VehicleList />} />
 <Route path="/transport/vehicles/create" element={<VehicleCreate />} />
 <Route
@@ -488,6 +501,7 @@ function App() {
 />
 <Route path="/transport/drivers" element={<DriverList />} />
 <Route path="/transport/drivers/create" element={<DriverCreate />} />
+<Route path="/transport/delivery-proofs" element={<DeliveryProofManager />} />
         </Routes>
 
       </Router>
