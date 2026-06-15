@@ -202,7 +202,7 @@ export default function TransportDashboard() {
           </div>
 
           {/* Recent Vehicles */}
-          <div className="bg-white border rounded-3xl p-6 lg:p-8 mb-8">
+          {/* <div className="bg-white border rounded-3xl p-6 lg:p-8 mb-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <Truck className="text-blue-700" />
@@ -239,10 +239,10 @@ export default function TransportDashboard() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </div> */}
 
           {/* Recent Trips */}
-          <div className="bg-white border rounded-3xl p-6 lg:p-8">
+          {/* <div className="bg-white border rounded-3xl p-6 lg:p-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <MapPinned className="text-indigo-700" />
@@ -281,7 +281,7 @@ export default function TransportDashboard() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </div> */}
         </main>
       </div>
     </div>

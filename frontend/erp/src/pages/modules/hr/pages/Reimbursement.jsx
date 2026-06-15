@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   fetchReimbursements,
   approveReimbursement,
   rejectReimbursement,
 } from "../../../../../src/pages/modules/hr/api/hrApi";
-import { IndianRupee, Search } from "lucide-react";
+import { IndianRupee, Search, ArrowLeft } from "lucide-react";
 
 /* ============================
-   Reusable Table
+   Reusable Table Component
 ============================ */
 function ReimbursementTable({
   title,
@@ -33,7 +34,6 @@ function ReimbursementTable({
           {/* SEARCH */}
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-
             <input
               type="text"
               placeholder="Search employee..."
@@ -70,30 +70,14 @@ function ReimbursementTable({
               {/* TABLE HEAD */}
               <thead className="bg-gray-100 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 font-semibold text-gray-700">
-                    Employee
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold text-gray-700">
-                    Manager
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold text-gray-700">
-                    Amount
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold text-gray-700">
-                    Reason
-                  </th>
-
-                  <th className="px-6 py-4 font-semibold text-gray-700">
-                    Date
-                  </th>
+                  <th className="px-6 py-4 font-semibold text-gray-700">Employee</th>
+                  <th className="px-6 py-4 font-semibold text-gray-700">Manager</th>
+                  <th className="px-6 py-4 font-semibold text-gray-700">Amount</th>
+                  <th className="px-6 py-4 font-semibold text-gray-700">Reason</th>
+                  <th className="px-6 py-4 font-semibold text-gray-700">Date</th>
 
                   {!showActions && (
-                    <th className="px-6 py-4 font-semibold text-gray-700">
-                      Status
-                    </th>
+                    <th className="px-6 py-4 font-semibold text-gray-700">Status</th>
                   )}
 
                   {showActions && (
@@ -129,14 +113,10 @@ function ReimbursementTable({
                     </td>
 
                     {/* REASON */}
-                    <td className="px-6 py-4 text-gray-600">
-                      {req.reason}
-                    </td>
+                    <td className="px-6 py-4 text-gray-600">{req.reason}</td>
 
                     {/* DATE */}
-                    <td className="px-6 py-4 text-gray-500">
-                      {req.date}
-                    </td>
+                    <td className="px-6 py-4 text-gray-500">{req.date}</td>
 
                     {/* STATUS */}
                     {!showActions && (
@@ -162,9 +142,7 @@ function ReimbursementTable({
                             onClick={() => onApprove(req.id)}
                             className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black transition disabled:opacity-50"
                           >
-                            {actionLoading === req.id
-                              ? "Approving..."
-                              : "Approve"}
+                            {actionLoading === req.id ? "Approving..." : "Approve"}
                           </button>
 
                           <button
@@ -172,9 +150,7 @@ function ReimbursementTable({
                             onClick={() => onReject(req.id)}
                             className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition disabled:opacity-50"
                           >
-                            {actionLoading === req.id
-                              ? "Rejecting..."
-                              : "Reject"}
+                            {actionLoading === req.id ? "Rejecting..." : "Reject"}
                           </button>
                         </div>
                       </td>
@@ -194,13 +170,14 @@ function ReimbursementTable({
    Main Component
 ============================ */
 export default function Reimbursement() {
+  const navigate = useNavigate();
+
   const [reimbursements, setReimbursements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
 
   const [historyFilter, setHistoryFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("pending");
-
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -210,9 +187,7 @@ export default function Reimbursement() {
   const loadReimbursements = async () => {
     try {
       setLoading(true);
-
       const res = await fetchReimbursements();
-
       setReimbursements(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Failed to load reimbursements", err);
@@ -225,9 +200,7 @@ export default function Reimbursement() {
   const handleApprove = async (id) => {
     try {
       setActionLoading(id);
-
       await approveReimbursement(id);
-
       await loadReimbursements();
     } catch (err) {
       console.error("Approve failed", err);
@@ -239,9 +212,7 @@ export default function Reimbursement() {
   const handleReject = async (id) => {
     try {
       setActionLoading(id);
-
       await rejectReimbursement(id);
-
       await loadReimbursements();
     } catch (err) {
       console.error("Reject failed", err);
@@ -261,8 +232,6 @@ export default function Reimbursement() {
   /* ============================
      DATA FILTERING
   ============================ */
-
-  // Pending Requests
   const pending = reimbursements.filter((r) => {
     return (
       r.status === "pending" &&
@@ -272,7 +241,6 @@ export default function Reimbursement() {
     );
   });
 
-  // History Requests
   const history = reimbursements.filter((r) => {
     const matchesSearch = (r.employee?.full_name || "")
       .toLowerCase()
@@ -281,35 +249,41 @@ export default function Reimbursement() {
     if (historyFilter === "approved") {
       return r.status === "approved" && matchesSearch;
     }
-
     if (historyFilter === "rejected") {
       return r.status === "rejected" && matchesSearch;
     }
-
     return (
-      (r.status === "approved" ||
-        r.status === "rejected") &&
-      matchesSearch
+      (r.status === "approved" || r.status === "rejected") && matchesSearch
     );
   });
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* HEADER */}
-        <header className="bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5 mb-8 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gray-900 flex items-center justify-center">
-            <IndianRupee className="w-6 h-6 text-white" />
-          </div>
+        {/* HEADER with Back Button */}
+        <header className="bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-5 mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {/* Back Button */}
+            <button
+              onClick={() => navigate("/hr/dashboard")}
+              className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <ArrowLeft size={20} />
+              <span className="font-medium">Back</span>
+            </button>
 
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Reimbursement Requests
-            </h1>
+            <div className="w-12 h-12 rounded-xl bg-gray-900 flex items-center justify-center">
+              <IndianRupee className="w-6 h-6 text-white" />
+            </div>
 
-            <p className="text-sm text-gray-500 mt-1">
-              Manage employee reimbursement approvals and request history
-            </p>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Reimbursement Requests
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Manage employee reimbursement approvals and request history
+              </p>
+            </div>
           </div>
         </header>
 
