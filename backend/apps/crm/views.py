@@ -16,7 +16,9 @@ from .serializers import (
     ProductSerializer, ActivitySerializer, CustomerSerializer,
     QuotationSerializer, QuotationItemSerializer
 )
-
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from urllib.parse import quote
 
 class ProductViewSet(viewsets.ModelViewSet):
     """
@@ -50,7 +52,92 @@ class ContactViewSet(viewsets.ModelViewSet):
             created_by=self.request.user,
             status="new"
         )
+    @action(detail=True, methods=["get"])
+    def timeline(self, request, pk=None):
+        contact = self.get_object()
 
+        activities = []
+
+        # Contact Created
+        activities.append({
+            "type": "contact_created",
+            "date": contact.created_at,
+            "title": "Lead Created",
+            "description": f"{contact.full_name} added to CRM"
+        })
+
+        # Call Logs
+        for call in contact.call_logs.all():
+            activities.append({
+                "type": "call",
+                "date": call.call_time,
+                "title": "Call Logged",
+                "description": f"Result: {call.result}"
+            })
+
+        # Opportunities
+        for opp in contact.opportunities.all():
+            activities.append({
+                "type": "opportunity",
+                "date": opp.created_at,
+                "title": "Opportunity Created",
+                "description": opp.title
+            })
+
+        # Activities
+        for act in Activity.objects.filter(
+            opportunity__contact=contact
+        ):
+            activities.append({
+                "type": act.type,
+                "date": act.date,
+                "title": act.get_type_display(),
+                "description": act.notes
+            })
+
+        activities = sorted(
+            activities,
+            key=lambda x: x["date"],
+            reverse=True
+        )
+
+        return Response(activities)
+    @action(detail=True, methods=["get"])
+    def whatsapp(self, request, pk=None):
+
+        contact = self.get_object()
+
+        phone = contact.mobile or contact.phone
+
+        if not phone:
+            return Response(
+                {"error": "Phone number not found"},
+                status=400
+            )
+
+        message = (
+            f"Hello {contact.full_name}, "
+            f"Thank you for your interest."
+        )
+
+        phone = ''.join(filter(str.isdigit, phone))
+
+        url = (
+            f"https://wa.me/91{phone}"
+            f"?text={quote(message)}"
+        )
+        opportunity = contact.opportunities.first()
+
+        if opportunity:
+            Activity.objects.create(
+                opportunity=opportunity,
+                type="whatsapp",
+                notes="WhatsApp message opened",
+                created_by=request.user
+            )
+        return Response({
+            "url": url
+        })
     @action(detail=False, methods=["get"])
     def leads(self, request):
         """All non-customer contacts"""
@@ -171,7 +258,41 @@ class ContactViewSet(viewsets.ModelViewSet):
             "opportunity_id": opp_id,
             "message": "New opportunity created" if opp_id else "Existing opportunity found"
         })
+    @action(detail=True, methods=["get"])
+    def timeline(self, request, pk=None):
+        contact = self.get_object()
 
+        timeline = []
+
+        # Contact Created
+        timeline.append({
+            "type": "Lead Created",
+            "date": contact.created_at,
+            "description": f"{contact.full_name} was added as a lead"
+        })
+
+        # Call Logs
+        for call in contact.call_logs.all():
+            timeline.append({
+                "type": "Call",
+                "date": call.call_time,
+                "description": f"Call result: {call.result}"
+            })
+
+        # Opportunities
+        for opp in contact.opportunities.all():
+            timeline.append({
+                "type": "Opportunity",
+                "date": opp.created_at,
+                "description": f"Opportunity created - {opp.title}"
+            })
+
+        timeline.sort(
+            key=lambda x: x["date"],
+            reverse=True
+        )
+
+        return Response(timeline)
 
 class OpportunityViewSet(viewsets.ModelViewSet):
     """
@@ -270,57 +391,106 @@ class CallLogViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return CallLog.objects.filter(
             contact__organization=self.request.user.organization
-        ).select_related("contact", "called_by").order_by("-call_time")
+        ).select_related(
+            "contact",
+            "called_by"
+        ).order_by("-call_time")
 
     @transaction.atomic
     def perform_create(self, serializer):
-        call = serializer.save(called_by=self.request.user)
+        call = serializer.save(
+            called_by=self.request.user
+        )
+
         contact = call.contact
 
-        # Status mapping from call result
+        # =========================
+        # AUTO STATUS UPDATE
+        # =========================
         status_map = {
-            'connected': 'contacted',
-            'interested': 'interested',
-            'not_interested': 'lost',
-            'callback': 'follow_up',
+            "connected": "contacted",
+            "interested": "interested",
+            "not_interested": "lost",
+            "callback": "follow_up",
         }
 
         new_status = status_map.get(call.result)
+
         if new_status:
             contact.status = new_status
 
-            # Auto-schedule next follow-up
             days_map = {
-                'callback': 2,
-                'interested': 5,
-                'contacted': 3,
-                'not_interested': None,
+                "callback": 2,
+                "interested": 5,
+                "connected": 3,
             }
-            days = days_map.get(call.result)
-            if days:
-                contact.next_follow_up = timezone.now().date() + timezone.timedelta(days=days)
-            elif new_status == 'lost':
-                contact.next_follow_up = None
 
-            # Auto-create Opportunity for interested leads
-            if new_status == 'interested' and not contact.opportunities.filter(
-                stage__in=['new', 'contacted', 'qualified']
-            ).exists():
-                Opportunity.objects.create(
-                    contact=contact,
-                    title=f"Opportunity from call - {contact.full_name}",
-                    value=0,
-                    stage='new',
-                    probability=20,
-                    expected_close_date=timezone.now().date() + timezone.timedelta(days=30),
-                    created_by=self.request.user
+            days = days_map.get(call.result)
+
+            if days:
+                contact.next_follow_up = (
+                    timezone.now().date()
+                    + timezone.timedelta(days=days)
                 )
 
-            contact.save(update_fields=['status', 'next_follow_up'])
+            elif new_status == "lost":
+                contact.next_follow_up = None
+
+            contact.save(
+                update_fields=[
+                    "status",
+                    "next_follow_up",
+                ]
+            )
+
+        # =========================
+        # AUTO CREATE OPPORTUNITY
+        # =========================
+        opportunity = (
+            contact.opportunities
+            .order_by("-created_at")
+            .first()
+        )
+
+        if (
+            call.result == "interested"
+            and not contact.opportunities.filter(
+                stage__in=[
+                    "new",
+                    "contacted",
+                    "qualified"
+                ]
+            ).exists()
+        ):
+            opportunity = Opportunity.objects.create(
+                contact=contact,
+                title=f"Opportunity from call - {contact.full_name}",
+                value=0,
+                stage="new",
+                probability=20,
+                expected_close_date=(
+                    timezone.now().date()
+                    + timezone.timedelta(days=30)
+                ),
+                created_by=self.request.user
+            )
+
+        # =========================
+        # TIMELINE ENTRY
+        # =========================
+        if opportunity:
+            Activity.objects.create(
+                opportunity=opportunity,
+                type="call",
+                notes=(
+                    f"Call Result: {call.result}\n"
+                    f"Duration: {call.duration_seconds or 0} sec\n"
+                    f"Notes: {call.notes or '-'}"
+                ),
+                created_by=self.request.user,
+            )
 
         return call
-
-
 class QuotationViewSet(viewsets.ModelViewSet):
     """
     Manage Quotations (linked to Opportunities)

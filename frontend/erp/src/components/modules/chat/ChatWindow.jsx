@@ -12,7 +12,7 @@ import {
   MicOff, ThumbsUp, Award, Crown, Star, Target,
   UserPlus, UserMinus, Settings, LogOut
 } from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow, format, isToday, isYesterday, isThisWeek, isThisYear } from 'date-fns';
 import EditGroupModal from './EditGroupModal';
 import AddMemberModal from './AddMemberModal';
 
@@ -28,7 +28,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const [input, setInput] = useState('');
   const [file, setFile] = useState(null);
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(false); // Start with false
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [typing, setTyping] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -41,6 +41,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const [activeTab, setActiveTab] = useState('chat');
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [showPinned, setShowPinned] = useState(false);
+  const [activeMenu, setActiveMenu] = useState(null);
 
   // State for group management
   const [showEditModal, setShowEditModal] = useState(false);
@@ -49,13 +50,66 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const [groupMembers, setGroupMembers] = useState([]);
   const [isCreator, setIsCreator] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
+const [showChatMenu, setShowChatMenu] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const initialLoadDoneRef = useRef(false);
+
+  // Helper function to format date header like WhatsApp
+  const getDateHeader = (date) => {
+    const msgDate = new Date(date);
+    
+    if (isToday(msgDate)) {
+      return 'Today';
+    } else if (isYesterday(msgDate)) {
+      return 'Yesterday';
+    } else if (isThisWeek(msgDate)) {
+      // Show day name for current week
+      return format(msgDate, 'EEEE');
+    } else {
+      // Show date for older messages
+      if (isThisYear(msgDate)) {
+        return format(msgDate, 'MMMM d');
+      } else {
+        return format(msgDate, 'MMMM d, yyyy');
+      }
+    }
+  };
+
+  // Helper function to check if two dates are on different days
+  const isDifferentDay = (date1, date2) => {
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    return d1.getDate() !== d2.getDate() || 
+           d1.getMonth() !== d2.getMonth() || 
+           d1.getFullYear() !== d2.getFullYear();
+  };
+
+  // Group messages by date
+  const groupMessagesByDate = useCallback((messagesList) => {
+    const groups = [];
+    let currentGroup = null;
+
+    messagesList.forEach((msg) => {
+      const msgDate = new Date(msg.timestamp);
+      
+      if (!currentGroup || isDifferentDay(currentGroup.date, msgDate)) {
+        currentGroup = {
+          date: msgDate,
+          header: getDateHeader(msgDate),
+          messages: [msg]
+        };
+        groups.push(currentGroup);
+      } else {
+        currentGroup.messages.push(msg);
+      }
+    });
+
+    return groups;
+  }, []);
 
   // Check if current user is group creator
   useEffect(() => {
@@ -80,7 +134,6 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const fetchGroupMembers = useCallback(async () => {
     if (!group?.id) return;
 
-    // Check cache first
     if (membersCache.has(group.id)) {
       setGroupMembers(membersCache.get(group.id));
       return;
@@ -110,31 +163,24 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const loadMessages = useCallback(async (showLoading = false) => {
     if (!group?.id) return;
 
-    // Check cache first for instant display
     if (messagesCache.has(group.id)) {
       const cachedMessages = messagesCache.get(group.id);
       setMessages(cachedMessages);
       setFilteredMessages(cachedMessages);
 
-      // If we already have cached messages, don't show loading
       if (!showLoading) {
-        // Still fetch in background for updates
         fetchMessagesInBackground();
         return;
       }
     }
 
-    // Show loading only if explicitly requested and no cache
     if (showLoading) setLoading(true);
 
     try {
       setError(null);
       const res = await api.get(`/hr/chat/groups/${group.id}/messages/`);
       const newMessages = res.data || [];
-
-      // Update cache
       messagesCache.set(group.id, newMessages);
-
       setMessages(newMessages);
       setFilteredMessages(newMessages);
     } catch (err) {
@@ -152,10 +198,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
     try {
       const res = await api.get(`/hr/chat/groups/${group.id}/messages/`);
       const newMessages = res.data || [];
-
-      // Update cache
       messagesCache.set(group.id, newMessages);
-
       setMessages(newMessages);
       setFilteredMessages(prev => {
         if (!searchQuery) return newMessages;
@@ -175,7 +218,6 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const loadPinnedMessages = useCallback(async () => {
     if (!group?.id) return;
 
-    // Check cache first
     if (pinnedCache.has(group.id)) {
       setPinnedMessages(pinnedCache.get(group.id));
       return;
@@ -233,159 +275,157 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
       const data = JSON.parse(event.data);
 
       switch (data.type) {
-       case 'new_message':
-  setMessages(prev => {
-    // Replace temporary message if it exists
-    const tempIndex = prev.findIndex(msg => msg.id === data.temp_id);
+        case 'new_message':
+          const tempId = data.temp_id;
+          const serverMsg = data.message || {};
 
-    if (tempIndex !== -1) {
-      const updated = [...prev];
-      updated[tempIndex] = {
-        ...data.message,
-        is_own: true
-      };
-      messagesCache.set(group.id, updated);
-      return updated;
-    }
+          // Replace temp message in main messages
+          setMessages(prev => {
+            const tempIndex = prev.findIndex(msg => msg.id === tempId);
+            if (tempIndex !== -1) {
+              const updated = [...prev];
+              updated[tempIndex] = {
+                ...serverMsg,
+                is_own: true,
+                sender: serverMsg.sender || prev[tempIndex].sender || currentUser
+              };
+              messagesCache.set(group.id, updated);
+              return updated;
+            }
 
-    // Prevent duplicate messages
-    const alreadyExists = prev.some(msg => msg.id === data.message.id);
-    if (alreadyExists) return prev;
+            if (prev.some(msg => msg.id === serverMsg.id)) return prev;
 
-    // Add new message from other users
-    const updated = [...prev, data.message];
-    messagesCache.set(group.id, updated);
-    return updated;
-  });
+            const updated = [...prev, serverMsg];
+            messagesCache.set(group.id, updated);
+            return updated;
+          });
 
-  // Handle filtered messages (search)
-  setFilteredMessages(prev => {
-    if (!searchQuery.trim()) {
-      const alreadyExists = prev.some(msg => msg.id === data.message.id);
-      return alreadyExists ? prev : [...prev, data.message];
-    }
+          // Replace in filteredMessages
+          setFilteredMessages(prev => {
+            const tempIndex = prev.findIndex(msg => msg.id === tempId);
+            if (tempIndex !== -1) {
+              const updated = [...prev];
+              updated[tempIndex] = {
+                ...serverMsg,
+                is_own: true,
+                sender: serverMsg.sender || prev[tempIndex].sender || currentUser
+              };
+              return updated;
+            }
 
-    const query = searchQuery.toLowerCase();
-    const matches = 
-      data.message.content?.toLowerCase().includes(query) ||
-      data.message.sender?.full_name?.toLowerCase().includes(query) ||
-      data.message.sender?.email?.toLowerCase().includes(query);
+            if (prev.some(msg => msg.id === serverMsg.id)) return prev;
 
-    if (!matches) return prev;
+            return [...prev, serverMsg];
+          });
+          break;
 
-    const alreadyExists = prev.some(msg => msg.id === data.message.id);
-    return alreadyExists ? prev : [...prev, data.message];
-  });
-  break;
+        case 'message_deleted':
+          setMessages(prev => {
+            const updated = prev.filter(msg => msg.id !== data.message_id);
+            messagesCache.set(group.id, updated);
+            return updated;
+          });
+          setFilteredMessages(prev => prev.filter(msg => msg.id !== data.message_id));
+          break;
 
-      case 'message_deleted':
-        setMessages(prev => {
-          const updated = prev.filter(msg => msg.id !== data.message_id);
-          messagesCache.set(group.id, updated);
-          return updated;
-        });
-        setFilteredMessages(prev => prev.filter(msg => msg.id !== data.message_id));
-        break;
+        case 'typing':
+          setTyping(data.is_typing);
+          break;
 
-      case 'typing':
-        setTyping(data.is_typing);
-        break;
+        case 'presence':
+          if (data.action === 'join') {
+            setOnlineUsers(prev => [...new Set([...prev, data.user_id])]);
+          } else if (data.action === 'leave') {
+            setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
+          }
+          break;
 
-      case 'presence':
-        if (data.action === 'join') {
-          setOnlineUsers(prev => [...new Set([...prev, data.user_id])]);
-        } else if (data.action === 'leave') {
+        case 'user_joined':
+          setOnlineUsers(prev => [...prev, data.user_id]);
+          break;
+
+        case 'user_left':
           setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
-        }
-        break;
+          break;
 
-      case 'user_joined':
-        setOnlineUsers(prev => [...prev, data.user_id]);
-        break;
+        case 'message_pinned':
+          setPinnedMessages(prev => {
+            const updated = [...prev, data.message];
+            pinnedCache.set(group.id, updated);
+            return updated;
+          });
+          break;
 
-      case 'user_left':
-        setOnlineUsers(prev => prev.filter(id => id !== data.user_id));
-        break;
+        case 'message_unpinned':
+          setPinnedMessages(prev => {
+            const updated = prev.filter(msg => msg.id !== data.message_id);
+            pinnedCache.set(group.id, updated);
+            return updated;
+          });
+          break;
 
-      case 'message_pinned':
-        setPinnedMessages(prev => {
-          const updated = [...prev, data.message];
-          pinnedCache.set(group.id, updated);
-          return updated;
-        });
-        break;
+        case 'group_updated':
+          if (onGroupUpdated) onGroupUpdated(data.group);
+          fetchGroupMembers();
+          break;
 
-      case 'message_unpinned':
-        setPinnedMessages(prev => {
-          const updated = prev.filter(msg => msg.id !== data.message_id);
-          pinnedCache.set(group.id, updated);
-          return updated;
-        });
-        break;
+        case 'member_added':
+        case 'member_removed':
+          fetchGroupMembers();
+          break;
 
-      case 'group_updated':
-        if (onGroupUpdated) onGroupUpdated(data.group);
-        fetchGroupMembers();
-        break;
+        case 'group_deleted':
+          if (onGroupDeleted) onGroupDeleted();
+          onBack();
+          break;
 
-      case 'member_added':
-      case 'member_removed':
-        fetchGroupMembers();
-        break;
+        case 'error':
+          console.error('WebSocket error:', data.error);
+          setError(data.error);
+          break;
 
-      case 'group_deleted':
-        if (onGroupDeleted) onGroupDeleted();
-        onBack();
-        break;
-
-      case 'error':
-        console.error('WebSocket error:', data.error);
-        setError(data.error);
-        break;
-
-      default:
-        console.log('Unknown WebSocket message:', data);
-    }
-  } catch (err) {
-    console.error('Failed to parse WebSocket message:', err);
-  }
-};
-
-    newSocket.onerror = (err) => {
-      console.error('WebSocket error:', err);
-      setError("Connection error");
-    };
-
-    newSocket.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason);
-
-      if (event.code !== 1000 && event.code !== 1001) {
-        setError("Connection lost — reconnecting...");
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connectWebSocket();
-        }, 2000);
+        default:
+          console.log('Unknown WebSocket message:', data);
       }
-    };
+    } catch (err) {
+      console.error('Failed to parse WebSocket message:', err);
+    }
+  };
 
-    setSocket(newSocket);
-    return newSocket;
-  }, [group.id, currentUser?.id, onGroupUpdated, onBack, fetchGroupMembers, onGroupDeleted, searchQuery]);
+  newSocket.onerror = (err) => {
+    console.error('WebSocket error:', err);
+    setError("Connection error");
+  };
+
+  newSocket.onclose = (event) => {
+    console.log('WebSocket closed:', event.code, event.reason);
+
+    if (event.code !== 1000 && event.code !== 1001) {
+      setError("Connection lost — reconnecting...");
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectWebSocket();
+      }, 1200);
+    } else {
+      setError(null);
+    }
+  };
+
+  setSocket(newSocket);
+  return newSocket;
+}, [group.id, currentUser?.id, onGroupUpdated, onBack, fetchGroupMembers, onGroupDeleted, searchQuery]);
 
   // Initial load - use cache first
   useEffect(() => {
     if (!group?.id) return;
 
-    // Reset states for new group
     setSearchQuery('');
     setError(null);
     setTyping(false);
 
-    // Check cache first for instant display
     if (messagesCache.has(group.id)) {
       setMessages(messagesCache.get(group.id));
       setFilteredMessages(messagesCache.get(group.id));
     } else {
-      // Only show loading if no cache
       setLoading(true);
     }
 
@@ -397,10 +437,9 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
       setGroupMembers(membersCache.get(group.id));
     }
 
-    // Fetch fresh data in background
     const fetchAll = async () => {
       await Promise.allSettled([
-        loadMessages(true), // Pass true to update loading state if needed
+        loadMessages(true),
         fetchGroupMembers(),
         loadPinnedMessages(),
         fetchProjectMembers()
@@ -409,7 +448,6 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
 
     fetchAll();
 
-    // WebSocket connection
     const ws = connectWebSocket();
 
     return () => {
@@ -455,65 +493,88 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
     }
   };
 
- const sendMessage = async () => {
-  if ((!input.trim() && !file) || sending || !socket || !group?.id) return;
+  const sendMessage = async () => {
+    if ((!input.trim() && !file) || sending || !socket || !group?.id) return;
 
-  setSending(true);
+    setSending(true);
 
-  const tempMessageId = `temp-${Date.now()}`;
-  let fileUrl = null;
+    const tempMessageId = `temp-${Date.now()}`;
+    let fileUrl = null;
 
-  // Optimistic Message
-  const optimisticMessage = {
-    id: tempMessageId,
-    content: input.trim(),
-    file_url: null,
-    sender: currentUser,                    // Use full currentUser object
-    timestamp: new Date().toISOString(),
-    is_own: true,
-    reactions: []
-  };
-
-  // Add optimistic message
-  setMessages(prev => {
-    const updated = [...prev, optimisticMessage];
-    messagesCache.set(group.id, updated);
-    return updated;
-  });
-
-  setFilteredMessages(prev => [...prev, optimisticMessage]);
-
-  // Upload file if any
-  if (file) {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await api.post('/hr/chat/upload-file/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      fileUrl = res.data.url;
-    } catch (err) {
-      console.error('File upload failed:', err);
-    }
-  }
-
-  // Send via WebSocket
-  if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({
-      type: 'chat_message',
+    // STRONG OPTIMISTIC MESSAGE
+    const optimisticMessage = {
+      id: tempMessageId,
       content: input.trim(),
-      file_url: fileUrl,
-      group_id: group.id,
-      temp_id: tempMessageId
-    }));
+      file_url: null,
+      sender: currentUser ? { ...currentUser } : null,
+      timestamp: new Date().toISOString(),
+      is_own: true,
+      reactions: []
+    };
+
+    // Add optimistic message
+    setMessages(prev => {
+      const updated = [...prev, optimisticMessage];
+      messagesCache.set(group.id, updated);
+      return updated;
+    });
+
+    setFilteredMessages(prev => [...prev, optimisticMessage]);
+
+    // Upload file if any
+    if (file) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/hr/chat/upload-file/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        fileUrl = res.data.url;
+      } catch (err) {
+        console.error('File upload failed:', err);
+      }
+    }
+
+    // Send to WebSocket
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'chat_message',
+        content: input.trim(),
+        file_url: fileUrl,
+        group_id: group.id,
+        temp_id: tempMessageId
+      }));
+    }
+
+    setInput('');
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setSending(false);
+  };
+const deleteChatHistory = async () => {
+  if (
+    !window.confirm(
+      "Are you sure? All messages in this chat will be deleted."
+    )
+  )
+    return;
+
+  try {
+    await api.delete(`/hr/chat/groups/${group.id}/clear-chat/`);
+
+    setMessages([]);
+    setFilteredMessages([]);
+    setPinnedMessages([]);
+
+    messagesCache.delete(group.id);
+    pinnedCache.delete(group.id);
+
+    setShowChatMenu(false);
+  } catch (error) {
+    console.error(error);
+    alert("Failed to delete chat history");
   }
-
-  setInput('');
-  setFile(null);
-  if (fileInputRef.current) fileInputRef.current.value = '';
-  setSending(false);
 };
-
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
@@ -717,14 +778,20 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   };
 
   const renderMessage = (msg) => {
-    const isOwn = msg.sender?.id === currentUser?.id;
+    const isOwn = msg.is_own === true || (msg.sender?.id === currentUser?.id);
     const isImage = msg.file_url && msg.file_url.match(/\.(jpg|jpeg|png|gif)$/i);
     const isFile = msg.file_url && !isImage;
     const isOnline = onlineUsers?.includes(msg.sender?.id);
     const isPinned = pinnedMessages.some(pm => pm.id === msg.id);
 
     return (
-      <div key={msg.id} className={`flex gap-3 mb-4 hover:bg-gray-800/10 p-2 rounded-lg transition ${isOwn ? 'flex-row-reverse' : ''}`} id={`message-${msg.id}`}>
+<div
+  id={`message-${msg.id}`}
+  key={msg.id}
+  className={`group relative overflow-visible flex gap-3 mb-4 hover:bg-gray-800/10 p-2 rounded-lg transition ${
+    isOwn ? 'flex-row-reverse' : ''
+  }`}
+>
         <div className="relative flex-shrink-0">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isOwn ? 'bg-gradient-to-br from-cyan-600 to-blue-600' : 'bg-gradient-to-br from-gray-700 to-gray-800'}`}>
             {msg.sender?.photo ? (
@@ -738,11 +805,11 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
           )}
         </div>
 
-        <div className={`flex-1 max-w-[70%] ${isOwn ? 'items-end' : ''}`}>
+        <div className={`flex-1 max-w-[70%] relative ${isOwn ? 'items-end' : ''}`}>
           {!isOwn && (
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-medium text-gray-300">
-                {msg.sender?.full_name || msg.sender?.email || 'Unknown User'}
+                {msg.sender?.full_name || msg.sender?.email || currentUser?.full_name || 'Unknown User'}
               </span>
               {msg.sender?.employee?.designation && (
                 <span className="text-xs px-2 py-0.5 bg-gray-800/50 rounded-full">
@@ -750,13 +817,19 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
                 </span>
               )}
               <span className="text-xs text-gray-500">
-                {formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}
+                {format(new Date(msg.timestamp), 'h:mm a')}
               </span>
               {isPinned && <Pin className="w-3 h-3 text-amber-500" />}
             </div>
           )}
 
-          <div className={`relative rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none' : 'bg-gray-800 text-gray-200 rounded-bl-none'}`}>
+          <div
+  className={`relative overflow-visible rounded-2xl px-4 py-2.5 ${
+    isOwn
+      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none'
+      : 'bg-gray-800 text-gray-200 rounded-bl-none'
+  }`}
+>
             {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
 
             {msg.file_url && (
@@ -783,20 +856,40 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
               </div>
             )}
 
-            <div className={`absolute -bottom-6 ${isOwn ? '-right-2' : '-left-2'} flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity`}>
-              <button onClick={() => reactToMessage(msg.id, '👍')} className="p-1 hover:bg-gray-700 rounded" title="Like">
-                <ThumbsUp className="w-3 h-3 text-gray-400" />
-              </button>
-              <button onClick={() => togglePinMessage(msg.id)} className="p-1 hover:bg-gray-700 rounded" title={isPinned ? "Unpin message" : "Pin message"}>
-                <Pin className={`w-3 h-3 ${isPinned ? 'text-amber-500' : 'text-gray-400'}`} />
-              </button>
-              <button onClick={() => deleteMessage(msg.id)} className="p-1 hover:bg-gray-700 rounded text-red-400" title="Delete">
-                <Trash2 className="w-3 h-3" />
-              </button>
-              <button onClick={() => navigator.clipboard.writeText(msg.content || '')} className="p-1 hover:bg-gray-700 rounded" title="Copy">
-                <Copy className="w-3 h-3 text-gray-400" />
-              </button>
-            </div>
+            <div
+  className={`absolute -bottom-6 ${
+    isOwn ? "-right-2" : "-left-2"
+  } flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}
+>
+  <button
+    onClick={() => reactToMessage(msg.id, "👍")}
+    className="p-1 hover:bg-gray-700 rounded"
+    title="Like"
+  >
+    <ThumbsUp className="w-3 h-3 text-gray-400" />
+  </button>
+
+  <button
+    onClick={() => togglePinMessage(msg.id)}
+    className="p-1 hover:bg-gray-700 rounded"
+    title={isPinned ? "Unpin" : "Pin"}
+  >
+    <Pin
+      className={`w-3 h-3 ${
+        isPinned ? "text-amber-500" : "text-gray-400"
+      }`}
+    />
+  </button>
+<button
+  onClick={() => deleteMessage(msg.id)}
+  className="p-1 hover:bg-red-100 rounded"
+  title="Delete Message"
+>
+  <Trash2 className="w-3 h-3 text-red-500" />
+</button>
+
+  </div>
+</div>
           </div>
 
           {isOwn && (
@@ -806,7 +899,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
             </div>
           )}
         </div>
-      </div>
+      
     );
   };
 
@@ -1193,8 +1286,13 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
     );
   }
 
+  // Get grouped messages
+  const groupedMessages = useMemo(() => {
+    return groupMessagesByDate(searchQuery ? filteredMessages : messages);
+  }, [messages, filteredMessages, searchQuery, groupMessagesByDate]);
+
   return (
-   <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-zinc-200 bg-white sticky top-0 z-20">
         <div className="flex items-center gap-3">
@@ -1276,6 +1374,25 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
               </span>
             )}
           </button>
+          <div className="relative">
+  <button
+    onClick={() => setShowChatMenu(!showChatMenu)}
+    className="p-2 hover:bg-zinc-100 rounded-xl"
+  >
+    <MoreVertical className="w-5 h-5 text-zinc-500" />
+  </button>
+
+  {showChatMenu && (
+    <div className="absolute right-0 mt-2 w-52 bg-white border border-zinc-200 rounded-xl shadow-lg z-50">
+      <button
+        onClick={deleteChatHistory}
+        className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50"
+      >
+        Delete Chat History
+      </button>
+    </div>
+  )}
+</div>
         </div>
       </div>
 
@@ -1327,7 +1444,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
               </button>
             </div>
           </div>
-        ) : filteredMessages.length === 0 ? (
+        ) : groupedMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center">
             <div className="max-w-md text-center">
               <MessageSquare className="w-24 h-24 text-cyan-900/30 mx-auto mb-6" />
@@ -1355,7 +1472,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
             </div>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-6">
             {searchQuery && (
               <div className="mb-6 p-4 bg-gray-800/30 rounded-xl border border-gray-700">
                 <div className="flex items-center justify-between">
@@ -1370,11 +1487,19 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
               </div>
             )}
 
-            <div className="text-center my-8">
-              <span className="px-4 py-1 bg-gray-800 text-gray-400 text-sm rounded-full">Today</span>
-            </div>
-
-            {filteredMessages.map(renderMessage)}
+            {groupedMessages.map((group, index) => (
+              <div key={index}>
+                {/* Date header */}
+                <div className="flex justify-center my-6">
+                  <span className="px-4 py-1 bg-zinc-200 text-zinc-600 text-sm rounded-full font-medium">
+                    {group.header}
+                  </span>
+                </div>
+                
+                {/* Messages for this date */}
+                {group.messages.map(renderMessage)}
+              </div>
+            ))}
           </div>
         )}
 
@@ -1415,22 +1540,61 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
             <AtSign className="w-5 h-5" />
           </button>
 
-          <div className="flex-1 relative">
+          <div className="flex-1 relative min-w-0">
             <textarea
               value={input}
-              onChange={(e) => { setInput(e.target.value); handleTyping(); }}
+              onChange={(e) => {
+                setInput(e.target.value);
+                handleTyping();
+              }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   sendMessage();
                 }
               }}
               placeholder={`Message ${group.name}...`}
-              className="w-full bg-white border border-zinc-200 rounded-2xl px-5 py-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-zinc-800 placeholder-zinc-400"
-              rows="1"
+              className="
+                w-full
+                min-h-[44px]
+                max-h-32
+                bg-white
+                border
+                border-zinc-200
+                rounded-2xl
+                px-4
+                md:px-5
+                py-3
+                pr-4
+                md:pr-12
+                resize-none
+                overflow-y-auto
+                focus:outline-none
+                focus:ring-2
+                focus:ring-blue-500
+                focus:border-blue-500
+                text-zinc-800
+                placeholder-zinc-400
+                text-sm
+                md:text-base
+                touch-auto
+              "
+              rows={1}
               disabled={sending}
             />
-            <div className="absolute right-4 bottom-3 text-xs text-zinc-400">Shift+Enter for new line</div>
+
+            <div className="
+                hidden
+                lg:block
+                absolute
+                right-4
+                bottom-3
+                text-xs
+                text-zinc-400
+                pointer-events-none
+            ">
+              Shift+Enter for new line
+            </div>
           </div>
 
           <button

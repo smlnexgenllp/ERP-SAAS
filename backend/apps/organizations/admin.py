@@ -3,7 +3,9 @@
 from django.contrib import admin
 from .models import Organization, TrainingVideo, TrainingCompletion
 
+from .models import OrganizationFeature
 
+admin.site.register(OrganizationFeature)
 @admin.register(TrainingVideo)
 class TrainingVideoAdmin(admin.ModelAdmin):
     list_display = ['id', 'title', 'organization', 'created_at']  # Customize fields you want to see

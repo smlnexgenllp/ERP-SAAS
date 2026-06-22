@@ -957,3 +957,26 @@ def get_suborg_user_role(request):
         return Response({"role": org_user.role})
     except Exception as e:
         return Response({"role": None, "error": str(e)}, status=500)
+
+from apps.organizations.models import OrganizationFeature
+from apps.organizations.serializers import OrganizationFeatureSerializer
+
+class OrganizationFeatureView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        organization = get_user_organization(request.user)
+
+        if not organization:
+            return Response(
+                {"error": "Organization not found"},
+                status=404
+            )
+
+        feature, _ = OrganizationFeature.objects.get_or_create(
+            organization=organization
+        )
+
+        serializer = OrganizationFeatureSerializer(feature)
+
+        return Response(serializer.data)
