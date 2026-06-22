@@ -14,32 +14,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         close_old_connections() 
         self.user = self.scope["user"]
-
-        # Extract group_id early
         self.group_id = self.scope["url_route"]["kwargs"].get("group_id")
+
         if not self.group_id:
-            await self.close(code=4000)  # Bad request
+            await self.close(code=4000)
             return
 
         self.room_group_name = f"chat_{self.group_id}"
 
-        # Case 1: User not authenticated
         if not self.user.is_authenticated:
             await self.accept()
-            await self.close(code=4001)  # Unauthorized
+            await self.close(code=4001)
             return
 
-        # # Case 2: User not a member of the group
-        # if not await self.is_member():
-        #     await self.accept()  # Accept first to allow clean close frame
-        #     await self.close(code=4003)  # Forbidden: not a group member
-        #     return
-
-        # Success: User is authenticated and member
+        # Join group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        # Mark messages as read and broadcast presence
+        # Mark as read + presence
         await self.mark_as_read()
         await self.broadcast_presence(action="join")
 
@@ -50,7 +42,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.broadcast_presence(action="leave")
                 await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         except Exception as e:
-            print(f"[Chat] Error during disconnect: {e}")
+            print(f"[Chat] Disconnect error: {e}")
+        finally:
+            close_old_connections()  # Extra safety
 
 
     async def receive(self, text_data):
@@ -62,6 +56,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         msg_type = data.get("type")
 
         if msg_type == "chat_message":
+            temp_id = data.get("temp_id")
             message = await self.save_message(
                 content=data.get("content", ""),
                 file_url=data.get("file_url"),
@@ -73,6 +68,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     {
                         "type": "chat.message",
                         "message": message,
+                        "temp_id": temp_id
                     }
                 )
 
@@ -86,12 +82,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Filter private messages
         if message.get("is_private"):
             recipient_ids = message.get("private_recipient_ids", [])
-            if self.user.id not in recipient_ids and self.user.id != message["sender_id"]:
-                return  # Don't send to non-recipients
+            if self.user.id not in recipient_ids and self.user.id != message.get("sender", {}).get("id"):
+                return
 
         await self.send(text_data=json.dumps({
             "type": "new_message",
-            "message": message
+            "message": message,
+            "temp_id": event.get("temp_id")
+            # Optionally still send temp_id if you want to keep it
         }))
 
     async def broadcast_presence(self, action: str = "join"):
@@ -156,25 +154,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             group = ChatGroup.objects.get(id=self.group_id)
 
-            # Clean content
             content = (content or "").strip()
 
-            # Create message — use 'file' field with the URL string
             message = Message.objects.create(
                 group=group,
                 sender=self.user,
                 content=content,
-                file=file_url,  # ← Save URL string to FileField (Django allows it)
+                file=file_url,
                 is_private=bool(private_to),
             )
 
-            print(f"[Chat] Message created successfully: ID={message.id}, content='{content}', file_url='{file_url}'")
-
             if private_to:
                 message.private_recipients.set(private_to)
-                print(f"[Chat] Private recipients set: {private_to}")
 
-            # Unread messages
+            # Unread messages for others
             members = group.get_members().exclude(id=self.user.id)
             unread_objs = []
             for member in members:
@@ -184,30 +177,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if unread_objs:
                 UnreadMessage.objects.bulk_create(unread_objs, ignore_conflicts=True)
-                print(f"[Chat] Created {len(unread_objs)} unread markers")
 
-            # Sender info
+            # === CRITICAL: Full sender object for frontend ===
             employee = getattr(self.user, "employee", None)
 
             response_data = {
                 "id": message.id,
                 "content": message.content,
                 "file_url": file_url if file_url else None,
-                "sender_id": self.user.id,
-                "sender_name": employee.full_name if employee else self.user.email,
-                "sender_photo": employee.photo.url if employee and employee.photo else None,
                 "timestamp": message.timestamp.isoformat(),
                 "is_private": message.is_private,
                 "private_recipient_ids": list(message.private_recipients.values_list("id", flat=True)),
+                
+                # Full sender object (this is what frontend expects)
+                "sender": {
+                    "id": self.user.id,
+                    "full_name": employee.full_name if employee else self.user.get_full_name() or self.user.email,
+                    "email": self.user.email,
+                    "photo": employee.photo.url if employee and hasattr(employee, 'photo') and employee.photo else None,
+                }
             }
 
-            print(f"[Chat] Broadcasting message ID {message.id}")
+            print(f"[Chat] Message broadcasted with full sender: {response_data['sender']}")
             return response_data
 
         except Exception as e:
             print(f"[Chat] FAILED to save message: {type(e).__name__}: {e}")
             import traceback
-            traceback.print_exc()  # Print full stack trace
+            traceback.print_exc()
             return None
 
     @database_sync_to_async

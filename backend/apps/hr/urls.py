@@ -34,7 +34,7 @@ from .views.payslip_views import(
     generate_payslip_pdf,
 )
 from .views.task_views import TaskViewSet, DailyChecklistViewSet,performance_report, project_updates,ProjectViewSet,DailyTLReportViewSet
-from .views.chat_views import (ChatGroupViewSet,  group_messages, upload_chat_file, create_custom_chat_group,get_project_chat_members,get_pinned_messages,update_chat_group,
+from .views.chat_views import (ChatGroupViewSet, clear_chat, delete_message,  group_messages, upload_chat_file, create_custom_chat_group,get_project_chat_members,get_pinned_messages,update_chat_group,
     delete_chat_group,
     add_member_to_group,
     remove_member_from_group,get_chat_group_members,get_organization_users,
@@ -100,6 +100,16 @@ urlpatterns = [
     path('chat/groups/<int:group_id>/add-member/', add_member_to_group, name='add-group-member'),
     path('chat/groups/<int:group_id>/remove-member/', remove_member_from_group, name='remove-group-member'),
      # New endpoint to get project chat members
+    path(
+    "chat/messages/<int:message_id>/",
+    delete_message,
+    name="delete-message"
+),
+    path(
+    'chat/groups/<int:group_id>/clear-chat/',
+    clear_chat,
+    name='clear-chat'
+),
     path('projects/<int:project_id>/chat-members/', get_project_chat_members, name='project-chat-members'),
     path('chat/groups/<int:group_id>/pinned/', get_pinned_messages, name='chat-pinned-messages'),
     path('daily-checklists/<int:pk>/rate/', DailyChecklistViewSet.as_view({'patch': 'rate'}), name='dailychecklist-rate'),

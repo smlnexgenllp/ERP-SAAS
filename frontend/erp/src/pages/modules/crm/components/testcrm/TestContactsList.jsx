@@ -12,7 +12,10 @@ import {
   Edit2,
   Trash2,
 } from 'lucide-react';
+import {
 
+  MessageCircle,
+} from 'lucide-react';
 const TestContactsList = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -195,7 +198,7 @@ const TestContactsList = () => {
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4 opacity-70 group-hover:opacity-100 transition">
                         <button
-                          onClick={() => navigate(`/crm/contacts-test/${contact.id}`)}
+                          onClick={() => navigate(`/crm/contacts/${contact.id}`)}
                           className="flex items-center gap-1.5 text-zinc-600 hover:text-zinc-900 transition"
                         >
                           <Eye className="w-4 h-4" />
@@ -209,7 +212,30 @@ const TestContactsList = () => {
                           <Edit2 className="w-4 h-4" />
                           <span className="text-sm font-medium">Edit</span>
                         </button>
+ {contact.whatsapp_link && (
+      <button
+  onClick={() => {
+    const phone = (contact.mobile || contact.phone || "").replace(/\D/g, "");
 
+    const message = `Hi ${contact.first_name},
+
+This is ${user?.first_name || "our team"} from SML Nexgen.
+
+Hope you're doing well. We'd like to connect with you regarding our services.
+
+Thank you.`;
+
+    window.open(
+      `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`,
+      "_blank"
+    );
+  }}
+  className="flex items-center gap-1 text-green-500 hover:text-green-600 transition"
+>
+  <MessageCircle size={16} />
+  WhatsApp
+</button>
+    )}
                         <button
                           onClick={() => handleDelete(contact.id)}
                           className="flex items-center gap-1.5 text-red-500 hover:text-red-600 transition"

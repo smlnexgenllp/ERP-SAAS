@@ -3,6 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "../../../../context/AuthContext";
 import {
+
+  MessageCircle,
+} from 'lucide-react';
+import {
   ArrowLeft,
   Users,
 } from 'lucide-react';
@@ -159,6 +163,16 @@ const ContactsList = () => {
                     >
                       Edit
                     </button>
+                      {contact.whatsapp_link && (
+      <button
+        onClick={() => window.open(contact.whatsapp_link, "_blank")}
+        className="flex items-center gap-1 text-green-400 hover:text-green-300 transition"
+        title="Open WhatsApp"
+      >
+        <MessageCircle size={16} />
+        WhatsApp
+      </button>
+    )}
                     <button
                       onClick={() => handleDelete(contact.id)}
                       className="text-red-400 hover:text-red-300 transition"

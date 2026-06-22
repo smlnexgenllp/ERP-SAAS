@@ -12,6 +12,7 @@ import {
   PhoneCall,
   ArrowLeft,
   AlertCircle,
+  Clock,
 } from "lucide-react";
 
 const TestContactDetail = () => {
@@ -26,6 +27,7 @@ const TestContactDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [timeline, setTimeline] = useState([]);
 
   const token = localStorage.getItem("token") || "";
 
@@ -60,10 +62,56 @@ const TestContactDetail = () => {
       setLoading(false);
     }
   };
+  const fetchTimeline = async () => {
+  try {
+    const [callRes, oppRes] = await Promise.all([
+      fetch("/api/crm/call-logs/", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+      fetch("/api/crm/opportunities/", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+    ]);
 
-  useEffect(() => {
-    fetchContact();
-  }, [cleanId]);
+    const callData = await callRes.json();
+    const oppData = await oppRes.json();
+
+    const contactCalls = (callData.results || callData)
+      .filter((c) => String(c.contact) === String(cleanId))
+      .map((c) => ({
+        type: "call",
+        date: c.call_time,
+        title: `Call - ${c.result}`,
+        notes: c.notes,
+      }));
+
+    const contactOpps = (oppData.results || oppData)
+      .filter((o) => String(o.contact) === String(cleanId))
+      .map((o) => ({
+        type: "opportunity",
+        date: o.created_at,
+        title: `Opportunity Created`,
+        notes: o.title,
+      }));
+
+    const merged = [...contactCalls, ...contactOpps].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+
+    setTimeline(merged);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+ useEffect(() => {
+  fetchContact();
+  fetchTimeline();
+}, [cleanId]);
 
   const updateContact = async (patchData, optimisticUpdate = null) => {
     setUpdating(true);
@@ -168,6 +216,35 @@ const TestContactDetail = () => {
     };
     return styles[status?.toLowerCase()] || "bg-zinc-100 text-zinc-700";
   };
+  const convertToCustomer = async () => {
+  if (!window.confirm("Add this contact as customer?")) return;
+
+  try {
+    const res = await fetch(
+      `/api/crm/contacts/${cleanId}/convert_to_customer/`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCsrfToken(),
+        },
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.detail || "Failed");
+    }
+
+    setMessage("Customer created successfully");
+
+    navigate(`/crm/customers/${data.customer_id}`);
+  } catch (err) {
+    setError(err.message);
+  }
+};
 
   const canMoveToSales = ["interested", "qualified"].includes(contact?.status?.toLowerCase() || "");
 
@@ -330,15 +407,25 @@ const TestContactDetail = () => {
                 Mark as Interested
               </button>
 
-              {canMoveToSales && (
-                <button
-                  onClick={moveToSalesTeam}
-                  disabled={updating}
-                  className="px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-2xl font-medium transition disabled:opacity-50"
-                >
-                  {updating ? "Moving..." : "Move to Sales Team"}
-                </button>
-              )}
+             {contact.can_direct_convert ? (
+  <button
+    onClick={convertToCustomer}
+    disabled={updating}
+    className="px-6 py-3 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-2xl font-medium transition"
+  >
+    Add As Customer
+  </button>
+) : (
+  canMoveToSales && (
+    <button
+      onClick={moveToSalesTeam}
+      disabled={updating}
+      className="px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-2xl font-medium transition"
+    >
+      Move To Sales Team
+    </button>
+  )
+)}
             </div>
           </div>
 
@@ -366,6 +453,42 @@ const TestContactDetail = () => {
             </div>
           </div>
         </div>
+        {/* Timeline */}
+<div className="bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm mb-8">
+  <div className="flex items-center gap-3 mb-6">
+    <Clock className="w-5 h-5 text-zinc-500" />
+    <h2 className="text-xl font-semibold">Activity Timeline</h2>
+  </div>
+
+  {timeline.length === 0 ? (
+    <p className="text-zinc-500">
+      No activities available.
+    </p>
+  ) : (
+    <div className="space-y-4">
+      {timeline.map((item, index) => (
+        <div
+          key={index}
+          className="border-l-2 border-zinc-300 pl-4 py-2"
+        >
+          <p className="font-medium text-zinc-900">
+            {item.title}
+          </p>
+
+          <p className="text-sm text-zinc-500">
+            {new Date(item.date).toLocaleString("en-IN")}
+          </p>
+
+          {item.notes && (
+            <p className="text-zinc-700 mt-1">
+              {item.notes}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4">

@@ -303,7 +303,12 @@ class TrainingVideoSerializer(serializers.ModelSerializer):
         model = TrainingVideo
         fields = "__all__"
         read_only_fields = ("organization", "uploaded_by")
+from apps.organizations.models import OrganizationFeature
 
+class OrganizationFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrganizationFeature
+        fields = "__all__"
 
 
 

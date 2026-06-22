@@ -26,16 +26,28 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ContactSerializer(serializers.ModelSerializer):
-
     full_name = serializers.ReadOnlyField()
+    whatsapp_link = serializers.SerializerMethodField()
+    can_direct_convert = serializers.SerializerMethodField()
 
     class Meta:
         model = Contact
         fields = '__all__'
-        extra_kwargs = {
-            'organization': {'required': False},
-            'created_by': {'required': False},
-        }
+
+    def get_can_direct_convert(self, obj):
+        try:
+            return obj.organization.features.crm_direct_customer_conversion
+        except:
+            return False
+
+    def get_whatsapp_link(self, obj):
+        phone = obj.mobile or obj.phone
+
+        if not phone:
+            return None
+
+        phone = ''.join(filter(str.isdigit, phone))
+        return f"https://wa.me/91{phone}"
 
     def create(self, validated_data):
         request = self.context['request']
@@ -43,7 +55,15 @@ class ContactSerializer(serializers.ModelSerializer):
         validated_data['created_by'] = request.user
         return super().create(validated_data)
 
+class ActivitySerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(
+        source="created_by.username",
+        read_only=True
+    )
 
+    class Meta:
+        model = Activity
+        fields = "__all__"
 class OpportunitySerializer(serializers.ModelSerializer):
     contact_name = serializers.CharField(source='contact.full_name', read_only=True)
     contact_email = serializers.EmailField(source='contact.email', read_only=True)

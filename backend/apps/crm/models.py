@@ -176,10 +176,20 @@ class Activity(models.Model):
     """
     Tracks activities like calls, emails, meetings for opportunities.
     """
+    contact = models.ForeignKey(
+        Contact,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="activities"
+    )
+
     opportunity = models.ForeignKey(
         Opportunity,
         on_delete=models.CASCADE,
-        related_name='activities'
+        null=True,
+        blank=True,
+        related_name="activities"
     )
     type = models.CharField(
         max_length=50,
@@ -189,6 +199,7 @@ class Activity(models.Model):
             ('meeting', 'Meeting'),
             ('note', 'Note'),
             ('task', 'Task'),
+            ('whatsapp', 'WhatsApp'),
         ]
     )
     date = models.DateTimeField(default=timezone.now)
