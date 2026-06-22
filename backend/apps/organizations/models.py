@@ -21,6 +21,7 @@ class Organization(models.Model):
     
     is_active = models.BooleanField(default=True)
     
+    
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -46,7 +47,25 @@ class Organization(models.Model):
     class Meta:
         verbose_name = "Organization"
         verbose_name_plural = "Organizations"
+class OrganizationFeature(models.Model):
+    organization = models.OneToOneField(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="features"
+    )
 
+    crm_whatsapp_button = models.BooleanField(default=False)
+    crm_kanban_pipeline = models.BooleanField(default=False)
+    crm_lead_scoring = models.BooleanField(default=False)
+    crm_activity_timeline = models.BooleanField(default=False)
+    crm_advanced_reports = models.BooleanField(default=False)
+    crm_duplicate_lead_check = models.BooleanField(default=False)
+    crm_pdf_quotation = models.BooleanField(default=False)
+    crm_direct_customer_conversion = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Features - {self.organization.name}"
 class OrganizationUser(models.Model):
     ROLE_CHOICES = (
         ("Admin", "Admin"),

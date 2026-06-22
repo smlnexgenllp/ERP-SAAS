@@ -41,6 +41,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const [activeTab, setActiveTab] = useState('chat');
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [showPinned, setShowPinned] = useState(false);
+  const [activeMenu, setActiveMenu] = useState(null);
 
   // State for group management
   const [showEditModal, setShowEditModal] = useState(false);
@@ -49,7 +50,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
   const [groupMembers, setGroupMembers] = useState([]);
   const [isCreator, setIsCreator] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
+const [showChatMenu, setShowChatMenu] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -550,7 +551,30 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
     if (fileInputRef.current) fileInputRef.current.value = '';
     setSending(false);
   };
+const deleteChatHistory = async () => {
+  if (
+    !window.confirm(
+      "Are you sure? All messages in this chat will be deleted."
+    )
+  )
+    return;
 
+  try {
+    await api.delete(`/hr/chat/groups/${group.id}/clear-chat/`);
+
+    setMessages([]);
+    setFilteredMessages([]);
+    setPinnedMessages([]);
+
+    messagesCache.delete(group.id);
+    pinnedCache.delete(group.id);
+
+    setShowChatMenu(false);
+  } catch (error) {
+    console.error(error);
+    alert("Failed to delete chat history");
+  }
+};
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
@@ -761,7 +785,13 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
     const isPinned = pinnedMessages.some(pm => pm.id === msg.id);
 
     return (
-      <div key={msg.id} className={`flex gap-3 mb-4 hover:bg-gray-800/10 p-2 rounded-lg transition ${isOwn ? 'flex-row-reverse' : ''}`} id={`message-${msg.id}`}>
+<div
+  id={`message-${msg.id}`}
+  key={msg.id}
+  className={`group relative overflow-visible flex gap-3 mb-4 hover:bg-gray-800/10 p-2 rounded-lg transition ${
+    isOwn ? 'flex-row-reverse' : ''
+  }`}
+>
         <div className="relative flex-shrink-0">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isOwn ? 'bg-gradient-to-br from-cyan-600 to-blue-600' : 'bg-gradient-to-br from-gray-700 to-gray-800'}`}>
             {msg.sender?.photo ? (
@@ -775,7 +805,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
           )}
         </div>
 
-        <div className={`flex-1 max-w-[70%] ${isOwn ? 'items-end' : ''}`}>
+        <div className={`flex-1 max-w-[70%] relative ${isOwn ? 'items-end' : ''}`}>
           {!isOwn && (
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-medium text-gray-300">
@@ -793,7 +823,13 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
             </div>
           )}
 
-          <div className={`relative rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none' : 'bg-gray-800 text-gray-200 rounded-bl-none'}`}>
+          <div
+  className={`relative overflow-visible rounded-2xl px-4 py-2.5 ${
+    isOwn
+      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none'
+      : 'bg-gray-800 text-gray-200 rounded-bl-none'
+  }`}
+>
             {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
 
             {msg.file_url && (
@@ -820,20 +856,40 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
               </div>
             )}
 
-            <div className={`absolute -bottom-6 ${isOwn ? '-right-2' : '-left-2'} flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity`}>
-              <button onClick={() => reactToMessage(msg.id, '👍')} className="p-1 hover:bg-gray-700 rounded" title="Like">
-                <ThumbsUp className="w-3 h-3 text-gray-400" />
-              </button>
-              <button onClick={() => togglePinMessage(msg.id)} className="p-1 hover:bg-gray-700 rounded" title={isPinned ? "Unpin message" : "Pin message"}>
-                <Pin className={`w-3 h-3 ${isPinned ? 'text-amber-500' : 'text-gray-400'}`} />
-              </button>
-              <button onClick={() => deleteMessage(msg.id)} className="p-1 hover:bg-gray-700 rounded text-red-400" title="Delete">
-                <Trash2 className="w-3 h-3" />
-              </button>
-              <button onClick={() => navigator.clipboard.writeText(msg.content || '')} className="p-1 hover:bg-gray-700 rounded" title="Copy">
-                <Copy className="w-3 h-3 text-gray-400" />
-              </button>
-            </div>
+            <div
+  className={`absolute -bottom-6 ${
+    isOwn ? "-right-2" : "-left-2"
+  } flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}
+>
+  <button
+    onClick={() => reactToMessage(msg.id, "👍")}
+    className="p-1 hover:bg-gray-700 rounded"
+    title="Like"
+  >
+    <ThumbsUp className="w-3 h-3 text-gray-400" />
+  </button>
+
+  <button
+    onClick={() => togglePinMessage(msg.id)}
+    className="p-1 hover:bg-gray-700 rounded"
+    title={isPinned ? "Unpin" : "Pin"}
+  >
+    <Pin
+      className={`w-3 h-3 ${
+        isPinned ? "text-amber-500" : "text-gray-400"
+      }`}
+    />
+  </button>
+<button
+  onClick={() => deleteMessage(msg.id)}
+  className="p-1 hover:bg-red-100 rounded"
+  title="Delete Message"
+>
+  <Trash2 className="w-3 h-3 text-red-500" />
+</button>
+
+  </div>
+</div>
           </div>
 
           {isOwn && (
@@ -843,7 +899,7 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
             </div>
           )}
         </div>
-      </div>
+      
     );
   };
 
@@ -1318,6 +1374,25 @@ const ChatWindow = ({ group, currentUser, onBack, onGroupUpdated, onGroupDeleted
               </span>
             )}
           </button>
+          <div className="relative">
+  <button
+    onClick={() => setShowChatMenu(!showChatMenu)}
+    className="p-2 hover:bg-zinc-100 rounded-xl"
+  >
+    <MoreVertical className="w-5 h-5 text-zinc-500" />
+  </button>
+
+  {showChatMenu && (
+    <div className="absolute right-0 mt-2 w-52 bg-white border border-zinc-200 rounded-xl shadow-lg z-50">
+      <button
+        onClick={deleteChatHistory}
+        className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50"
+      >
+        Delete Chat History
+      </button>
+    </div>
+  )}
+</div>
         </div>
       </div>
 

@@ -1153,3 +1153,51 @@ def get_all_chat_users(request):
             {"error": "Failed to fetch users"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )              
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_message(request, message_id):
+    try:
+        message = Message.objects.get(id=message_id)
+
+        # sender மட்டும் delete பண்ணலாம்
+        if message.sender != request.user:
+            return Response(
+                {"error": "You can only delete your own messages"},
+                status=403
+            )
+
+        message.delete()
+
+        return Response({
+            "message": "Message deleted successfully"
+        })
+
+    except Message.DoesNotExist:
+        return Response(
+            {"error": "Message not found"},
+            status=404
+        )
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def clear_chat(request, group_id):
+    try:
+        group = ChatGroup.objects.get(id=group_id)
+
+        if not group.user_is_member(request.user):
+            return Response(
+                {"error": "Access denied"},
+                status=403
+            )
+
+        Message.objects.filter(group=group).delete()
+
+        return Response({
+            "success": True,
+            "message": "Chat history deleted"
+        })
+
+    except ChatGroup.DoesNotExist:
+        return Response(
+            {"error": "Group not found"},
+            status=404
+        )
