@@ -10,6 +10,8 @@ import {
   Edit,
   Trash2,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import api from "../../../services/api";
@@ -24,6 +26,10 @@ export default function FuelEntryList() {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   const [form, setForm] = useState({
     vehicle: "",
@@ -52,6 +58,7 @@ export default function FuelEntryList() {
       setFuelEntries(fuelRes.data || []);
       setVehicles(vehicleRes.data || []);
       setTrips(tripRes.data || []);
+      setCurrentPage(1); // Reset to first page when data is refreshed
     } catch (error) {
       console.error(error);
     } finally {
@@ -102,7 +109,6 @@ export default function FuelEntryList() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     try {
       if (isEditing && selectedEntry) {
         await api.put(`/transport/fuel-entries/${selectedEntry.id}/`, form);
@@ -111,7 +117,6 @@ export default function FuelEntryList() {
         await api.post("/transport/fuel-entries/", form);
         alert("Fuel Entry Added Successfully!");
       }
-
       closeModal();
       fetchData();
     } catch (err) {
@@ -122,7 +127,6 @@ export default function FuelEntryList() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this fuel entry?")) return;
-
     try {
       await api.delete(`/transport/fuel-entries/${id}/`);
       alert("Fuel Entry Deleted Successfully!");
@@ -134,19 +138,31 @@ export default function FuelEntryList() {
   };
 
   const goBack = () => {
-    window.history.back(); // Or use navigate('/transport') if you prefer
+    window.history.back();
   };
 
+  // Filter entries based on search
   const filteredEntries = fuelEntries.filter((entry) =>
     `${entry.vehicle_name || ""} ${entry.fuel_station || ""} ${entry.trip_number || ""}`
       .toLowerCase()
       .includes(search.toLowerCase())
   );
 
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredEntries.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedEntries = filteredEntries.slice(startIndex, startIndex + itemsPerPage);
+
   const totalFuelCost = fuelEntries.reduce(
     (sum, item) => sum + Number(item.amount || 0),
     0
   );
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   return (
     <div className="flex-1 p-8 bg-zinc-100 min-h-screen">
@@ -161,8 +177,8 @@ export default function FuelEntryList() {
               <ArrowLeft size={24} className="text-zinc-600" />
             </button>
 
-            <div className="w-14 h-14 rounded-3xl bg-yellow-100 flex items-center justify-center">
-              <Fuel className="w-7 h-7 text-yellow-700" />
+            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-md">
+              <Fuel className="w-7 h-7 text-white" strokeWidth={2.5} />
             </div>
             <div>
               <h1 className="text-3xl font-bold">Fuel Entries</h1>
@@ -172,7 +188,7 @@ export default function FuelEntryList() {
 
           <button
             onClick={openCreateModal}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-5 py-3 rounded-2xl flex items-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl flex items-center gap-2"
           >
             <Plus size={18} />
             Add Fuel Entry
@@ -180,7 +196,7 @@ export default function FuelEntryList() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-6 mb-6">
         <div className="bg-white p-6 rounded-3xl border">
           <p className="text-zinc-500">Total Entries</p>
@@ -198,7 +214,7 @@ export default function FuelEntryList() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Main Table Card */}
       <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
         <div className="p-6 border-b flex justify-between items-center">
           <h2 className="text-2xl font-bold">Fuel Entry Master</h2>
@@ -209,11 +225,17 @@ export default function FuelEntryList() {
                 type="text"
                 placeholder="Search vehicle or station..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1); // Reset to page 1 on search
+                }}
                 className="pl-10 pr-4 py-3 border rounded-2xl w-80"
               />
             </div>
-            <button onClick={fetchData} className="border px-4 rounded-2xl hover:bg-zinc-50">
+            <button
+              onClick={fetchData}
+              className="border px-4 rounded-2xl hover:bg-zinc-50 transition"
+            >
               <RefreshCw size={18} />
             </button>
           </div>
@@ -235,53 +257,113 @@ export default function FuelEntryList() {
               </tr>
             </thead>
             <tbody>
-              {filteredEntries.map((entry) => (
-                <tr key={entry.id} className="border-t hover:bg-zinc-50">
-                  <td className="p-4 font-medium">
-                    <div className="flex items-center gap-2">
-                      <Truck size={16} />
-                      {entry.vehicle_name}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    {entry.trip_number ? (
-                      <span className="font-medium text-blue-600">{entry.trip_number}</span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="p-4">{entry.fuel_date}</td>
-                  <td className="p-4">{entry.liters}</td>
-                  <td className="p-4">₹ {entry.rate_per_liter}</td>
-                  <td className="p-4 font-semibold text-green-700">₹ {entry.amount}</td>
-                  <td className="p-4">{entry.fuel_station || "—"}</td>
-                  <td className="p-4">{entry.odometer_reading || "—"}</td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => openEditModal(entry)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl"
-                        title="Edit"
-                      >
-                        <Edit size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(entry.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-xl"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan="9" className="p-12 text-center text-zinc-500">
+                    Loading fuel entries...
                   </td>
                 </tr>
-              ))}
+              ) : paginatedEntries.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="p-12 text-center text-zinc-500">
+                    No fuel entries found.
+                  </td>
+                </tr>
+              ) : (
+                paginatedEntries.map((entry) => (
+                  <tr key={entry.id} className="border-t hover:bg-zinc-50">
+                    <td className="p-4 font-medium">
+                      <div className="flex items-center gap-2">
+                        <Truck size={16} />
+                        {entry.vehicle_name}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      {entry.trip_number ? (
+                        <span className="font-medium text-blue-600">{entry.trip_number}</span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="p-4">{entry.fuel_date}</td>
+                    <td className="p-4">{entry.liters}</td>
+                    <td className="p-4">₹ {entry.rate_per_liter}</td>
+                    <td className="p-4 font-semibold text-green-700">₹ {entry.amount}</td>
+                    <td className="p-4">{entry.fuel_station || "—"}</td>
+                    <td className="p-4">{entry.odometer_reading || "—"}</td>
+                    <td className="p-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openEditModal(entry)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl"
+                          title="Edit"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {filteredEntries.length > 0 && (
+          <div className="px-6 py-4 border-t bg-zinc-50 flex items-center justify-between">
+            <div className="text-sm text-zinc-600">
+              Showing {startIndex + 1} to{" "}
+              {Math.min(startIndex + itemsPerPage, filteredEntries.length)} of{" "}
+              {filteredEntries.length} entries
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-3 border rounded-2xl hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => goToPage(pageNum)}
+                    className={`px-4 py-2 rounded-2xl text-sm font-medium transition ${
+                      currentPage === pageNum
+                        ? "bg-blue-600 text-white"
+                        : "border hover:bg-white"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-3 border rounded-2xl hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Create/Edit Modal with Field Labels */}
+      {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
           <div className="bg-white rounded-3xl p-8 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -289,7 +371,10 @@ export default function FuelEntryList() {
               <h2 className="text-2xl font-bold">
                 {isEditing ? "Edit Fuel Entry" : "Add Fuel Entry"}
               </h2>
-              <button onClick={closeModal}>
+              <button
+                onClick={closeModal}
+                className="text-zinc-400 hover:text-zinc-600 transition"
+              >
                 <X size={24} />
               </button>
             </div>
@@ -299,7 +384,7 @@ export default function FuelEntryList() {
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Vehicle *</label>
                 <select
                   required
-                  className="border p-3 rounded-xl w-full"
+                  className="border p-3 rounded-xl w-full focus:ring-2 focus:ring-blue-500"
                   value={form.vehicle}
                   onChange={(e) => setForm({ ...form, vehicle: e.target.value })}
                 >
@@ -315,7 +400,7 @@ export default function FuelEntryList() {
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Trip (Optional)</label>
                 <select
-                  className="border p-3 rounded-xl w-full"
+                  className="border p-3 rounded-xl w-full focus:ring-2 focus:ring-blue-500"
                   value={form.trip}
                   onChange={(e) => setForm({ ...form, trip: e.target.value })}
                 >
@@ -333,7 +418,7 @@ export default function FuelEntryList() {
                 <input
                   type="date"
                   required
-                  className="border p-3 rounded-xl w-full"
+                  className="border p-3 rounded-xl w-full focus:ring-2 focus:ring-blue-500"
                   value={form.fuel_date}
                   onChange={(e) => setForm({ ...form, fuel_date: e.target.value })}
                 />
@@ -346,7 +431,7 @@ export default function FuelEntryList() {
                   step="0.01"
                   placeholder="Liters"
                   required
-                  className="border p-3 rounded-xl w-full"
+                  className="border p-3 rounded-xl w-full focus:ring-2 focus:ring-blue-500"
                   value={form.liters}
                   onChange={(e) => setForm({ ...form, liters: e.target.value })}
                 />
@@ -359,7 +444,7 @@ export default function FuelEntryList() {
                   step="0.01"
                   placeholder="Rate Per Liter"
                   required
-                  className="border p-3 rounded-xl w-full"
+                  className="border p-3 rounded-xl w-full focus:ring-2 focus:ring-blue-500"
                   value={form.rate_per_liter}
                   onChange={(e) => setForm({ ...form, rate_per_liter: e.target.value })}
                 />
@@ -369,7 +454,7 @@ export default function FuelEntryList() {
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Fuel Station</label>
                 <input
                   placeholder="Fuel Station"
-                  className="border p-3 rounded-xl w-full"
+                  className="border p-3 rounded-xl w-full focus:ring-2 focus:ring-blue-500"
                   value={form.fuel_station}
                   onChange={(e) => setForm({ ...form, fuel_station: e.target.value })}
                 />
@@ -380,7 +465,7 @@ export default function FuelEntryList() {
                 <input
                   type="number"
                   placeholder="Odometer Reading"
-                  className="border p-3 rounded-xl w-full"
+                  className="border p-3 rounded-xl w-full focus:ring-2 focus:ring-blue-500"
                   value={form.odometer_reading}
                   onChange={(e) => setForm({ ...form, odometer_reading: e.target.value })}
                 />
@@ -391,7 +476,7 @@ export default function FuelEntryList() {
                 <textarea
                   rows="4"
                   placeholder="Additional notes..."
-                  className="border p-3 rounded-xl w-full"
+                  className="border p-3 rounded-xl w-full focus:ring-2 focus:ring-blue-500"
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 />
@@ -399,7 +484,7 @@ export default function FuelEntryList() {
 
               <button
                 type="submit"
-                className="bg-yellow-600 text-white py-3 rounded-xl col-span-2 font-medium hover:bg-yellow-700 mt-4"
+                className="bg-blue-600 text-white py-3 rounded-xl col-span-2 font-medium hover:bg-blue-700 mt-4 transition"
               >
                 {isEditing ? "Update Fuel Entry" : "Save Fuel Entry"}
               </button>

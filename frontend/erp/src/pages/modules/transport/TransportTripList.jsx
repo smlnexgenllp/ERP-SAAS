@@ -1,7 +1,10 @@
 // components/transport/TransportTripList.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit2, X, Clock, Gauge } from "lucide-react";
+import { 
+  ArrowLeft, Edit2, X, Clock, Gauge, Search, RefreshCw, 
+  ChevronLeft, ChevronRight, Truck 
+} from "lucide-react";
 import api from "../../../services/api";
 
 const TransportTripList = () => {
@@ -12,6 +15,11 @@ const TransportTripList = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
+
+  // Search & Pagination
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   const [editFormData, setEditFormData] = useState({
     trip_number: '',
@@ -34,8 +42,10 @@ const TransportTripList = () => {
 
   const fetchTrips = async () => {
     try {
+      setLoading(true);
       const response = await api.get("/transport/trips/");
       setTrips(response.data);
+      setCurrentPage(1);
     } catch (error) {
       console.error("Failed to fetch trips:", error);
       alert("Failed to load transport trips.");
@@ -46,7 +56,6 @@ const TransportTripList = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this trip?")) return;
-
     try {
       setDeletingId(id);
       await api.delete(`/transport/trips/${id}/`);
@@ -89,11 +98,9 @@ const TransportTripList = () => {
 
     try {
       const response = await api.put(`/transport/trips/${editingTrip.id}/`, editFormData);
-      
       setTrips(prev => prev.map(trip =>
         trip.id === editingTrip.id ? { ...trip, ...response.data } : trip
       ));
-
       setShowEditModal(false);
       setEditingTrip(null);
       alert("Trip updated successfully!");
@@ -122,6 +129,21 @@ const TransportTripList = () => {
     });
   };
 
+  // Filter + Pagination
+  const filteredTrips = trips.filter(trip => 
+    `${trip.trip_number || ''} ${trip.vehicle_number || ''} ${trip.driver_name || ''} ${trip.customer_name || ''}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredTrips.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedTrips = filteredTrips.slice(startIndex, startIndex + itemsPerPage);
+
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
@@ -131,165 +153,234 @@ const TransportTripList = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 py-8">
-      <div className="max-w-7xl mx-auto px-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+    <div className="flex-1 p-8 bg-zinc-100 min-h-screen">
+      {/* Header - Exact Match with Fuel Entry */}
+      <div className="bg-white rounded-3xl p-6 border shadow-sm mb-6">
+        <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate("/transport")}
-              className="flex items-center gap-2 text-zinc-600 hover:text-zinc-900 transition"
+              className="p-3 hover:bg-zinc-100 rounded-2xl transition-colors"
             >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="font-medium">Back</span>
+              <ArrowLeft size={24} className="text-zinc-600" />
             </button>
+
+            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-md">
+              <Truck className="w-7 h-7 text-white" strokeWidth={2.5} />
+            </div>
             <div>
-              <h1 className="text-3xl font-bold text-zinc-900">Transport Trips</h1>
-              <p className="text-zinc-600 mt-1">Complete overview with Loading & Unloading times</p>
+              <h1 className="text-3xl font-bold text-gray-800">Transport Trips</h1>
+              <p className="text-zinc-500">Complete overview with Loading & Unloading times</p>
             </div>
           </div>
 
           <button
             onClick={() => navigate("/transport/create")}
-            className="px-6 py-3 bg-zinc-900 hover:bg-black text-white rounded-xl font-medium flex items-center gap-2 transition"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl flex items-center gap-2 font-medium"
           >
             + Create New Trip
           </button>
         </div>
-
-        {/* Table */}
-        <div className="bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px]">
-              <thead className="bg-zinc-100 sticky top-0">
-                <tr>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Trip Number</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Date</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Type</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Vehicle</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Driver</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Customer</th>
-
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">
-                    <div className="flex items-center gap-1">
-                      <Gauge className="w-4 h-4" /> KM
-                    </div>
-                  </th>
-
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Loading Time</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Actual Arrival</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Unloading Time</th>
-
-                  <th className="px-6 py-4 text-center font-medium text-zinc-700">Status</th>
-                  <th className="px-6 py-4 text-center font-medium text-zinc-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200">
-                {trips.length === 0 ? (
-                  <tr>
-                    <td colSpan="12" className="px-6 py-20 text-center text-zinc-500">
-                      No transport trips found.
-                    </td>
-                  </tr>
-                ) : (
-                  trips.map((trip) => (
-                    <tr key={trip.id} className="hover:bg-zinc-50 transition-colors">
-                      <td className="px-6 py-4 font-semibold text-zinc-900">{trip.trip_number}</td>
-                      <td className="px-6 py-4 text-zinc-600">
-                        {new Date(trip.trip_date).toLocaleDateString('en-IN')}
-                      </td>
-                      <td className="px-6 py-4 capitalize font-medium">{trip.trip_type}</td>
-                      <td className="px-6 py-4 font-medium">{trip.vehicle_number || trip.vehicle || "—"}</td>
-                      <td className="px-6 py-4 font-medium">{trip.driver_name || trip.driver || "—"}</td>
-                      <td className="px-6 py-4 text-zinc-700">{trip.customer_name || trip.customer || "—"}</td>
-
-                      {/* KM Column */}
-                      <td className="px-6 py-4">
-                        <div className="text-sm">
-                          <span className="font-medium">{trip.starting_km || 0}</span>
-                          <span className="text-zinc-400 mx-1">→</span>
-                          <span className="font-medium text-emerald-600">{trip.ending_km || "—"}</span>
-                        </div>
-                        {trip.total_distance > 0 && (
-                          <div className="text-xs text-emerald-600 font-medium">
-                            {trip.total_distance} km
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Loading Time */}
-                      <td className="px-6 py-4 text-sm">
-                        <div>{trip.loading_start_time ? formatDateTime(trip.loading_start_time) : "—"}</div>
-                        <div className="text-emerald-600">
-                          {trip.loading_end_time ? formatDateTime(trip.loading_end_time) : ""}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 text-sm">
-                        {formatDateTime(trip.actual_arrival)}
-                      </td>
-
-                      {/* Unloading Time */}
-                      <td className="px-6 py-4 text-sm">
-                        <div>{trip.unloading_start_time ? formatDateTime(trip.unloading_start_time) : "—"}</div>
-                        <div className="text-emerald-600">
-                          {trip.unloading_end_time ? formatDateTime(trip.unloading_end_time) : ""}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <select
-                          value={trip.trip_status}
-                          onChange={(e) => handleStatusUpdate(trip.id, e.target.value)}
-                          className={`px-4 py-1.5 text-xs font-semibold rounded-full border-0 cursor-pointer transition-all ${
-                            trip.trip_status === "planned" ? "bg-blue-100 text-blue-700" :
-                            trip.trip_status === "loading" ? "bg-purple-100 text-purple-700" :
-                            trip.trip_status === "in_transit" ? "bg-amber-100 text-amber-700" :
-                            trip.trip_status === "reached" ? "bg-indigo-100 text-indigo-700" :
-                            trip.trip_status === "unloading" ? "bg-orange-100 text-orange-700" :
-                            trip.trip_status === "completed" ? "bg-emerald-100 text-emerald-700" :
-                            "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          <option value="planned">PLANNED</option>
-                          <option value="loading">LOADING</option>
-                          <option value="in_transit">IN TRANSIT</option>
-                          <option value="reached">REACHED</option>
-                          <option value="unloading">UNLOADING</option>
-                          <option value="completed">COMPLETED</option>
-                          <option value="cancelled">CANCELLED</option>
-                        </select>
-                      </td>
-
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-4">
-                          <button
-                            onClick={() => handleEditClick(trip)}
-                            className="text-blue-600 hover:text-blue-700 transition"
-                            title="Edit Trip"
-                          >
-                            <Edit2 className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(trip.id)}
-                            disabled={deletingId === trip.id}
-                            className="text-red-600 hover:text-red-700 transition disabled:opacity-50"
-                            title="Delete"
-                          >
-                            {deletingId === trip.id ? "⏳" : "🗑️"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
 
-      {/* ==================== EDIT MODAL WITH LOADING & UNLOADING ==================== */}
+      {/* Table Card */}
+      <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
+        {/* Table Header with Search */}
+        <div className="p-6 border-b flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Trip Master</h2>
+          <div className="flex gap-3">
+            <div className="relative">
+              <Search size={18} className="absolute left-3 top-3.5 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Search trip, vehicle, driver..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-10 pr-4 py-3 border rounded-2xl w-80"
+              />
+            </div>
+            <button
+              onClick={fetchTrips}
+              className="border px-4 rounded-2xl hover:bg-zinc-50 transition"
+            >
+              <RefreshCw size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1400px]">
+            <thead className="bg-zinc-50">
+              <tr>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">Trip Number</th>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">Date</th>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">Type</th>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">Vehicle</th>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">Driver</th>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">Customer</th>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">
+                  <div className="flex items-center gap-1">
+                    <Gauge className="w-4 h-4" /> KM
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">Loading Time</th>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">Actual Arrival</th>
+                <th className="px-6 py-4 text-left font-medium text-zinc-700">Unloading Time</th>
+                <th className="px-6 py-4 text-center font-medium text-zinc-700">Status</th>
+                <th className="px-6 py-4 text-center font-medium text-zinc-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+              {paginatedTrips.length === 0 ? (
+                <tr>
+                  <td colSpan="12" className="px-6 py-20 text-center text-zinc-500">
+                    No transport trips found.
+                  </td>
+                </tr>
+              ) : (
+                paginatedTrips.map((trip) => (
+                  <tr key={trip.id} className="hover:bg-zinc-50 transition-colors">
+                    <td className="px-6 py-4 font-semibold text-zinc-900">{trip.trip_number}</td>
+                    <td className="px-6 py-4 text-zinc-600">
+                      {new Date(trip.trip_date).toLocaleDateString('en-IN')}
+                    </td>
+                    <td className="px-6 py-4 capitalize font-medium">{trip.trip_type}</td>
+                    <td className="px-6 py-4 font-medium">{trip.vehicle_number || trip.vehicle || "—"}</td>
+                    <td className="px-6 py-4 font-medium">{trip.driver_name || trip.driver || "—"}</td>
+                    <td className="px-6 py-4 text-zinc-700">{trip.customer_name || trip.customer || "—"}</td>
+
+                    <td className="px-6 py-4">
+                      <div className="text-sm">
+                        <span className="font-medium">{trip.starting_km || 0}</span>
+                        <span className="text-zinc-400 mx-1">→</span>
+                        <span className="font-medium text-emerald-600">{trip.ending_km || "—"}</span>
+                      </div>
+                      {trip.total_distance > 0 && (
+                        <div className="text-xs text-emerald-600 font-medium">
+                          {trip.total_distance} km
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm">
+                      <div>{trip.loading_start_time ? formatDateTime(trip.loading_start_time) : "—"}</div>
+                      <div className="text-emerald-600">
+                        {trip.loading_end_time ? formatDateTime(trip.loading_end_time) : ""}
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4 text-sm">
+                      {formatDateTime(trip.actual_arrival)}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm">
+                      <div>{trip.unloading_start_time ? formatDateTime(trip.unloading_start_time) : "—"}</div>
+                      <div className="text-emerald-600">
+                        {trip.unloading_end_time ? formatDateTime(trip.unloading_end_time) : ""}
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <select
+                        value={trip.trip_status}
+                        onChange={(e) => handleStatusUpdate(trip.id, e.target.value)}
+                        className={`px-4 py-1.5 text-xs font-semibold rounded-full border-0 cursor-pointer transition-all ${
+                          trip.trip_status === "planned" ? "bg-blue-100 text-blue-700" :
+                          trip.trip_status === "loading" ? "bg-purple-100 text-purple-700" :
+                          trip.trip_status === "in_transit" ? "bg-amber-100 text-amber-700" :
+                          trip.trip_status === "reached" ? "bg-indigo-100 text-indigo-700" :
+                          trip.trip_status === "unloading" ? "bg-orange-100 text-orange-700" :
+                          trip.trip_status === "completed" ? "bg-emerald-100 text-emerald-700" :
+                          "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        <option value="planned">PLANNED</option>
+                        <option value="loading">LOADING</option>
+                        <option value="in_transit">IN TRANSIT</option>
+                        <option value="reached">REACHED</option>
+                        <option value="unloading">UNLOADING</option>
+                        <option value="completed">COMPLETED</option>
+                        <option value="cancelled">CANCELLED</option>
+                      </select>
+                    </td>
+
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-4">
+                        <button
+                          onClick={() => handleEditClick(trip)}
+                          className="text-blue-600 hover:text-blue-700 transition"
+                          title="Edit Trip"
+                        >
+                          <Edit2 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(trip.id)}
+                          disabled={deletingId === trip.id}
+                          className="text-red-600 hover:text-red-700 transition disabled:opacity-50"
+                          title="Delete"
+                        >
+                          {deletingId === trip.id ? "⏳" : "🗑️"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {filteredTrips.length > 0 && (
+          <div className="px-6 py-4 border-t bg-zinc-50 flex items-center justify-between">
+            <div className="text-sm text-zinc-600">
+              Showing {startIndex + 1} to{" "}
+              {Math.min(startIndex + itemsPerPage, filteredTrips.length)} of{" "}
+              {filteredTrips.length} trips
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-3 border rounded-2xl hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => goToPage(pageNum)}
+                    className={`px-4 py-2 rounded-2xl text-sm font-medium transition ${
+                      currentPage === pageNum
+                        ? "bg-blue-600 text-white"
+                        : "border hover:bg-white"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-3 border rounded-2xl hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Edit Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[95vh] overflow-hidden shadow-2xl">
@@ -382,7 +473,7 @@ const TransportTripList = () => {
                 <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 py-3.5 border border-zinc-300 rounded-2xl hover:bg-zinc-50">
                   Cancel
                 </button>
-                <button type="submit" className="flex-1 py-3.5 bg-zinc-900 text-white rounded-2xl hover:bg-black">
+                <button type="submit" className="flex-1 py-3.5 bg-blue-600 text-white rounded-2xl hover:bg-blue-700">
                   Save Changes
                 </button>
               </div>

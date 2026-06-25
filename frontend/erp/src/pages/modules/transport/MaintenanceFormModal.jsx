@@ -18,8 +18,8 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
 
   const [vehicles, setVehicles] = useState([]);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);   // ← New: Loading state
-  const [submitError, setSubmitError] = useState(null);      // ← New: Error message
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   // Fetch Vehicles
   useEffect(() => {
@@ -40,7 +40,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
 
     if (isOpen) {
       fetchVehicles();
-      setSubmitError(null); // Reset error when modal opens
+      setSubmitError(null);
     }
   }, [isOpen]);
 
@@ -59,7 +59,6 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
         notes: initialData.notes || '',
       });
     } else {
-      // Reset form for new entry
       setFormData({
         vehicle: '',
         maintenance_type: '',
@@ -108,13 +107,10 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
         await api.post("/transport/vehicle-maintenance/", payload);
       }
 
-      // Success
-      onSuccess?.();   // Refresh list in parent
+      onSuccess?.();
       onClose();
-      
     } catch (err) {
       console.error("API Error:", err);
-      
       let errorMsg = 'Failed to save maintenance record. Please try again.';
       
       if (err.response?.data) {
@@ -126,7 +122,6 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
           errorMsg = err.response.data;
         }
       }
-
       setSubmitError(errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -136,18 +131,35 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         
-        <div className="p-6 border-b sticky top-0 bg-white z-10">
-          <h2 className="text-2xl font-semibold">
+        {/* Header with X Button */}
+        <div className="p-6 border-b sticky top-0 bg-white flex items-center justify-between">
+          <h2 className="text-2xl font-semibold text-gray-800">
             {initialData ? 'Edit Maintenance Record' : 'New Maintenance Record'}
           </h2>
+          
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="w-6 h-6" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6h12v12" />
+            </svg>
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        {/* Form Content */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1">
           
-          {/* Vehicle Dropdown */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Vehicle <span className="text-red-500">*</span>
@@ -163,7 +175,6 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
             />
           </div>
 
-          {/* Other fields remain same */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Maintenance Type</label>
@@ -173,7 +184,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 value={formData.maintenance_type}
                 onChange={handleChange}
                 required
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="e.g. Oil Change, Brake Service"
               />
             </div>
@@ -184,7 +195,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 name="service_center"
                 value={formData.service_center}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Service Center Name"
               />
             </div>
@@ -199,7 +210,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 value={formData.service_date}
                 onChange={handleChange}
                 required
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -209,7 +220,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 name="next_service_date"
                 value={formData.next_service_date}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -222,7 +233,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 name="cost"
                 value={formData.cost}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="0.00"
               />
             </div>
@@ -233,7 +244,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 name="odometer_reading"
                 value={formData.odometer_reading}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -242,7 +253,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="scheduled">Scheduled</option>
                 <option value="in_progress">In Progress</option>
@@ -258,12 +269,11 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
               value={formData.notes}
               onChange={handleChange}
               rows={4}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Additional remarks..."
             />
           </div>
 
-          {/* Error Message */}
           {submitError && (
             <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-sm">
               {submitError}
@@ -275,7 +285,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
             >
               Cancel
             </button>
@@ -283,7 +293,7 @@ const MaintenanceFormModal = ({ isOpen, onClose, onSuccess, initialData }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-70 flex items-center gap-2 transition"
             >
               {isSubmitting ? (
                 <>
