@@ -20,19 +20,26 @@ class MonthlyBudgetViewSet(viewsets.ModelViewSet):
     serializer_class = MonthlyBudgetSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_organization_user(self):
+    def get_organization(self):
+        user = self.request.user
+
+        # Main Admin / Sub Org Admin
+        if getattr(user, "role", None) in ["admin", "sub_org_admin"]:
+            return user.organization
+
+        # Other users
         org_user = OrganizationUser.objects.filter(
-            user=self.request.user,
+            user=user,
             is_active=True
         ).select_related("organization").first()
 
         if not org_user:
             raise PermissionDenied("User not linked to organization")
 
-        return org_user
+        return org_user.organization
 
     def get_queryset(self):
-        org = self.get_organization_user().organization
+        org = self.get_organization()
         qs = MonthlyBudget.objects.filter(organization=org)
 
         year_str = self.request.query_params.get('year')
@@ -56,7 +63,7 @@ class MonthlyBudgetViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(
-            organization=self.get_organization_user().organization,
+            organization=self.get_organization(),
             created_by=self.request.user,
             released=True  # Auto-release new budgets so they're immediately usable
         )

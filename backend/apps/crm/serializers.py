@@ -33,6 +33,12 @@ class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
         fields = '__all__'
+        read_only_fields = [
+            'organization',
+            'created_by',
+            'created_at',
+            'updated_at',
+        ]
 
     def get_can_direct_convert(self, obj):
         try:

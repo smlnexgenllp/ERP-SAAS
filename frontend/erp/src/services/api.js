@@ -88,10 +88,9 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // Handle 403 Forbidden (Permission issue, original logic)
+    // Handle 403 Forbidden
     if (error.response?.status === 403) {
-      console.error("Access forbidden. Redirecting to login.");
-      // You should probably check if the user is authenticated first
-      window.location.href = "/login";
+      console.error("Access forbidden.");
       return Promise.reject(error);
     }
 
