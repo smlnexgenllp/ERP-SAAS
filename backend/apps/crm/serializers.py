@@ -1,5 +1,3 @@
-
-
 from rest_framework import serializers
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -185,7 +183,3 @@ class QuotationSerializer(serializers.ModelSerializer):
         instance.grand_total = instance.total - instance.discount + instance.tax
         instance.save()
         return instance
-
-
-
-

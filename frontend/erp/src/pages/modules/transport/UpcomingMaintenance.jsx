@@ -1,6 +1,7 @@
 // src/components/maintenance/UpcomingMaintenance.jsx
 import React, { useEffect, useState } from 'react';
-import api from '../../../services/api'; // Adjust path as needed
+import api from '../../../services/api';
+import { Calendar, AlertTriangle } from "lucide-react";
 
 const UpcomingMaintenance = () => {
   const [upcoming, setUpcoming] = useState([]);
@@ -16,20 +17,15 @@ const UpcomingMaintenance = () => {
       setLoading(true);
       setError(null);
 
-      // ✅ Make sure this URL matches your router
       const res = await api.get('/transport/vehicle-maintenance/upcoming/');
 
-      // Handle both normal array and DRF paginated response
       let data = res.data;
       if (data.results && Array.isArray(data.results)) {
-        data = data.results;           // DRF pagination case
+        data = data.results;
       }
+      if (!Array.isArray(data)) data = [];
 
-      if (!Array.isArray(data)) {
-        data = [];
-      }
-
-      setUpcoming(data.slice(0, 5));   // Top 5 upcoming
+      setUpcoming(data.slice(0, 5)); // Show top 5
     } catch (err) {
       console.error("Error fetching upcoming maintenance", err);
       setError("Failed to load upcoming maintenance");
@@ -43,41 +39,52 @@ const UpcomingMaintenance = () => {
     switch (status) {
       case 'scheduled': return 'bg-yellow-100 text-yellow-700';
       case 'in_progress': return 'bg-blue-100 text-blue-700';
+      case 'completed': return 'bg-green-100 text-green-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">Upcoming Maintenance</h2>
-        <span className="text-sm text-blue-600 font-medium">Next 30 days</span>
+    <div className="bg-white rounded-3xl border shadow-sm p-6 h-full">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-amber-100 rounded-2xl flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-amber-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-800">Upcoming Maintenance</h2>
+        </div>
+        <span className="text-xs font-medium text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
+          Next 30 days
+        </span>
       </div>
 
       {loading ? (
-        <p className="text-gray-500 py-8 text-center">Loading upcoming maintenance...</p>
+        <div className="py-8 text-center text-zinc-500">Loading upcoming maintenance...</div>
       ) : error ? (
-        <p className="text-red-500 py-8 text-center">{error}</p>
+        <div className="py-8 text-center text-red-500">{error}</div>
       ) : upcoming.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No upcoming maintenance scheduled
+        <div className="py-12 text-center">
+          <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <p className="text-zinc-500">No upcoming maintenance scheduled</p>
         </div>
       ) : (
         <div className="space-y-4">
           {upcoming.map((item) => (
             <div
               key={item.id}
-              className="border border-gray-100 rounded-xl p-4 hover:border-blue-200 transition-colors"
+              className="border border-gray-100 rounded-2xl p-4 hover:border-blue-200 hover:shadow-sm transition-all duration-200"
             >
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start mb-2">
                 <div>
-                  <p className="font-semibold text-gray-900">{item.vehicle_number}</p>
-                  <p className="text-sm text-gray-600 mt-1">{item.maintenance_type}</p>
+                  <p className="font-semibold text-gray-900">
+                    {item.vehicle_number || item.vehicle?.vehicle_number || 'Unknown Vehicle'}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-0.5">{item.maintenance_type}</p>
                 </div>
                 <span
                   className={`text-xs px-3 py-1 rounded-full font-medium ${getStatusColor(item.status)}`}
                 >
-                  {item.status.replace('_', ' ')}
+                  {item.status ? item.status.replace('_', ' ').toUpperCase() : 'SCHEDULED'}
                 </span>
               </div>
 
@@ -89,8 +96,8 @@ const UpcomingMaintenance = () => {
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-gray-500">Cost: </span>
-                  <span className="font-semibold">
+                  <span className="text-gray-500">Est. Cost: </span>
+                  <span className="font-semibold text-emerald-600">
                     ₹{parseFloat(item.cost || 0).toLocaleString()}
                   </span>
                 </div>
@@ -99,17 +106,6 @@ const UpcomingMaintenance = () => {
           ))}
         </div>
       )}
-
-      {/* {upcoming.length > 0 && (
-        <div className="mt-4 text-center">
-          <button
-            onClick={() => (window.location.href = '/maintenance')}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-          >
-            View All Maintenance →
-          </button>
-        </div>
-      )} */}
     </div>
   );
 };

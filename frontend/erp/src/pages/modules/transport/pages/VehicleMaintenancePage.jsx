@@ -1,13 +1,13 @@
 // src/pages/VehicleMaintenancePage.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // ← Added this
+import { useNavigate } from 'react-router-dom';
 import MaintenanceList from '../MaintenanceList';
 import MaintenanceFormModal from '../MaintenanceFormModal';
 import UpcomingMaintenance from '../UpcomingMaintenance';
-import { ArrowLeft, List } from "lucide-react";
+import { ArrowLeft, Wrench } from "lucide-react";
 
 const VehicleMaintenancePage = () => {
-  const navigate = useNavigate(); // ← Added
+  const navigate = useNavigate();
 
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
@@ -24,29 +24,35 @@ const VehicleMaintenancePage = () => {
     setRefreshKey(prev => prev + 1); // Refresh list
   };
 
-  
-
   return (
-    <div className="p-6">
-      {/* Header with Back Button */}
-      <div className="flex items-center gap-4 mb-6">
-         <button
-                      onClick={() => navigate("/transport")}
-                      className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
-                    >
-                      <ArrowLeft size={20} />
-                      <span className="font-medium">Back</span>
-                    </button>
-      </div>
+    <div className="flex-1 p-8 bg-zinc-100 min-h-screen">
+      {/* Consistent Header */}
+      <div className="bg-white rounded-3xl p-6 border shadow-sm mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate("/transport")}
+              className="p-3 hover:bg-zinc-100 rounded-2xl transition-colors"
+            >
+              <ArrowLeft size={24} className="text-zinc-600" />
+            </button>
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Vehicle Maintenance</h1>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium flex items-center gap-2"
-        >
-          + New Maintenance
-        </button>
+            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-md">
+              <Wrench className="w-7 h-7 text-white" strokeWidth={2.5} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">Vehicle Maintenance</h1>
+              <p className="text-zinc-500">Track and manage vehicle service records</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl flex items-center gap-2 font-medium"
+          >
+            + New Maintenance
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
