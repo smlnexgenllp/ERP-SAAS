@@ -1,5 +1,3 @@
-
-
 from rest_framework import serializers
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -33,6 +31,12 @@ class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
         fields = '__all__'
+        read_only_fields = [
+            'organization',
+            'created_by',
+            'created_at',
+            'updated_at',
+        ]
 
     def get_can_direct_convert(self, obj):
         try:
@@ -179,7 +183,3 @@ class QuotationSerializer(serializers.ModelSerializer):
         instance.grand_total = instance.total - instance.discount + instance.tax
         instance.save()
         return instance
-
-
-
-
