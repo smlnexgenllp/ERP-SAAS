@@ -152,8 +152,17 @@ const AddEmployee = () => {
     <div className="min-h-screen bg-zinc-100 text-zinc-800 py-10">
       <div className="max-w-5xl mx-auto px-6">
         
-        {/* Header */}
-        <div className="flex items-center justify-between mb-10">
+        {/* Header with Back Button on Left */}
+        <div className="flex items-center gap-4 mb-10">
+          {/* Back Button - Now on the left */}
+          <button
+            onClick={() => navigate("/hr/dashboard")}
+            className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
+          >
+            <ArrowLeft size={20} />
+            <span className="font-medium">Back</span>
+          </button>
+
           <div className="flex items-center gap-5">
             <div className="w-14 h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-3xl flex items-center justify-center">
               <UserPlus className="w-8 h-8 text-white" />
@@ -165,14 +174,6 @@ const AddEmployee = () => {
               <p className="text-zinc-500">Create account and send invitation</p>
             </div>
           </div>
-
-          <button
-            onClick={() => navigate("/hr/dashboard")}
-            className="flex items-center gap-3 px-6 py-3 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-2xl text-zinc-600 hover:text-zinc-900 transition"
-          >
-            <ArrowLeft size={20} />
-            <span className="font-medium">Back to Dashboard</span>
-          </button>
         </div>
 
         {successMessage && (

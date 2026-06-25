@@ -8,10 +8,11 @@ import {
 } from "lucide-react";
 
 import api from "../../../services/api";
-import TransportSidebar from "./components/TransportSidebar";
 import DriverCreate from "./DriverCreate";
 
 export default function DriverList() {
+  const navigate = useNavigate();
+
   const [drivers, setDrivers] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -25,9 +26,7 @@ export default function DriverList() {
   const fetchDrivers = async () => {
     try {
       setLoading(true);
-
       const response = await api.get("/transport/drivers/");
-
       setDrivers(response.data || []);
     } catch (error) {
       console.error(error);
@@ -78,13 +77,8 @@ export default function DriverList() {
               </div>
 
               <div>
-                <h1 className="text-3xl font-bold">
-                  Driver Master
-                </h1>
-
-                <p className="text-zinc-500">
-                  Manage Transport Drivers
-                </p>
+                <h1 className="text-3xl font-bold">Driver Master</h1>
+                <p className="text-zinc-500">Manage Transport Drivers</p>
               </div>
             </div>
 
@@ -100,6 +94,7 @@ export default function DriverList() {
             </button>
           </div>
         </div>
+      </div>
 
         <div className="p-8">
           {/* Search */}
@@ -121,6 +116,7 @@ export default function DriverList() {
               />
             </div>
           </div>
+        </div>
 
           {/* Table */}
           <div className="bg-white rounded-3xl border overflow-hidden">
