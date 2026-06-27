@@ -27,7 +27,7 @@ export default function DriverList() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchDrivers();
@@ -52,6 +52,21 @@ export default function DriverList() {
     setShowCreate(true);
   };
 
+  const handleAddNew = () => {
+    setSelectedDriver(null);
+    setShowCreate(true);
+  };
+
+  const handleClose = () => {
+    setShowCreate(false);
+    setSelectedDriver(null);
+  };
+
+  const handleSuccess = () => {
+    fetchDrivers();
+    handleClose();
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this driver?")) return;
 
@@ -65,12 +80,12 @@ export default function DriverList() {
   };
 
   const filteredDrivers = drivers.filter((driver) =>
-    `${driver.full_name} ${driver.phone_number} ${driver.license_number}`
+    `${driver.full_name} ${driver.phone_number} ${driver.alternate_phone || ""} 
+     ${driver.license_number} ${driver.blood_group || ""} ${driver.address || ""}`
       .toLowerCase()
       .includes(search.toLowerCase())
   );
 
-  // Pagination Logic
   const totalPages = Math.ceil(filteredDrivers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedDrivers = filteredDrivers.slice(startIndex, startIndex + itemsPerPage);
@@ -102,10 +117,7 @@ export default function DriverList() {
           </div>
 
           <button
-            onClick={() => {
-              setSelectedDriver(null);
-              setShowCreate(true);
-            }}
+            onClick={handleAddNew}
             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl flex items-center gap-2 font-medium"
           >
             <Plus size={18} />
@@ -114,9 +126,8 @@ export default function DriverList() {
         </div>
       </div>
 
-      {/* Table Card */}
+      {/* Table */}
       <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
-        {/* Search Header */}
         <div className="p-6 border-b flex justify-between items-center">
           <h2 className="text-2xl font-bold">All Drivers</h2>
           <div className="flex gap-3">
@@ -124,7 +135,7 @@ export default function DriverList() {
               <Search size={18} className="absolute left-3 top-3.5 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Search by name, phone or license..."
+                placeholder="Search by name, phone, license..."
                 className="pl-10 pr-4 py-3 border rounded-2xl w-80"
                 value={search}
                 onChange={(e) => {
@@ -146,13 +157,18 @@ export default function DriverList() {
           <div className="p-12 text-center text-zinc-500">Loading Drivers...</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[1400px]">
               <thead className="bg-zinc-50">
                 <tr>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Name</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Phone</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">License</th>
-                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Expiry</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Full Name</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Phone Number</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Alternate Phone</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Blood Group</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">License Number</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">License Expiry</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Salary</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Salary Type</th>
+                  <th className="px-6 py-4 text-left font-medium text-zinc-700">Address</th>
                   <th className="px-6 py-4 text-left font-medium text-zinc-700">Status</th>
                   <th className="px-6 py-4 text-center font-medium text-zinc-700">Actions</th>
                 </tr>
@@ -160,7 +176,7 @@ export default function DriverList() {
               <tbody className="divide-y divide-zinc-200">
                 {paginatedDrivers.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="p-12 text-center text-zinc-500">
+                    <td colSpan="11" className="p-12 text-center text-zinc-500">
                       No drivers found.
                     </td>
                   </tr>
@@ -169,17 +185,30 @@ export default function DriverList() {
                     <tr key={driver.id} className="hover:bg-zinc-50 transition-colors">
                       <td className="px-6 py-4 font-medium">{driver.full_name}</td>
                       <td className="px-6 py-4">{driver.phone_number}</td>
+                      <td className="px-6 py-4">{driver.alternate_phone || "—"}</td>
+                      <td className="px-6 py-4">{driver.blood_group || "—"}</td>
                       <td className="px-6 py-4">{driver.license_number}</td>
-                      <td className="px-6 py-4">{driver.license_expiry || "—"}</td>
+                      <td className="px-6 py-4">
+                        {driver.license_expiry ? driver.license_expiry.split("T")[0] : "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                        {driver.salary ? `₹${driver.salary}` : "—"}
+                      </td>
+                      <td className="px-6 py-4 capitalize">{driver.salary_type || "—"}</td>
+                      <td className="px-6 py-4 max-w-xs truncate" title={driver.address}>
+                        {driver.address ? driver.address.substring(0, 60) + "..." : "—"}
+                      </td>
                       <td className="px-6 py-4">
                         <span
                           className={`px-3 py-1 rounded-full text-sm ${
                             driver.status === "active"
                               ? "bg-green-100 text-green-700"
+                              : driver.status === "on_leave"
+                              ? "bg-yellow-100 text-yellow-700"
                               : "bg-red-100 text-red-700"
                           }`}
                         >
-                          {driver.status || "Unknown"}
+                          {driver.status}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -257,15 +286,8 @@ export default function DriverList() {
       {showCreate && (
         <DriverCreate
           driver={selectedDriver}
-          onClose={() => {
-            setShowCreate(false);
-            setSelectedDriver(null);
-          }}
-          onSuccess={() => {
-            fetchDrivers();
-            setShowCreate(false);
-            setSelectedDriver(null);
-          }}
+          onClose={handleClose}
+          onSuccess={handleSuccess}
         />
       )}
     </div>
