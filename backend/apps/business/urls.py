@@ -1,6 +1,14 @@
+# apps/business/urls.py
+
 from django.urls import path
-from .views import AnalyticsDashboardView
+from . import views
+
+app_name = "business"
 
 urlpatterns = [
-    path('kpis/', AnalyticsDashboardView.as_view(), name='analytics-kpis'),
+    path(
+        "dashboard/",
+        views.business_dashboard,
+        name="business-dashboard",
+    ),
 ]
