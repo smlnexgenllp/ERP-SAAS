@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'apps.payroll',
     "apps.finance.apps.FinanceConfig",
     'apps.production',
+    'apps.business',
 ]
 
 # Custom User Model

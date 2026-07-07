@@ -1,162 +1,366 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum, Count, F, Q
-from django.utils import timezone
-from datetime import datetime, timedelta
 from decimal import Decimal
 
-from apps.sales.models import SalesOrder, SalesOrderItem
-from apps.inventory.models import PurchaseOrder
-from apps.finance.models import Transaction  # assuming this exists
-from apps.organizations.models import Organization  # if needed
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
 
-class AnalyticsDashboardView(APIView):
-    permission_classes = [IsAuthenticated]
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from apps.finance.models.bank_reconciliation import BankAccount, BankTransaction
+from apps.finance.models.gst_reconciliation import GSTReconciliation
+from apps.finance.models.chart_of_accounts import ChartOfAccount
+from apps.finance.models.party import Party
+from apps.finance.models.transaction import Transaction
+from apps.finance.models.budget import MonthlyBudget
+from apps.finance.models.department_budget import DepartmentBudget
+from apps.finance.models.vendor import Vendor
+from apps.crm.models import (
+    Contact,
+    Opportunity,
+    Customer,
+    Quotation,
+    Product,
+)
 
-    def get(self, request):
-        organization = request.user.organization if hasattr(request.user, 'organization') else None
-        from_date = request.query_params.get('fromDate')
-        to_date = request.query_params.get('toDate')
+from apps.sales.models import (
+    SalesOrder,
+    SalesInvoice,
+)
 
-        # Default date range (last 6 months)
-        if not from_date:
-            from_date = (timezone.now() - timedelta(days=180)).date()
-        else:
-            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+from apps.inventory.models import (
+    Dispatch,
+    Item,
+)
 
-        if not to_date:
-            to_date = timezone.now().date()
-        else:
-            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
 
-        # ====================== KPIs ======================
-        # Revenue from Confirmed/Delivered Sales Orders
-        revenue = SalesOrder.objects.filter(
-            organization=organization,
-            order_date__gte=from_date,
-            order_date__lte=to_date,
-            status__in=['confirmed', 'processing', 'shipped', 'delivered']
-        ).aggregate(total=Sum('grand_total'))['total'] or Decimal('0')
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def business_dashboard(request):
 
-        # Expenses from Purchase Orders
-        expenses = PurchaseOrder.objects.filter(
-            organization=organization,
-            created_at__date__gte=from_date,
-            created_at__date__lte=to_date,
-            status__in=['approved', 'closed']
-        ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    organization = request.GET.get("organization")
+    from_date = request.GET.get("fromDate")
+    to_date = request.GET.get("toDate")
 
-        net_profit = revenue - expenses
+    contacts = Contact.objects.all()
+    opportunities = Opportunity.objects.all()
+    customers = Customer.objects.all()
+    quotations = Quotation.objects.all()
+    sales_orders = SalesOrder.objects.all()
+    dispatches = Dispatch.objects.all()
+    invoices = SalesInvoice.objects.all()
+    products = Product.objects.all()
+    items = Item.objects.all()
+    vendors = Vendor.objects.all()
+    monthly_budgets = MonthlyBudget.objects.all()
+    department_budgets = DepartmentBudget.objects.all()
+    bank_accounts = BankAccount.objects.all()
+    bank_transactions = BankTransaction.objects.all()
+    gst_records = GSTReconciliation.objects.all()
+    chart_accounts = ChartOfAccount.objects.all()
+    ledger_transactions = Transaction.objects.all()
+    parties = Party.objects.all()
 
-        total_orders = SalesOrder.objects.filter(
-            organization=organization,
-            order_date__gte=from_date,
-            order_date__lte=to_date
-        ).count()
+    # ----------------------------
+    # Organization Filter
+    # ----------------------------
 
-        kpis = [
-            {
-                "title": "Total Revenue",
-                "value": f"₹{revenue:,.2f}",
-                "color": "#16a34a",
-                "change": 18.5   # You can calculate real % change later
-            },
-            {
-                "title": "Total Expenses",
-                "value": f"₹{expenses:,.2f}",
-                "color": "#dc2626",
-                "change": -4.8
-            },
-            {
-                "title": "Net Profit",
-                "value": f"₹{net_profit:,.2f}",
-                "color": "#2563eb",
-                "change": 24.7
-            },
-            {
-                "title": "Total Orders",
-                "value": str(total_orders),
-                "color": "#000000",
-                "change": 12.3
-            },
-        ]
+    if organization:
 
-        # ====================== Monthly Trend ======================
-        monthly = []
-        current = from_date.replace(day=1)
+        contacts = contacts.filter(
+            organization_id=organization
+        )
 
-        while current <= to_date:
-            next_month = (current + timedelta(days=32)).replace(day=1)
-            
-            month_revenue = SalesOrder.objects.filter(
-                organization=organization,
-                order_date__gte=current,
-                order_date__lt=next_month,
-                status__in=['confirmed', 'processing', 'shipped', 'delivered']
-            ).aggregate(total=Sum('grand_total'))['total'] or 0
+        customers = customers.filter(
+            organization_id=organization
+        )
 
-            month_expense = PurchaseOrder.objects.filter(
-                organization=organization,
-                created_at__date__gte=current,
-                created_at__date__lt=next_month,
-                status__in=['approved', 'closed']
-            ).aggregate(total=Sum('total_amount'))['total'] or 0
+        opportunities = opportunities.filter(
+            contact__organization_id=organization
+        )
 
-            monthly.append({
-                "month": current.strftime("%b"),
-                "revenue": float(month_revenue) / 1000000,   # in Millions
-                "expense": float(month_expense) / 1000000,
-                "profit": float(month_revenue - month_expense) / 1000000,
-            })
+        quotations = quotations.filter(
+            opportunity__contact__organization_id=organization
+        )
 
-            current = next_month
+        sales_orders = sales_orders.filter(
+            organization_id=organization
+        )
 
-        # ====================== Top Branches / Organizations ======================
-        top_branches = SalesOrder.objects.filter(
-            organization=organization,
-            order_date__gte=from_date,
-            order_date__lte=to_date
-        ).values('organization__name').annotate(
-            revenue=Sum('grand_total')
-        ).order_by('-revenue')[:5]
+        dispatches = dispatches.filter(
+            organization_id=organization
+        )
 
-        top_branches = [
-            {
-                "name": item['organization__name'] or "Main Branch",
-                "revenue": round(float(item['revenue'] or 0) / 1000000, 2)
-            }
-            for item in top_branches
-        ]
+        invoices = invoices.filter(
+            organization_id=organization
+        )
 
-        # ====================== Recent Activities ======================
-        recent_activities = []
+        products = products.filter(
+            organization_id=organization
+        )
+
+        items = items.filter(
+            organization_id=organization
+        )
+        vendors = vendors.filter(
+            organization_id=organization
+        )
+
+        monthly_budgets = monthly_budgets.filter(
+            organization_id=organization
+        )
         
-        # Recent Sales
-        recent_sales = SalesOrder.objects.filter(
-            organization=organization
-        ).order_by('-created_at')[:5]
 
-        for order in recent_sales:
-            recent_activities.append({
-                "text": f"Sales Order {order.order_number} - {order.status.upper()}",
-                "time": order.created_at.strftime("%d %b, %I:%M %p")
-            })
+        bank_accounts = bank_accounts.filter(
+            organization_id=organization
+        )
 
-        # Recent Purchase Orders
-        recent_pos = PurchaseOrder.objects.filter(
-            organization=organization
-        ).order_by('-created_at')[:3]
+        gst_records = gst_records.filter(
+            organization_id=organization
+        )
 
-        for po in recent_pos:
-            recent_activities.append({
-                "text": f"Purchase Order {po.po_number} - {po.status.upper()}",
-                "time": po.created_at.strftime("%d %b, %I:%M %p")
-            })
+        chart_accounts = chart_accounts.filter(
+            organization_id=organization
+        )
 
-        return Response({
-            "kpis": kpis,
-            "monthly": monthly,
-            "top_branches": top_branches,
-            "recent_activities": recent_activities,
-        })
+        parties = parties.filter(
+            organization_id=organization
+        )
+        department_budgets = department_budgets.filter(
+            monthly_budget__organization_id=organization
+        )
+        department_budgets = department_budgets.filter(
+            monthly_budget__organization_id=organization
+        )
+        ledger_transactions = ledger_transactions.filter(
+            voucher__organization_id=organization
+        )
+        bank_transactions = bank_transactions.filter(
+            bank_account__organization_id=organization
+        )
+                
+    # ----------------------------
+    # Date Filter
+    # ----------------------------
+
+    if from_date and to_date:
+
+        contacts = contacts.filter(
+            created_at__date__range=[from_date, to_date]
+        )
+
+        customers = customers.filter(
+            customer_since__range=[from_date, to_date]
+        )
+
+        opportunities = opportunities.filter(
+            created_at__date__range=[from_date, to_date]
+        )
+        quotations = quotations.filter(
+            date__range=[from_date, to_date]
+        )
+
+        sales_orders = sales_orders.filter(
+            order_date__range=[from_date, to_date]
+        )
+
+        dispatches = dispatches.filter(
+            dispatch_date__range=[from_date, to_date]
+        )
+
+        invoices = invoices.filter(
+            invoice_date__range=[from_date, to_date]
+        )
+
+        products = products.filter(
+            created_at__date__range=[from_date, to_date]
+        )
+
+        items = items.filter(
+            created_at__date__range=[from_date, to_date]
+        )
+        monthly_budgets = monthly_budgets.filter(
+            month__range=[from_date, to_date]
+        )
+
+        bank_transactions = bank_transactions.filter(
+            transaction_date__range=[from_date, to_date]
+        )
+
+        gst_records = gst_records.filter(
+            created_at__date__range=[from_date, to_date]
+        )
+
+        vendors = vendors.filter(
+            created_at__date__range=[from_date, to_date]
+        )
+    # ----------------------------
+    # Dashboard Calculations
+    # ----------------------------
+
+    revenue = invoices.aggregate(
+        total=Coalesce(Sum("grand_total"), Decimal("0"))
+    )["total"]
+
+    expense = items.aggregate(
+        total=Coalesce(
+            Sum("standard_price"),
+            Decimal("0")
+        )
+    )["total"]
+
+    inventory_value = sum(
+        (item.current_stock or Decimal("0")) *
+        (item.standard_price or Decimal("0"))
+        for item in items
+    )
+
+    profit = revenue - expense
+    budget_amount = monthly_budgets.aggregate(
+        total=Coalesce(
+            Sum("amount"),
+            Decimal("0")
+        )
+    )["total"]
+
+    allocated_budget = department_budgets.aggregate(
+        total=Coalesce(
+            Sum("allocated_amount"),
+            Decimal("0")
+        )
+    )["total"]
+
+    used_budget = department_budgets.aggregate(
+        total=Coalesce(
+            Sum("used_amount"),
+            Decimal("0")
+        )
+    )["total"]
+
+    bank_balance = bank_accounts.aggregate(
+        total=Coalesce(
+            Sum("current_balance"),
+            Decimal("0")
+        )
+    )["total"]
+
+    debit_total = ledger_transactions.aggregate(
+        total=Coalesce(
+            Sum("debit"),
+            Decimal("0")
+        )
+    )["total"]
+
+    credit_total = ledger_transactions.aggregate(
+        total=Coalesce(
+            Sum("credit"),
+            Decimal("0")
+        )
+    )["total"]
+    response = {
+
+        # KPI Cards
+        "revenue": revenue,
+        "expense": expense,
+        "profit": profit,
+        "orders": sales_orders.count(),
+        "customers": customers.count(),
+        "quotations": quotations.count(),
+        "products": products.count(),
+        "inventory_value": inventory_value,
+
+        # CRM
+        "contacts": contacts.count(),
+        "opportunities": opportunities.count(),
+        "pipeline_value": opportunities.aggregate(
+            total=Coalesce(
+                Sum("value"),
+                Decimal("0")
+            )
+        )["total"],
+
+        "won_opportunities": opportunities.filter(
+            stage="won"
+        ).count(),
+
+        "lost_opportunities": opportunities.filter(
+            stage="lost"
+        ).count(),
+
+        # Sales
+        "sales_orders": sales_orders.count(),
+
+        "sales_order_value": sales_orders.aggregate(
+            total=Coalesce(
+                Sum("grand_total"),
+                Decimal("0")
+            )
+        )["total"],
+
+        "dispatches": dispatches.count(),
+
+        "invoices": invoices.count(),
+
+        "invoice_value": revenue,
+
+        # Quotations
+        "quotation_value": quotations.aggregate(
+            total=Coalesce(
+                Sum("grand_total"),
+                Decimal("0")
+            )
+        )["total"],
+
+        "pending_quotations": quotations.filter(
+            status="draft"
+        ).count(),
+
+        "accepted_quotations": quotations.filter(
+            status="accepted"
+        ).count(),
+
+        # Invoice Status
+        "paid_invoices": invoices.filter(
+            status="paid"
+        ).count(),
+
+        "pending_invoices": invoices.exclude(
+            status="paid"
+        ).count(),
+        # ---------------- Finance ----------------
+
+        "vendors": vendors.count(),
+
+        "parties": parties.count(),
+
+        "bank_accounts": bank_accounts.count(),
+
+        "bank_balance": bank_balance,
+
+        "monthly_budget": budget_amount,
+
+        "allocated_budget": allocated_budget,
+
+        "used_budget": used_budget,
+
+        "remaining_budget": budget_amount - used_budget,
+
+        "ledger_debit": debit_total,
+
+        "ledger_credit": credit_total,
+
+        "chart_accounts": chart_accounts.count(),
+
+        "gst_records": gst_records.count(),
+
+        "matched_gst": gst_records.filter(
+            status="matched"
+        ).count(),
+
+        "mismatch_gst": gst_records.filter(
+            status="mismatch"
+        ).count(),
+
+        "bank_transactions": bank_transactions.count(),
+    }
+
+    return Response(response)
