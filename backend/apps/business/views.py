@@ -14,6 +14,15 @@ from apps.finance.models.transaction import Transaction
 from apps.finance.models.budget import MonthlyBudget
 from apps.finance.models.department_budget import DepartmentBudget
 from apps.finance.models.vendor import Vendor
+from apps.transport.models import (
+    Vehicle,
+    Driver,
+    TransportTrip,
+    FuelEntry,
+    VehicleMaintenance,
+    TransportExpense,
+    TransportInvoice,
+)
 from apps.crm.models import (
     Contact,
     Opportunity,
@@ -59,7 +68,13 @@ def business_dashboard(request):
     chart_accounts = ChartOfAccount.objects.all()
     ledger_transactions = Transaction.objects.all()
     parties = Party.objects.all()
-
+    vehicles = Vehicle.objects.all()
+    drivers = Driver.objects.all()
+    trips = TransportTrip.objects.all()
+    fuel_entries = FuelEntry.objects.all()
+    maintenance = VehicleMaintenance.objects.all()
+    transport_expenses = TransportExpense.objects.all()
+    transport_invoices = TransportInvoice.objects.all()
     # ----------------------------
     # Organization Filter
     # ----------------------------
@@ -137,6 +152,13 @@ def business_dashboard(request):
         bank_transactions = bank_transactions.filter(
             bank_account__organization_id=organization
         )
+        vehicles = vehicles.filter(organization_id=organization)
+        drivers = drivers.filter(organization_id=organization)
+        trips = trips.filter(organization_id=organization)
+        fuel_entries = fuel_entries.filter(organization_id=organization)
+        maintenance = maintenance.filter(organization_id=organization)
+        transport_expenses = transport_expenses.filter(organization_id=organization)
+        transport_invoices = transport_invoices.filter(organization_id=organization)
                 
     # ----------------------------
     # Date Filter
@@ -193,6 +215,25 @@ def business_dashboard(request):
         vendors = vendors.filter(
             created_at__date__range=[from_date, to_date]
         )
+        trips = trips.filter(
+            trip_date__range=[from_date, to_date]
+        )
+
+        fuel_entries = fuel_entries.filter(
+            fuel_date__range=[from_date, to_date]
+        )
+
+        maintenance = maintenance.filter(
+            service_date__range=[from_date, to_date]
+        )
+
+        transport_expenses = transport_expenses.filter(
+            expense_date__range=[from_date, to_date]
+        )
+
+        transport_invoices = transport_invoices.filter(
+            invoice_date__range=[from_date, to_date]
+        )
     # ----------------------------
     # Dashboard Calculations
     # ----------------------------
@@ -213,8 +254,34 @@ def business_dashboard(request):
         (item.standard_price or Decimal("0"))
         for item in items
     )
+    transport_revenue = transport_invoices.aggregate(
+        total=Coalesce(
+            Sum("grand_total"),
+            Decimal("0")
+        )
+    )["total"]
 
-    profit = revenue - expense
+    transport_expense = transport_expenses.aggregate(
+        total=Coalesce(
+            Sum("amount"),
+            Decimal("0")
+        )
+    )["total"]
+
+    fuel_cost = fuel_entries.aggregate(
+        total=Coalesce(
+            Sum("amount"),
+            Decimal("0")
+        )
+    )["total"]
+
+    maintenance_cost = maintenance.aggregate(
+        total=Coalesce(
+            Sum("cost"),
+            Decimal("0")
+        )
+    )["total"]
+
     budget_amount = monthly_budgets.aggregate(
         total=Coalesce(
             Sum("amount"),
@@ -256,11 +323,22 @@ def business_dashboard(request):
             Decimal("0")
         )
     )["total"]
+    total_revenue = revenue + transport_revenue
+
+    total_expense = (
+        expense
+        + transport_expense
+        + fuel_cost
+        + maintenance_cost
+    )
+
+    profit = total_revenue - total_expense
+    
     response = {
 
         # KPI Cards
-        "revenue": revenue,
-        "expense": expense,
+        "revenue": total_revenue,
+        "expense": total_expense,
         "profit": profit,
         "orders": sales_orders.count(),
         "customers": customers.count(),
@@ -361,6 +439,45 @@ def business_dashboard(request):
         ).count(),
 
         "bank_transactions": bank_transactions.count(),
+        # Transport
+
+        "vehicles": vehicles.count(),
+
+        "available_vehicles": vehicles.filter(
+            status="available"
+        ).count(),
+
+        "vehicles_on_trip": vehicles.filter(
+            status="on_trip"
+        ).count(),
+
+        "maintenance_vehicles": vehicles.filter(
+            status="maintenance"
+        ).count(),
+
+        "drivers": drivers.count(),
+
+        "active_drivers": drivers.filter(
+            status="active"
+        ).count(),
+
+        "trips": trips.count(),
+
+        "completed_trips": trips.filter(
+            trip_status="completed"
+        ).count(),
+
+        "in_transit_trips": trips.filter(
+            trip_status="in_transit"
+        ).count(),
+
+        "transport_revenue": transport_revenue,
+
+        "transport_expense": transport_expense,
+
+        "fuel_cost": fuel_cost,
+
+        "maintenance_cost": maintenance_cost,
     }
 
     return Response(response)

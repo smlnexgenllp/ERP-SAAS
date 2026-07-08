@@ -71,7 +71,21 @@ const AnalyticsDashboard = () => {
   const [topProducts, setTopProducts] = useState([]);
   const [lowStockItems, setLowStockItems] = useState([]);
   const [activities, setActivities] = useState([]);
-
+const [transport, setTransport] = useState({
+  vehicles: 0,
+  availableVehicles: 0,
+  maintenanceVehicles: 0,
+  vehiclesOnTrip: 0,
+  drivers: 0,
+  activeDrivers: 0,
+  trips: 0,
+  completedTrips: 0,
+  inTransitTrips: 0,
+  revenue: 0,
+  expense: 0,
+  fuel: 0,
+  maintenance: 0,
+});
   const fetchDashboard = useCallback(async () => {
     try {
       setLoading(true);
@@ -169,6 +183,24 @@ const AnalyticsDashboard = () => {
         ledgerDebit: data.ledger_debit || 0,
         ledgerCredit: data.ledger_credit || 0,
       });
+      setTransport({
+  vehicles: data.vehicles || 0,
+  availableVehicles: data.available_vehicles || 0,
+  maintenanceVehicles: data.maintenance_vehicles || 0,
+  vehiclesOnTrip: data.vehicles_on_trip || 0,
+
+  drivers: data.drivers || 0,
+  activeDrivers: data.active_drivers || 0,
+
+  trips: data.trips || 0,
+  completedTrips: data.completed_trips || 0,
+  inTransitTrips: data.in_transit_trips || 0,
+
+  revenue: data.transport_revenue || 0,
+  expense: data.transport_expense || 0,
+  fuel: data.fuel_cost || 0,
+  maintenance: data.maintenance_cost || 0,
+});
 
       setTopBranches(data.top_branches || []);
       setRecentOrders(data.recent_orders || []);
@@ -361,6 +393,63 @@ const AnalyticsDashboard = () => {
             ))}
           </div>
         </div>
+        {/* ============================
+      TRANSPORT OVERVIEW
+============================ */}
+
+<div className="mb-12">
+
+  <h2 className="text-2xl font-semibold mb-6">
+    Transport Overview
+  </h2>
+
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+
+    <div className="bg-white rounded-3xl shadow-sm p-6">
+      <p className="text-slate-500">Vehicles</p>
+      <h3 className="text-3xl font-bold mt-3">
+        {transport.vehicles}
+      </h3>
+    </div>
+
+    <div className="bg-white rounded-3xl shadow-sm p-6">
+      <p className="text-slate-500">Drivers</p>
+      <h3 className="text-3xl font-bold mt-3">
+        {transport.drivers}
+      </h3>
+    </div>
+
+    <div className="bg-white rounded-3xl shadow-sm p-6">
+      <p className="text-slate-500">Trips</p>
+      <h3 className="text-3xl font-bold mt-3">
+        {transport.trips}
+      </h3>
+    </div>
+
+    <div className="bg-white rounded-3xl shadow-sm p-6">
+      <p className="text-slate-500">Revenue</p>
+      <h3 className="text-3xl font-bold mt-3 text-green-600">
+        ₹{transport.revenue.toLocaleString()}
+      </h3>
+    </div>
+
+    <div className="bg-white rounded-3xl shadow-sm p-6">
+      <p className="text-slate-500">Expense</p>
+      <h3 className="text-3xl font-bold mt-3 text-red-600">
+        ₹{transport.expense.toLocaleString()}
+      </h3>
+    </div>
+
+    <div className="bg-white rounded-3xl shadow-sm p-6">
+      <p className="text-slate-500">Fuel Cost</p>
+      <h3 className="text-3xl font-bold mt-3 text-orange-600">
+        ₹{transport.fuel.toLocaleString()}
+      </h3>
+    </div>
+
+  </div>
+
+</div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-12 gap-8 mb-12">
@@ -378,9 +467,8 @@ const AnalyticsDashboard = () => {
                 <Line type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={4} name="Expense" dot={{ r: 6 }} />
                 <Line type="monotone" dataKey="profit" stroke="#2563eb" strokeWidth={4} name="Profit" dot={{ r: 6 }} />
               </LineChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>            
           </div>
-
           {/* CRM Pie */}
           <div className="col-span-12 xl:col-span-4 bg-white rounded-3xl shadow-sm p-8">
             <h2 className="text-2xl font-semibold mb-6">CRM Opportunities</h2>
@@ -469,7 +557,6 @@ const AnalyticsDashboard = () => {
             </div>
           </div>
         )}
-
         {/* Tables Row */}
         <div className="grid grid-cols-12 gap-8">
           {/* Top Customers */}
@@ -506,7 +593,6 @@ const AnalyticsDashboard = () => {
               </table>
             </div>
           </div>
-
           {/* Recent Orders */}
           <div className="col-span-12 lg:col-span-6 bg-white rounded-3xl shadow-sm p-8">
             <h2 className="text-2xl font-semibold mb-6">Recent Sales Orders</h2>
@@ -537,7 +623,6 @@ const AnalyticsDashboard = () => {
             </div>
           </div>
         </div>
-
         {/* Low Stock & Activities */}
         <div className="grid grid-cols-12 gap-8 mt-8">
           {/* Low Stock */}
@@ -575,7 +660,6 @@ const AnalyticsDashboard = () => {
               </table>
             </div>
           </div>
-
           {/* Recent Activities */}
           <div className="col-span-12 lg:col-span-7 bg-white rounded-3xl shadow-sm p-8">
             <h2 className="text-2xl font-semibold mb-6">Recent Activities</h2>
@@ -599,7 +683,6 @@ const AnalyticsDashboard = () => {
             </div>
           </div>
         </div>
-
         {/* Bottom Highlight Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
           <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-3xl p-8 shadow-xl">
@@ -607,13 +690,11 @@ const AnalyticsDashboard = () => {
             <p className="text-5xl font-bold mt-6">₹{summary.revenue.toLocaleString()}</p>
             <p className="mt-4 opacity-75">Period: {filters.fromDate} — {filters.toDate}</p>
           </div>
-
           <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-3xl p-8 shadow-xl">
             <h3 className="text-lg opacity-90">Net Profit</h3>
             <p className="text-5xl font-bold mt-6">₹{summary.profit.toLocaleString()}</p>
             <p className="mt-4 opacity-75">After all expenses</p>
           </div>
-
           <div className="bg-gradient-to-br from-amber-600 to-orange-700 text-white rounded-3xl p-8 shadow-xl">
             <h3 className="text-lg opacity-90">Inventory Value</h3>
             <p className="text-5xl font-bold mt-6">₹{summary.inventoryValue.toLocaleString()}</p>
@@ -624,5 +705,4 @@ const AnalyticsDashboard = () => {
     </div>
   );
 };
-
 export default AnalyticsDashboard;
